@@ -1256,6 +1256,7 @@ describe("indexAll", () => {
       )
       .all("30_Projekte/Leuchtturm/Leuchtturm.md") as { from_path: string }[];
     expect(back.map((b) => b.from_path)).toEqual([
+      "00_Index/Start.md",
       "30_Projekte/Leuchtturm/Calls/2026-08-01 Call Hafen.md",
       "30_Projekte/_Projekt_Index.md",
       "40_Tech_Stack/Stack.md",
@@ -1705,6 +1706,7 @@ describe("GET /api/vault/note", () => {
       "2026-08-01 Call Hafen",
       "Lessons",
       "Stack",
+      "Start",
       "_Projekt_Index",
     ]);
   });
