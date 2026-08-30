@@ -20,8 +20,8 @@ which is what makes running the checks locally a requirement rather than a court
 
 ## 1. Understand before changing
 
-- Read the app's docs first: [crm/](./crm/), [space/](./space/), [rolodex/](./rolodex/),
-  [groove/](./groove/). Each holds an IMPLEMENTATION.md with the domain rules and the traps, and a
+- Read the app's docs first: [crm/](./crm/), [space/](./space/), [rolodex/](./rolodex/).
+  Each holds an IMPLEMENTATION.md with the domain rules and the traps, and a
   REQUIREMENTS.md with the original brief.
 - For a bug, **prove the root cause before fixing it.** Reproduce it, measure it, show the evidence.
   Do not apply a workaround to a symptom you have not explained. If a fix depends on a guess, the
@@ -57,21 +57,20 @@ Three layers, each with a different job. Add to whichever ones the change touche
 
 vitest, server and web. Server suites live in `server/test/{crm,space,rolodex}/`; web suites sit
 beside the code they cover. Coverage is measured across every app at 80% statements and currently
-sits at 87% on the server and 86% on web, with `web/src/groove/audio/**` excluded because jsdom has
-no `AudioContext`.
+sits at 87% on the server and 86% on web.
 
 Use these for logic with edges: calculations, filtering, sorting, migrations, data transforms. A
 new derived value or a new column default should get one.
 
 jsdom implements no layout, no pointer capture, no canvas, no audio and no `Blob.text()`, so any
 component that measures itself or reads a file needs a stub before it will render at all.
-[CONTROLS.md](./CONTROLS.md) lists the seven that have bitten so far and what each suite does
+[CONTROLS.md](./CONTROLS.md) lists the six that have bitten so far and what each suite does
 about them - read it before concluding that a component is untestable.
 
 ### End-to-end tests - `npm run e2e`
 
-Playwright, in `e2e/`. Layout: `smoke.spec.ts` (the seams between the apps), then `crm/`, `space/`,
-`groove/`. `e2e/tools/screenshots.mjs` is not part of the suite - it drives a running app and
+Playwright, in `e2e/`. Layout: `smoke.spec.ts` (the seams between the apps), then `crm/`, `space/`.
+`e2e/tools/screenshots.mjs` is not part of the suite - it drives a running app and
 captures every screen in both themes, for reviewing a visual change in one pass.
 
 Rules that keep this suite reliable:
@@ -97,21 +96,6 @@ Rules that keep this suite reliable:
 - `getByRole` name matching is substring-based: `{ name: "BASS step 1" }` also matches steps 10-16.
   Pass `exact: true` for numbered labels. **This is a Playwright rule only** - Testing Library's
   `name` already matches the whole string, and `exact` is not one of its options there.
-- **Never poll a periodic value for a one-off reading.** `expect.poll` settles at a 1s interval
-  once it has worked through its defaults of 100, 250, 500, 1000ms. Groove's playhead is periodic -
-  134ms a step, 2.14s a bar - so each poll advances 7.47 steps and two polls fall a step short of
-  the bar, which walks the samples backwards through it in a comb: 12, 11, 10, 9. "Wait for the
-  playhead to pass step 12" could therefore miss steps 13 to 15 for a whole 10s window, and this
-  spec failed roughly 1 run in 60 because of it. Heavy CPU load moved the phase, which made it look
-  like an audio-clock problem for a while; it was not - the headless audio clock measures within
-  0.1% of real time and rAF runs at 119fps. **Accumulate instead**: `recordSteps` in
-  `e2e/groove/instrument.spec.ts` collects every step the LED strip lights via a MutationObserver
-  in the page, and the spec polls that set until most of the bar has been seen. A value that only
-  ever grows cannot be aliased by the poll interval. The threshold is 12 of 16 rather than all 16
-  because the engine's draw loop reports one step per frame, so a machine slower than 7.5fps
-  renders a bar with gaps: measured with CDP CPU throttling, 12 holds to a 50x slowdown, where all
-  16 would start failing at 50x and 13 of 16 at 30x. Throttle the renderer through CDP to check
-  that kind of thing - do not put load on the machine.
 
 Run one file while iterating: `npx playwright test e2e/crm/revenue.spec.ts --retries=0`.
 
@@ -142,7 +126,6 @@ Traps worth knowing:
 - Refs go stale after navigation - re-snapshot before clicking.
 - `snapshot -i` lists only interactive elements; a container with a role may not appear, which is
   not evidence that it is missing. Confirm against the source before reporting it as a defect.
-- Driving Groove with a visible browser **plays sound out loud**. Stop the transport when done.
 
 Record anything that automation cannot assert in [e2e/EXPLORATORY.md](../e2e/EXPLORATORY.md).
 
@@ -166,7 +149,8 @@ elements around it, above and below included.
 - **Do not state test counts in the docs.** They are stale by the next commit. `npx playwright
 test --list` answers it on demand.
 - When you deliberately leave something uncovered, say so in `e2e/EXPLORATORY.md` rather than
-  letting a green suite imply coverage it does not have. Groove's audio is the standing example.
+  letting a green suite imply coverage it does not have. Space's board drag is the standing
+  example - see EXPLORATORY.md.
 
 ## 6. Finishing
 
