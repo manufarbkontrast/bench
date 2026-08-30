@@ -149,6 +149,26 @@ describe("indexAll", () => {
       "30_Projekte/Leuchtturm/Calls/2026-08-01 Call Hafen.md",
     ]);
   });
+
+  it("prefers the linking note's own folder when a basename is ambiguous", () => {
+    writeFileSync(
+      path.join(dir, "40_Tech_Stack", "Notizen.md"),
+      "# Notizen A\n",
+    );
+    writeFileSync(
+      path.join(dir, "60_Knowledge", "Notizen.md"),
+      "# Notizen B\n",
+    );
+    writeFileSync(
+      path.join(dir, "60_Knowledge", "Quelle.md"),
+      "Siehe [[Notizen]].\n",
+    );
+    indexAll(db, dir);
+    const link = db
+      .prepare("SELECT to_path FROM links WHERE from_path = ? AND target = ?")
+      .get("60_Knowledge/Quelle.md", "Notizen");
+    expect(link).toEqual({ to_path: "60_Knowledge/Notizen.md" });
+  });
 });
 
 describe("indexNote and removeNote", () => {

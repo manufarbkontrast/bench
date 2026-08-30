@@ -21,6 +21,14 @@ describe("extractWikilinks", () => {
     const body = "Real [[A]]\n```js\n[[NotOne]]\n```\nand `[[NotEither]]` here";
     expect(extractWikilinks(body).map((l) => l.target)).toEqual(["A"]);
   });
+
+  it("unescapes the alias pipe Obsidian escapes inside markdown tables", () => {
+    expect(
+      extractWikilinks("| [[Social Dashboard\\|social-dashboard]] |").map(
+        (l) => [l.target, l.alias],
+      ),
+    ).toEqual([["Social Dashboard", "social-dashboard"]]);
+  });
 });
 
 describe("stripCodeBlocks", () => {

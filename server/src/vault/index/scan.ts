@@ -15,9 +15,18 @@ function walk(dir: string, rel: string): string[] {
   });
 }
 
+/**
+ * Ordinal, not locale, comparison: default-locale collation treats `_` as near-ignorable, so
+ * e.g. `_Brands_Overview.md` would sort next to `AEND.md` instead of before it, and the order
+ * would depend on the machine's ICU data. Plain code-point order is what Obsidian shows too.
+ */
+function ordinal(a: string, b: string): number {
+  return Number(a > b) - Number(a < b);
+}
+
 /** Every note under the vault as a vault-relative posix path, sorted. */
 export function listNotes(vaultDir: string): string[] {
-  return walk(vaultDir, "").sort((a, b) => a.localeCompare(b));
+  return walk(vaultDir, "").sort(ordinal);
 }
 
 /** Whether a vault-relative path is a note the index should hold. */

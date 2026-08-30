@@ -40,7 +40,9 @@ const LINK = /\[\[([^\][]+)\]\]/g;
 function parseLinkInner(
   inner: string,
 ): Pick<Wikilink, "target" | "heading" | "alias"> {
-  const [main, ...aliasParts] = inner.split("|");
+  // Obsidian tables escape the alias pipe as `\|` so it is not read as a column separator;
+  // unescape before splitting so the target does not end up with a trailing backslash.
+  const [main, ...aliasParts] = inner.replace(/\\\|/g, "|").split("|");
   const alias = aliasParts.length ? aliasParts.join("|").trim() || null : null;
   const [target, ...headingParts] = main.split("#");
   const heading = headingParts.length
