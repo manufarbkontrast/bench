@@ -36,7 +36,15 @@ export const test = base.extend<object, { appServer: string }>({
       const npx = process.platform === "win32" ? "npx.cmd" : "npx";
       const server = spawn(npx, ["tsx", "server/src/index.ts"], {
         cwd: root,
-        env: { ...process.env, PORT: String(port), DATA_DIR: dataDir },
+        env: {
+          ...process.env,
+          PORT: String(port),
+          DATA_DIR: dataDir,
+          // The environment wins over .env in process.loadEnvFile, so an empty VAULT_DIR keeps a
+          // developer's real vault out of every e2e server. Phase 1 points this at a per-worker
+          // fixture vault instead.
+          VAULT_DIR: "",
+        },
         stdio: "ignore",
       });
       const base = `http://localhost:${port}`;

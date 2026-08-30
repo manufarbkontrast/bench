@@ -1,8 +1,23 @@
-import { describe, expect, it } from "vitest";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { afterEach, describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { configFrom, describeSources, loadConfig } from "../src/config.js";
+
+const tempDirs: string[] = [];
+
+function tempRoot(): string {
+  const dir = mkdtempSync(path.join(tmpdir(), "bench-config-"));
+  tempDirs.push(dir);
+  return dir;
+}
+
+afterEach(() => {
+  delete process.env.VAULT_DIR;
+  while (tempDirs.length > 0) {
+    rmSync(tempDirs.pop()!, { recursive: true, force: true });
+  }
+});
 
 describe("configFrom", () => {
   it("reads the vault path", () => {
@@ -17,15 +32,14 @@ describe("configFrom", () => {
 
 describe("loadConfig", () => {
   it("reads .env from the root when it exists", () => {
-    const root = mkdtempSync(path.join(tmpdir(), "bench-config-"));
+    const root = tempRoot();
     writeFileSync(path.join(root, ".env"), "VAULT_DIR=/from-file\n");
     delete process.env.VAULT_DIR;
     expect(loadConfig(root).vaultDir).toBe("/from-file");
-    delete process.env.VAULT_DIR;
   });
 
   it("copes without a .env", () => {
-    const root = mkdtempSync(path.join(tmpdir(), "bench-config-"));
+    const root = tempRoot();
     delete process.env.VAULT_DIR;
     expect(loadConfig(root).vaultDir).toBeUndefined();
   });
