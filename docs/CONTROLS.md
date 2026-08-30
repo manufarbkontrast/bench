@@ -197,15 +197,15 @@ Where it stands, from `npm run coverage`:
 
 | Scope                    | Statements |
 | ------------------------ | ---------- |
-| `server/src`             | 87%        |
+| `server/src`             | 88%        |
 | `web/src/crm`            | 100%       |
 | `web/src/crm/components` | 95%        |
 | `web/src/crm/pages`      | 96%        |
 | `web/src/space`          | 92%        |
-| `web/src/rolodex`        | 82%        |
+| `web/src/rolodex`        | 81%        |
 | `web/src/rolodex/pages`  | 80%        |
 | `web/src/home`           | 100%       |
-| **web overall**          | **86%**    |
+| **web overall**          | **85%**    |
 
 **Do not lower the bar to make a red run green.**
 

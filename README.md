@@ -1,7 +1,8 @@
 # Bench
 
-Three local-first apps behind one server. No login, no cloud - everything runs on your machine and
-your data lives in local SQLite files. Light and dark, one toggle for all three.
+Three local-first apps behind one server, growing into a personal workbench - see
+`docs/changes/bench-os/`. No login, no cloud - everything runs on your machine and your data lives
+in local SQLite files. Light and dark, one toggle for all three.
 
 |             |            |                                                                                                                     |
 | ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -88,7 +89,12 @@ only when you are deliberately adding a dependency.
 `npm ci` prints one deprecation warning, about `prebuild-install`. It is expected and harmless -
 the reason it stays is documented in [docs/PROJECT.md](./docs/PROJECT.md).
 
-## 1.5 Run it
+## 1.5 Point Bench at your files (optional)
+
+Copy `.env.example` to `.env` and fill in the vault path. Without it Bench runs on bundled samples.
+The server prints, on start, which sources it found.
+
+## 1.6 Run it
 
 ```bash
 npm start

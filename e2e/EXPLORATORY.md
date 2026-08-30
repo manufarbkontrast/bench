@@ -73,7 +73,7 @@ adversarial suite. Left to judgement:
   full page load, not a router transition, and moving between apps through the nav strip is a
   navigation rather than a transition.
 - **The nav strip should look identical in all four documents (launcher and three apps)** - same
-  height, same dark, same amber line - including Space in dark mode. The suite asserts the
+  height, same dark, same orange line - including Space in dark mode. The suite asserts the
   links and the current tab; it cannot see that the strip has picked up a host app's font,
   letter-spacing or palette. That is exactly what would go wrong.
 - Each app should keep its own look below the strip: CRM light, Space light/dark, Rolodex

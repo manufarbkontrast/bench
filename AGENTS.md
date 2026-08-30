@@ -13,6 +13,10 @@ commands run from the root.
   and `check` fails on unformatted files.
 - **Never push.** The agent commits; the user pushes and opens the pull request, and CI gates the merge.
 - **If a session begins on `main`, branch before committing**, and say so in the reply.
+- **Bench OS work follows [docs/changes/bench-os/PLAN.md](docs/changes/bench-os/PLAN.md)** phase
+  by phase; the task plan for the current phase sits beside it.
+- **German UI, English code.** Labels, routes and copy in German; identifiers, comments, docs and
+  commit messages in English.
 
 ## Commands
 

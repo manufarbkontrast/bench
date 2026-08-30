@@ -57,7 +57,7 @@ Three layers, each with a different job. Add to whichever ones the change touche
 
 vitest, server and web. Server suites live in `server/test/{crm,space,rolodex}/`; web suites sit
 beside the code they cover. Coverage is measured across every app at 80% statements and currently
-sits at 87% on the server and 86% on web.
+sits at 88% on the server and 85% on web.
 
 Use these for logic with edges: calculations, filtering, sorting, migrations, data transforms. A
 new derived value or a new column default should get one.

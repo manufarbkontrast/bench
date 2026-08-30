@@ -4,6 +4,11 @@ Three local-first apps, merged from four separate repos into one project with **
 server and one backend server**. Everything runs on your own machine: no login, no cloud, no
 external services, no secrets. Data lives in local SQLite files.
 
+This fork is becoming **Bench OS**: a window onto one person's Obsidian vault, Plaud notes, local
+repositories and controlling reports. The plan is in [changes/bench-os/](./changes/bench-os/):
+`SPEC.md` for what, `PLAN.md` for the phases. Groove was removed in Phase 0; the apps below are
+what remain of the original four, and the new ones arrive one phase at a time.
+
 | App         | Path       | What it is                                                                                                                      | Backend                  |
 | ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
 | **CRM**     | `/crm`     | Personal sales CRM: organizations, contacts, deals, drag-and-drop pipeline, activities, dashboard                               | `data/crm.sqlite`        |
@@ -48,6 +53,8 @@ server/             ONE Express app
   src/rolodex/        rolodex routes + db + seed
   test/{crm,space,rolodex}/   vitest suites
 data/                 crm.sqlite, personal-space.db, rolodex.sqlite (gitignored, seeded on first run)
+.env                  this machine's vault path (gitignored); .env.example lists the keys as they arrive
+server/src/config.ts  loads .env and describes the sources at startup
 docs/                 this documentation; docs/<app>/ per app
 e2e/                  Playwright specs
 scripts/              check-secrets.mjs, the repo-specific half of the secrets check
@@ -119,12 +126,12 @@ These are settled. Changing one is a project-level decision, not an implementati
 - **One theme, chosen once.** `web/src/shared/theme.ts` writes `data-theme` on the document
   element and remembers the choice in `localStorage` under `bench.theme`; each entry point calls
   `initTheme()` **before it renders**, because setting it after the first paint flashes the wrong
-  theme on every navigation between apps. The first visit follows the operating system. Every app
+  theme on every navigation between apps. The first visit is dark. Every app
   defines its palette twice - once on `:root`, once under `[data-theme="dark"]` - and sets
   `color-scheme` so native controls follow.
-- **Colour means state, not identity.** In the strip and on the launcher, amber marks the app you
-  are in and nothing else; the apps are told apart by their glyph. That is what keeps a fourth app
-  from needing a fourth brand colour. Inside an app, its own accents are its own business.
+- **Colour means state, not identity.** In the strip and on the launcher, **orange `#ff5c00`** marks
+  the app you are in and nothing else; the apps are told apart by their glyph. That is what keeps a
+  fourth app from needing a fourth brand colour. Inside an app, its own accents are its own business.
 - **One dependency set per workspace.** All three UIs live in `web/`, so they share one set of
   versions: TypeScript 6, Vite 8, vitest 4, react-router 8, React 19.
 - **TypeScript 6.0.3, pinned exactly, everywhere.** Root and both workspaces, one hoisted copy.
@@ -144,6 +151,28 @@ These are settled. Changing one is a project-level decision, not an implementati
   a prebuilt binary instead, which needs no toolchain. Revisit if npm starts carrying `gypfile`
   through the lockfile, or upstream stops shipping `binding.gyp` in the tarball.
 
+## Bench OS decisions
+
+Settled in [changes/bench-os/SPEC.md](./changes/bench-os/SPEC.md); listed here because they bend
+the rules above.
+
+- **Bench reads outside `data/`.** The vault, the repositories and the Plaud folder are the truth
+  and stay where they are; Bench indexes them into `data/` and can rebuild every index. Paths come
+  from `.env`, never from code.
+- **Two write paths into the vault, guarded.** Toggling or creating a task, and importing a Plaud
+  work item. Nothing else writes to a source.
+- **Local CLIs are fair game.** `git`, `gh` and `claude` run as processes on this machine, the way
+  Bench already runs `gitleaks`. No cloud call is made directly and no token is held.
+- **`aufgaben` reads the vault index.** A task is a line in a vault note, so the Aufgaben app reads
+  `vault.sqlite` through `server/src/vault/` - the one exception to "one database per app", and a
+  one-way dependency.
+- **German interface, English code.** Routes and labels are German (`/projekte`, `Aufgaben`); the
+  code, the docs and the commits stay English.
+- **Immutable data.** New code builds new objects rather than mutating - the user's standing rule,
+  on top of STANDARDS.md.
+- **Conventional Commits.** One-line messages with a type prefix (`feat:`, `fix:`, `refactor:`,
+  `docs:`, `chore:`, `test:`) - the user's house rule, and what STANDARDS.md now says.
+
 ## Adding an app
 
 A new `web/<name>/index.html`, a new `web/src/<name>/`, an entry in `vite.config.ts`
@@ -156,14 +185,14 @@ stays separate from its siblings.
 Then the navigation: an icon in `web/src/shared/AppIcons.tsx`, an entry in the `APPS` list in
 `web/src/shared/BenchNav.tsx`, the new key in that file's `AppKey` union, and
 `<BenchNav active="<name>" />` above the app's own shell. No colour to pick - the strip's only
-accent is amber, for wherever you are. Two things to get right in the app's own stylesheet: a
+accent is orange, for wherever you are. Two things to get right in the app's own stylesheet: a
 `[data-theme="dark"]` palette and `color-scheme`, and the height chain - the app's root element has
 to leave room for a 47px strip; see how each of the three does it.
 
 ## Design
 
-Palette: amber `#ecad0a`, blue `#209dd7`, purple `#753991` over grays, light and dark. Flat,
-sharp, modern. See [STANDARDS.md](./STANDARDS.md) for the rules, including what to avoid.
+Palette: orange `#ff5c00` as the one accent over greys, dark first and light second. Flat, sharp,
+modern. See [STANDARDS.md](./STANDARDS.md) for the rules, including what to avoid.
 
 ## Related documents
 
