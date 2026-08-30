@@ -70,7 +70,6 @@ export interface NoteRow {
   size: number;
 }
 
-/** @public row shape of `links`; consumed by the scanner and routes arriving in later tasks. */
 export interface LinkRow {
   from_path: string;
   target: string;
@@ -86,7 +85,6 @@ export interface TagRow {
   tag: string;
 }
 
-/** @public row shape of `tasks`; consumed by the scanner and routes arriving in later tasks. */
 export interface TaskRow {
   path: string;
   line: number;
