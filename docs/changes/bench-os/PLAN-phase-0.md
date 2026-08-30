@@ -234,7 +234,7 @@ and delete the line `  { key: "groove", href: "/groove/", label: "Groove", Icon:
 
 - [ ] **Step 8: Drop the Groove-only test stub, if nothing else needs it**
 
-`web/src/space/test/setup.ts` lines 5-8: delete the comment and `Element.prototype.setPointerCapture = vi.fn();`. Then run `npx vitest run -w web`. If any test now throws on `setPointerCapture`, restore the line with a comment naming the component that needs it (dnd-kit in Space's board or Rolodex's circles); otherwise leave it deleted.
+`web/src/space/test/setup.ts` lines 5-8: delete the comment and `Element.prototype.setPointerCapture = vi.fn();`. Then run `cd web && npx vitest run`. If any test now throws on `setPointerCapture`, restore the line with a comment naming the component that needs it (dnd-kit in Space's board or Rolodex's circles); otherwise leave it deleted.
 
 - [ ] **Step 9: Update the e2e seams**
 
