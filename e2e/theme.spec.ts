@@ -1,5 +1,5 @@
 /**
- * One toggle, four apps. The choice lives in localStorage rather than in React state, because
+ * One toggle, three apps. The choice lives in localStorage rather than in React state, because
  * each app is its own document and the theme has to survive the navigation between them.
  */
 import { test, expect } from "./fixtures";

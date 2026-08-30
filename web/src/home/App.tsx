@@ -50,7 +50,7 @@ export default function App() {
           <p className="home-eyebrow">Local-first · no login · no cloud</p>
           <h1>Bench</h1>
           <p className="home-lede">
-            Four apps, one server, one machine. Your data lives in SQLite files
+            Three apps, one server, one machine. Your data lives in SQLite files
             on this disk and goes nowhere else.
           </p>
         </header>

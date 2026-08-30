@@ -1,5 +1,5 @@
 /**
- * One theme across all four apps. Each is its own document, so the choice travels in
+ * One theme across all three apps. Each is its own document, so the choice travels in
  * localStorage rather than in React state, and every entry point calls initTheme() before it
  * renders - set after the first paint, the page would flash the wrong theme on every navigation.
  */

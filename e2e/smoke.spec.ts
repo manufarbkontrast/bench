@@ -1,6 +1,7 @@
 /**
- * The consolidation seams: four HTML entry points, two router basenames, two API namespaces and
- * deep-link fallback. These are what the merge introduced, so they are what regresses.
+ * The consolidation seams: four HTML entry points (the launcher plus the three apps), two
+ * router basenames, two API namespaces and deep-link fallback. These are what the merge
+ * introduced, so they are what regresses.
  */
 import { test, expect } from "./fixtures";
 import { json, type Organization, type TreeNode } from "./api";

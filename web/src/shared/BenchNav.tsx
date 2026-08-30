@@ -1,6 +1,6 @@
 /**
- * The primary navigation, identical in all four documents. Each app is its own page, so these
- * are plain anchors rather than router links.
+ * The primary navigation, identical in all four documents - the launcher and the three apps.
+ * Each app is its own page, so these are plain anchors rather than router links.
  */
 import { useState } from "react";
 import {
