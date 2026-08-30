@@ -155,7 +155,7 @@ it("offers exactly three apps", () => {
 
 - [ ] **Step 2: Run them to see them fail**
 
-Run: `npx vitest run -w web src/shared/BenchNav.test.tsx src/home/App.test.tsx`
+Run: `cd web && npx vitest run src/shared/BenchNav.test.tsx src/home/App.test.tsx`
 Expected: FAIL - the nav still lists five links, the launcher still has four `h2`.
 
 - [ ] **Step 3: Delete the Groove directories**
@@ -273,7 +273,7 @@ const APPS = ["/", "/crm/", "/space/", "/rolodex/"];
 
 - [ ] **Step 10: Run the unit tests**
 
-Run: `npx vitest run -w web src/shared/BenchNav.test.tsx src/home/App.test.tsx`
+Run: `cd web && npx vitest run src/shared/BenchNav.test.tsx src/home/App.test.tsx`
 Expected: PASS.
 
 - [ ] **Step 11: Look for leftovers, then the full gate**
@@ -388,7 +388,7 @@ describe("theme", () => {
 
 - [ ] **Step 2: Run it to see it fail**
 
-Run: `npx vitest run -w web src/shared/theme.test.ts`
+Run: `cd web && npx vitest run src/shared/theme.test.ts`
 Expected: FAIL - jsdom has no `window.matchMedia`, so `initTheme()` throws.
 
 - [ ] **Step 3: Make the first visit dark**
@@ -406,7 +406,7 @@ Change the module docstring's last sentence to end "…flash the wrong theme on 
 
 - [ ] **Step 4: Run the theme tests**
 
-Run: `npx vitest run -w web src/shared/theme.test.ts src/shared/BenchNav.test.tsx`
+Run: `cd web && npx vitest run src/shared/theme.test.ts src/shared/BenchNav.test.tsx`
 Expected: PASS.
 
 - [ ] **Step 5: Recolour the nav strip**
@@ -510,7 +510,7 @@ and in "marks itself as the current page" replace `{ name: "Home" }` with `{ nam
 
 - [ ] **Step 2: Run them to see them fail**
 
-Run: `npx vitest run -w web src/shared/BenchNav.test.tsx src/home/App.test.tsx`
+Run: `cd web && npx vitest run src/shared/BenchNav.test.tsx src/home/App.test.tsx`
 Expected: FAIL on the labels.
 
 - [ ] **Step 3: Translate the nav**
@@ -598,7 +598,7 @@ const toggle = page.getByRole("button", {
 
 - [ ] **Step 6: Run the unit tests**
 
-Run: `npx vitest run -w web src/shared/BenchNav.test.tsx src/home/App.test.tsx`
+Run: `cd web && npx vitest run src/shared/BenchNav.test.tsx src/home/App.test.tsx`
 Expected: PASS.
 
 - [ ] **Step 7: Gate and commit**
@@ -685,7 +685,7 @@ describe("describeSources", () => {
 
 - [ ] **Step 2: Run them to see them fail**
 
-Run: `npx vitest run -w server test/config.test.ts`
+Run: `cd server && npx vitest run test/config.test.ts`
 Expected: FAIL - `../src/config.js` does not exist.
 
 - [ ] **Step 3: Write the config module**
@@ -729,7 +729,7 @@ export function describeSources(config: Config): string[] {
 
 - [ ] **Step 4: Run the tests**
 
-Run: `npx vitest run -w server test/config.test.ts`
+Run: `cd server && npx vitest run test/config.test.ts`
 Expected: PASS.
 
 - [ ] **Step 5: Log the sources at startup**
