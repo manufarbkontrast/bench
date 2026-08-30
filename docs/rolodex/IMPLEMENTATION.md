@@ -121,5 +121,5 @@ Anything below is a difference from `projects/rolodex`, not a decision to revisi
 ## Related documents
 
 - [REQUIREMENTS.md](./REQUIREMENTS.md) - the original brief, kept for intent
-- [PROJECT.md](../PROJECT.md) - how the four apps fit together
+- [PROJECT.md](../PROJECT.md) - how the three apps fit together
 - [PROCESS.md](../PROCESS.md) - how to make a change here
