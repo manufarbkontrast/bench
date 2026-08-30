@@ -40,6 +40,26 @@ wikilinks and correct backlinks · search finds titles and body text · an edit 
 Bench within 3 s without a restart · the task grammar parser has unit tests for every emoji field
 and the edge cases · e2e covers open, search, jump and theme.
 
+**Carried over from the Phase 0 review** (2026-08-30), to be folded into this phase's tasks:
+
+- The e2e fixtures keep a developer's `.env` out of the servers one key at a time
+  (`VAULT_DIR: ""` in `e2e/fixtures.ts`). When the fixture vault lands, replace that with one switch
+  that covers every future key.
+- Validate `vaultDir` at startup and let `describeSources` say `(not found)`; unit-test the wrong
+  path now rather than in the Phase 6 adversarial pass.
+- `BenchNav.tsx`: hoist the duplicated `aria-label` / `title` ternary; put `lang="de"` on the nav
+  element, since the three app documents stay `lang="en"`.
+- Hand-written counts to revisit when Vault arrives: the launcher lede "Drei Apps", PROJECT.md's
+  "a fourth app / fourth brand colour".
+- One docs sweep: the five passages that still name the upstream author as the person who pushes
+  (PROCESS.md, STANDARDS.md, CONTROLS.md), README's fork and pull-request target, PROCESS.md's e2e
+  layout (missing `rolodex/` and `theme.spec.ts`), and "audio" in EXPLORATORY.md's opening list.
+- `server/test/config.test.ts`: a per-test temp root cleaned in `afterEach` instead of a mutable
+  `tempDirs` array.
+- Future plan documents use a placeholder, not this machine's vault path.
+- Process: sweep greps recursive and word-bounded (`git grep -w`); when a task renames a
+  user-facing string, its file list names every doc that quotes it.
+
 ## Phase 2 - Projekte app
 
 Scan `PROJECT_ROOTS` for git checkouts and working folders, group by remote, detect duplicates,
