@@ -16,7 +16,7 @@ what remain of the original four, and the new ones arrive one phase at a time.
 | **Rolodex** | `/rolodex` | Personal CRM for your own people: check-in cadences, circles, birthdays, a timeline of every conversation, CSV and vCard import | `data/rolodex.sqlite`    |
 
 A launcher at `/` links to all three, and every page carries the same navigation strip: the Bench
-mark, then Home, CRM, Space, Rolodex, each with the icon that identifies it inside its
+mark, then Start, CRM, Space and Rolodex, each with the icon that identifies it inside its
 own app too, and one theme toggle on the right.
 
 ## Detailed app documentation

@@ -19,14 +19,21 @@ export function configFrom(env: NodeJS.ProcessEnv): Config {
   return { vaultDir: optional(env.VAULT_DIR) };
 }
 
-/** Read `<root>/.env` into the environment if it exists, then build the config from it. */
+/**
+ * Read `<root>/.env` into the environment if it exists, then build the config from it. A
+ * variable already in the environment wins over the file - process.loadEnvFile never overrides
+ * one - which is what lets e2e/fixtures.ts pin VAULT_DIR to an empty string.
+ */
 export function loadConfig(root: string): Config {
   const file = path.join(root, ".env");
   if (existsSync(file)) process.loadEnvFile(file);
   return configFrom(process.env);
 }
 
-/** One line per source for the startup log, so a missing `.env` is visible rather than silent. */
+/**
+ * One line per source for the startup log, so a missing or blank VAULT_DIR is visible rather
+ * than silent - whether the .env is absent or just does not set it.
+ */
 export function describeSources(config: Config): string[] {
   return [`Vault: ${config.vaultDir ?? "not configured"}`];
 }
