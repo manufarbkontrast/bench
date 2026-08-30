@@ -1,12 +1,12 @@
 /**
- * Launcher. Flat, sharp, no gradients. Colour means state, not identity: amber marks what you
+ * Launcher. Flat, sharp, no gradients. Colour means state, not identity: orange marks what you
  * are about to open, and the apps are told apart by their glyph and their words.
  */
 
 :root {
   color-scheme: light;
-  --amber: #ecad0a;
-  --amber-deep: #a97d05;
+  --accent: #ff5c00;
+  --accent-deep: #c74800;
   --ink: #1c2128;
   --bg: #f2f4f6;
   --surface: #ffffff;
@@ -16,8 +16,7 @@
   --text-faint: #868e99;
   --ghost: rgba(28, 33, 40, 0.05);
   font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
+    -apple-system, BlinkMacSystemFont, "Helvetica Neue", system-ui, sans-serif;
   color: var(--text);
 }
 
@@ -59,15 +58,6 @@ body {
   padding: 72px 32px 48px;
 }
 
-.home-eyebrow {
-  margin: 0 0 14px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-}
-
 .home-header h1 {
   margin: 0;
   font-size: 76px;
@@ -101,7 +91,7 @@ body {
 }
 
 /* The glyph is the card's identity, so it is drawn large and faint behind the words rather
-   than shrunk into a badge. It picks up the amber on hover, with the border. */
+   than shrunk into a badge. It picks up the accent on hover, with the border. */
 .home-card {
   position: relative;
   display: flex;
@@ -114,9 +104,7 @@ body {
   overflow: hidden;
   text-decoration: none;
   color: inherit;
-  transition:
-    border-color 120ms ease,
-    transform 120ms ease;
+  transition: border-color 120ms ease;
 }
 
 .home-card > svg:first-child {
@@ -129,16 +117,15 @@ body {
 }
 
 .home-card:hover {
-  border-color: var(--amber);
-  transform: translateY(-2px);
+  border-color: var(--accent);
 }
 
 .home-card:hover > svg:first-child {
-  color: rgba(236, 173, 10, 0.16);
+  color: rgba(255, 92, 0, 0.16);
 }
 
 .home-card:focus-visible {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -179,7 +166,7 @@ body {
 .home-facts li {
   padding: 3px 9px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 11.5px;
   font-weight: 600;
   color: var(--text-faint);
@@ -192,25 +179,15 @@ body {
   margin-top: 20px;
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: var(--text-faint);
 }
 
 .home-card:hover .home-open {
-  color: var(--amber-deep);
+  color: var(--accent-deep);
 }
 
 [data-theme="dark"] .home-card:hover .home-open {
-  color: var(--amber);
-}
-
-.home-card:hover .home-open svg {
-  transform: translateX(3px);
-}
-
-.home-open svg {
-  transition: transform 120ms ease;
+  color: var(--accent);
 }
 
 .home-footer {

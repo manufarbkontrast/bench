@@ -3,8 +3,8 @@
  * brand block so the same glyph identifies an app wherever you are.
  *
  * Stroke icons sit on the same 24 grid as CRM's Icons.tsx and take their colour from the text
- * around them. The Bench mark is filled and carries the palette itself: a bench whose seat is
- * one segment per app, on legs that follow the text colour.
+ * around them. The Bench mark is filled and carries the one accent: a bench whose seat is one
+ * orange segment and two grey ones, on legs that follow the text colour.
  */
 
 interface IconProps {
@@ -41,9 +41,9 @@ export const BenchMark = ({ size = 20 }: IconProps) => (
     aria-hidden="true"
     focusable="false"
   >
-    <rect x="2" y="6.5" width="6.67" height="4.8" fill="#ecad0a" />
-    <rect x="8.67" y="6.5" width="6.66" height="4.8" fill="#209dd7" />
-    <rect x="15.33" y="6.5" width="6.67" height="4.8" fill="#a066d8" />
+    <rect x="2" y="6.5" width="6.67" height="4.8" fill="#ff5c00" />
+    <rect x="8.67" y="6.5" width="6.66" height="4.8" fill="#6f7884" />
+    <rect x="15.33" y="6.5" width="6.67" height="4.8" fill="#6f7884" />
     <rect x="4" y="11.3" width="2.7" height="7.2" fill="currentColor" />
     <rect x="17.3" y="11.3" width="2.7" height="7.2" fill="currentColor" />
   </svg>

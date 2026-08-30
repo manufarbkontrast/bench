@@ -1,9 +1,9 @@
 /**
- * The navigation strip. Loaded into all four documents - the launcher and the three apps - so
- * every class is prefixed and every value is literal: the three app stylesheets collide on
- * .brand and :root, and each redefines its palette under [data-theme="dark"]. The strip can
- * inherit none of it and must look the same over all of them - which is why the theme is read
- * from the document element here too, rather than from a variable.
+ * The navigation strip. Loaded into all four documents (launcher and three apps), so every class
+ * is prefixed and every value is literal: the app stylesheets collide on .brand and :root, and
+ * each redefines its palette under [data-theme="dark"]. The strip can inherit none of it and must
+ * look the same over all of them - which is why the theme is read from the document element here
+ * too, rather than from a variable.
  */
 
 .bench-nav {
@@ -15,11 +15,10 @@
   height: 47px;
   padding: 0 18px;
   background: #ffffff;
-  border-top: 3px solid #ecad0a;
+  border-top: 3px solid #ff5c00;
   border-bottom: 1px solid #e3e6ea;
   font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
+    -apple-system, BlinkMacSystemFont, "Helvetica Neue", system-ui, sans-serif;
   font-size: 13px;
   line-height: 1.5;
   letter-spacing: normal;
@@ -83,15 +82,15 @@
   background: #272d36;
 }
 
-/* Amber is the one accent, and it means "you are here" - not "this is the CRM". */
+/* Orange is the one accent, and it means "you are here" - not "this is the CRM". */
 .bench-nav-link[aria-current="page"] {
-  color: #a97d05;
-  background: rgba(236, 173, 10, 0.14);
+  color: #b84200;
+  background: rgba(255, 92, 0, 0.12);
 }
 
 [data-theme="dark"] .bench-nav-link[aria-current="page"] {
-  color: #f0b81f;
-  background: rgba(236, 173, 10, 0.16);
+  color: #ff7a33;
+  background: rgba(255, 92, 0, 0.16);
 }
 
 .bench-nav-theme {

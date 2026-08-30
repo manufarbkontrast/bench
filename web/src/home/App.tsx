@@ -47,7 +47,6 @@ export default function App() {
       <BenchNav active="home" />
       <div className="home">
         <header className="home-header">
-          <p className="home-eyebrow">Local-first · no login · no cloud</p>
           <h1>Bench</h1>
           <p className="home-lede">
             Three apps, one server, one machine. Your data lives in SQLite files
