@@ -79,3 +79,6 @@ adversarial suite. Left to judgement:
 - Each app should keep its own look below the strip: CRM light, Space light/dark, Rolodex
   light/dark. Any styling bleeding between them means the multi-page split has been broken.
 - Refresh on a deep link in **both** dev and prod.
+- After a chrome change, run `node e2e/tools/chrome-shots.mjs` against `npm start` and look at
+  all eight images. The suite asserts labels and the current tab; whether orange on the dark strip
+  is legible next to CRM's light sidebar is a judgement.
