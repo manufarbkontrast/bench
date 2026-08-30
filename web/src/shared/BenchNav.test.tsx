@@ -18,7 +18,7 @@ describe("BenchNav", () => {
         .getAllByRole("link")
         .map((link) => [link.textContent, link.getAttribute("href")]),
     ).toEqual([
-      ["Home", "/"],
+      ["Start", "/"],
       ["CRM", "/crm/"],
       ["Space", "/space/"],
       ["Rolodex", "/rolodex/"],
@@ -40,11 +40,15 @@ describe("BenchNav", () => {
 
   it("toggles the theme for every app and remembers the choice", async () => {
     render(<BenchNav active="rolodex" />);
-    await userEvent.click(screen.getByRole("button", { name: /Switch to/ }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Design wechseln/ }),
+    );
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(localStorage.getItem("bench.theme")).toBe("dark");
 
-    await userEvent.click(screen.getByRole("button", { name: /Switch to/ }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Design wechseln/ }),
+    );
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(localStorage.getItem("bench.theme")).toBe("light");
   });

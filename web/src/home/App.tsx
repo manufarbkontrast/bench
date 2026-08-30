@@ -15,28 +15,28 @@ const APPS: AppCard[] = [
   {
     href: "/crm/",
     name: "CRM",
-    tagline: "Deals, and the people behind them",
+    tagline: "Deals und die Menschen dahinter",
     detail:
-      "Organizations, contacts and a drag-and-drop pipeline, with a dashboard that adds up what is actually in play.",
-    facts: ["Pipeline", "Dashboard", "Activities"],
+      "Organisationen, Kontakte und eine Pipeline zum Ziehen, mit einem Dashboard, das zusammenzählt, was wirklich im Spiel ist.",
+    facts: ["Pipeline", "Dashboard", "Aktivitäten"],
     Icon: IconCrm,
   },
   {
     href: "/space/",
     name: "Space",
-    tagline: "Everything you know, in one place",
+    tagline: "Alles, was du weißt, an einem Ort",
     detail:
-      "Pages and blocks that nest as deep as you like, databases with table, board and list views, and search across the lot.",
-    facts: ["Pages", "Databases", "Search"],
+      "Seiten und Blöcke, beliebig tief verschachtelt, Datenbanken als Tabelle, Board und Liste, und eine Suche über alles.",
+    facts: ["Seiten", "Datenbanken", "Suche"],
     Icon: IconSpace,
   },
   {
     href: "/rolodex/",
     name: "Rolodex",
-    tagline: "The people in your life, kept close",
+    tagline: "Die Menschen in deinem Leben, nah gehalten",
     detail:
-      "Who you are due to contact, what is going on with them, birthdays coming up, and a timeline of every conversation.",
-    facts: ["Check-ins", "Circles", "Calendar"],
+      "Wen du kontaktieren solltest, was bei ihnen los ist, welche Geburtstage anstehen und eine Timeline jedes Gesprächs.",
+    facts: ["Check-ins", "Kreise", "Kalender"],
     Icon: IconRolodex,
   },
 ];
@@ -49,8 +49,8 @@ export default function App() {
         <header className="home-header">
           <h1>Bench</h1>
           <p className="home-lede">
-            Three apps, one server, one machine. Your data lives in SQLite files
-            on this disk and goes nowhere else.
+            Drei Apps, ein Server, ein Rechner. Deine Daten liegen als
+            SQLite-Dateien auf dieser Platte und gehen nirgendwohin.
           </p>
         </header>
 
@@ -69,7 +69,7 @@ export default function App() {
                 </ul>
               </div>
               <span className="home-open">
-                Open
+                Öffnen
                 <svg
                   width="15"
                   height="15"
@@ -90,7 +90,7 @@ export default function App() {
 
         <footer className="home-footer">
           <span>
-            <strong>npm run dev</strong> · API on 8100, Vite on 8101
+            <strong>npm run dev</strong> · API auf 8100, Vite auf 8101
           </span>
           <span>SQLite in ./data</span>
         </footer>

@@ -33,7 +33,10 @@ for (const theme of ["light", "dark"]) {
   await page.goto(base + "/space/");
   await page.getByRole("treeitem", { name: "🏠 Home" }).waitFor();
   const toggle = page.getByRole("button", {
-    name: theme === "dark" ? "Switch to dark mode" : "Switch to light mode",
+    name:
+      theme === "dark"
+        ? "Zum dunklen Design wechseln"
+        : "Zum hellen Design wechseln",
   });
   if (await toggle.count()) await toggle.click();
 

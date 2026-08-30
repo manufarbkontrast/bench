@@ -3,9 +3,9 @@ import { render, screen, within } from "@testing-library/react";
 import App from "./App";
 
 const APPS = [
-  ["CRM", "/crm/", "Deals, and the people behind them"],
-  ["Space", "/space/", "Everything you know, in one place"],
-  ["Rolodex", "/rolodex/", "The people in your life, kept close"],
+  ["CRM", "/crm/", "Deals und die Menschen dahinter"],
+  ["Space", "/space/", "Alles, was du weißt, an einem Ort"],
+  ["Rolodex", "/rolodex/", "Die Menschen in deinem Leben, nah gehalten"],
 ];
 
 describe("launcher", () => {
@@ -23,7 +23,7 @@ describe("launcher", () => {
     expect(
       within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
         "link",
-        { name: "Home" },
+        { name: "Start" },
       ),
     ).toHaveAttribute("aria-current", "page");
   });

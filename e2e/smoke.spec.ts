@@ -20,7 +20,7 @@ const APPS: {
   {
     path: "/",
     title: "Bench",
-    tab: "Home",
+    tab: "Start",
     ready: (p) => p.getByRole("heading", { name: "CRM" }),
   },
   {
@@ -148,7 +148,7 @@ test("the nav lists every app and marks the one you are in", async ({
     await page.goto(app.path);
     const links = primary(page).getByRole("link");
     await expect(links, `${app.path} nav`).toHaveText([
-      "Home",
+      "Start",
       "CRM",
       "Space",
       "Rolodex",
@@ -164,7 +164,7 @@ test("the nav reaches every app from every app", async ({ page }) => {
   for (const [tab, title] of [
     ["Rolodex", "Rolodex"],
     ["Space", "Personal Space"],
-    ["Home", "Bench"],
+    ["Start", "Bench"],
   ]) {
     await primary(page).getByRole("link", { name: tab }).click();
     await expect(page).toHaveTitle(title);

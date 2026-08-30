@@ -26,7 +26,7 @@ const APPS: {
   label: string;
   Icon: (p: { size?: number }) => React.ReactElement;
 }[] = [
-  { key: "home", href: "/", label: "Home", Icon: IconHome },
+  { key: "home", href: "/", label: "Start", Icon: IconHome },
   { key: "crm", href: "/crm/", label: "CRM", Icon: IconCrm },
   { key: "space", href: "/space/", label: "Space", Icon: IconSpace },
   { key: "rolodex", href: "/rolodex/", label: "Rolodex", Icon: IconRolodex },
@@ -57,8 +57,16 @@ export default function BenchNav({ active }: { active: AppKey }) {
         type="button"
         className="bench-nav-theme"
         onClick={() => setTheme(toggleTheme())}
-        aria-label={theme === "dark" ? "Switch to light" : "Switch to dark"}
-        title={theme === "dark" ? "Switch to light" : "Switch to dark"}
+        aria-label={
+          theme === "dark"
+            ? "Zum hellen Design wechseln"
+            : "Zum dunklen Design wechseln"
+        }
+        title={
+          theme === "dark"
+            ? "Zum hellen Design wechseln"
+            : "Zum dunklen Design wechseln"
+        }
       >
         {theme === "dark" ? <IconSun size={16} /> : <IconMoon size={16} />}
       </button>
