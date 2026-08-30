@@ -6,12 +6,14 @@ import type { VaultContext } from "./index.js";
 
 /** Attachments (images, PDFs) referenced from notes, served from inside the vault and nowhere else. */
 export function filesRouter({ dir }: VaultContext): Router {
+  const root = path.resolve(dir);
   const router = Router();
 
   router.get("/file", (req, res) => {
     const relPath = queryText(req.query.path);
-    const abs = path.resolve(dir, relPath);
-    if (!relPath || !abs.startsWith(dir + path.sep)) {
+    const abs = path.resolve(root, relPath);
+    const rel = path.relative(root, abs);
+    if (!relPath || !rel || rel.startsWith("..") || path.isAbsolute(rel)) {
       res.status(400).json({ error: "path must stay inside the vault" });
       return;
     }

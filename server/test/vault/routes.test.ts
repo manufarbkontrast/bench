@@ -138,6 +138,17 @@ describe("GET /api/vault/file", () => {
     expect(res.headers["content-type"]).toContain("image/svg+xml");
   });
 
+  it("serves an attachment when the vault dir carries a trailing slash", async () => {
+    const db = openDb(":memory:");
+    indexAll(db, dir);
+    const trailingApp = appWithVault({ db, dir: `${dir}/`, name: "fixture" });
+    const res = await request(trailingApp)
+      .get("/api/vault/file")
+      .query({ path: "assets/skizze.svg" });
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toContain("image/svg+xml");
+  });
+
   it("refuses paths that leave the vault and misses cleanly", async () => {
     expect(
       (

@@ -33,7 +33,7 @@ export const test = base.extend<object, { appServer: string }>({
       rmSync(path.join(root, dataDir), { recursive: true, force: true });
 
       // Each worker indexes its own copy of the fixture vault, so a spec that adds a note never
-      // shows up in another worker's tree. Until Task 2 ships the fixture, the copy is empty.
+      // shows up in another worker's tree.
       const vaultDir = path.join(root, dataDir, "vault");
       mkdirSync(vaultDir, { recursive: true });
       const fixture = path.join(root, "server", "src", "vault", "fixture");

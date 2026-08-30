@@ -11,25 +11,37 @@ import { copyFixture } from "./fixture.js";
 let dir: string;
 let db: Database.Database;
 let watcher: FSWatcher;
+let waiters: (() => void)[] = [];
 
 const notes = () =>
   (db.prepare("SELECT COUNT(*) AS c FROM notes").get() as { c: number }).c;
 
-/** Poll until the index reflects the file system; chokidar's latency is small but not zero. */
-async function until(check: () => boolean, ms = 5000): Promise<void> {
-  const deadline = Date.now() + ms;
-  while (!check()) {
-    if (Date.now() > deadline)
-      throw new Error("index did not catch up in time");
-    await new Promise((r) => setTimeout(r, 50));
-  }
-}
+/** Resolves on the watcher's next onChange - the moment the index is updated, however slow the machine. */
+const nextChange = () =>
+  new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("no watcher event within 10 s")),
+      10_000,
+    );
+    waiters = [
+      ...waiters,
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+    ];
+  });
 
 beforeEach(async () => {
   dir = copyFixture();
   db = openDb(":memory:");
   indexAll(db, dir);
-  watcher = watchVault(db, dir);
+  waiters = [];
+  watcher = watchVault(db, dir, () => {
+    const pending = waiters;
+    waiters = [];
+    for (const w of pending) w();
+  });
   await new Promise<void>((resolve) => watcher.on("ready", () => resolve()));
 });
 
@@ -40,32 +52,37 @@ afterEach(async () => {
 
 describe("watchVault", () => {
   it("indexes a new note, re-indexes a changed one and forgets a deleted one", async () => {
+    const added = nextChange();
     writeFileSync(
       path.join(dir, "60_Knowledge", "Neu.md"),
       "# Neu\n\nVerweist auf [[Start]].\n",
     );
-    await until(() => notes() === 13);
+    await added;
+    expect(notes()).toBe(13);
     expect(
       db
         .prepare("SELECT to_path FROM links WHERE from_path = ?")
         .get("60_Knowledge/Neu.md"),
     ).toEqual({ to_path: "00_Index/Start.md" });
 
+    const edited = nextChange();
     writeFileSync(
       path.join(dir, "60_Knowledge", "Neu.md"),
       "# Neu\n\nOhne Link.\n",
     );
-    await until(
-      () =>
-        (
-          db
-            .prepare("SELECT COUNT(*) AS c FROM links WHERE from_path = ?")
-            .get("60_Knowledge/Neu.md") as { c: number }
-        ).c === 0,
-    );
+    await edited;
+    expect(
+      (
+        db
+          .prepare("SELECT COUNT(*) AS c FROM links WHERE from_path = ?")
+          .get("60_Knowledge/Neu.md") as { c: number }
+      ).c,
+    ).toBe(0);
 
+    const removed = nextChange();
     unlinkSync(path.join(dir, "60_Knowledge", "Neu.md"));
-    await until(() => notes() === 12);
+    await removed;
+    expect(notes()).toBe(12);
   });
 
   it("ignores files that are not notes", async () => {
