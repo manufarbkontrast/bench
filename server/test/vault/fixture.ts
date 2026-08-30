@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** @public read directly by tests arriving in later tasks; not every caller goes through copyFixture. */
 export const FIXTURE_DIR = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../src/vault/fixture",

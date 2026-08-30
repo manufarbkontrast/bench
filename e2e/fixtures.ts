@@ -55,7 +55,7 @@ export const test = base.extend<object, { appServer: string }>({
         stdio: "ignore",
       });
       const base = `http://localhost:${port}`;
-      await waitForServer(`${base}/api/space/tree`);
+      await waitForServer(`${base}/api/vault/tree`);
 
       await use(base);
 

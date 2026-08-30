@@ -8,6 +8,10 @@ import { openDb as openRolodexDb } from "./rolodex/db/index.js";
 import { seedIfEmpty as seedRolodex } from "./rolodex/seed.js";
 import { openDb as openSpaceDb } from "./space/db.js";
 import { seedIfEmpty } from "./space/seed.js";
+import { openDb as openVaultDb } from "./vault/db.js";
+import { indexAll } from "./vault/index/indexer.js";
+import { locateVault } from "./vault/locate.js";
+import { watchVault } from "./vault/watch.js";
 import { createApp } from "./app.js";
 
 const root = path.resolve(
@@ -32,7 +36,27 @@ seedIfEmpty(space);
 const rolodex = openRolodexDb(path.join(dataDir, "rolodex.sqlite"));
 seedRolodex(rolodex);
 
-createApp({ crm, space, rolodex }).listen(port, () => {
+const vault = locateVault(
+  config,
+  path.join(root, "server", "src", "vault", "fixture"),
+);
+const vaultDb = openVaultDb(path.join(dataDir, "vault.sqlite"));
+const indexed = indexAll(vaultDb, vault.dir);
+watchVault(vaultDb, vault.dir);
+
+createApp({
+  crm,
+  space,
+  rolodex,
+  vault: { db: vaultDb, dir: vault.dir, name: path.basename(vault.dir) },
+}).listen(port, () => {
   console.log(`Bench running at http://localhost:${port}`);
   for (const line of describeSources(config)) console.log(`  ${line}`);
+  if (vault.missing)
+    console.log(
+      `  Vault: ${vault.missing} not found - using the bundled sample`,
+    );
+  console.log(
+    `  Vault index: ${indexed.notes} notes, ${indexed.links} links, ${indexed.tasks} tasks from ${vault.dir}`,
+  );
 });

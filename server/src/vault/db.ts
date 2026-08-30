@@ -59,7 +59,6 @@ CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
 );
 `;
 
-/** @public row shape of `notes`; consumed by the scanner and routes arriving in later tasks. */
 export interface NoteRow {
   path: string;
   title: string;
@@ -79,7 +78,6 @@ export interface LinkRow {
   to_path: string | null;
 }
 
-/** @public row shape of `tags`; consumed by the scanner and routes arriving in later tasks. */
 export interface TagRow {
   path: string;
   tag: string;

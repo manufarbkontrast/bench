@@ -7,6 +7,7 @@ import { crmRouter } from "./crm/routes.js";
 import { rolodexRouter } from "./rolodex/routes/index.js";
 import type { Repo } from "./rolodex/db/index.js";
 import { spaceRouter } from "./space/routes/index.js";
+import { vaultRouter, type VaultContext } from "./vault/routes/index.js";
 
 const webDist = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -14,12 +15,13 @@ const webDist = path.resolve(
 );
 
 /** The apps with their own HTML entry point in web/dist, for deep-link fallback. */
-const APPS = ["crm", "space", "rolodex"];
+const APPS = ["crm", "space", "rolodex", "vault"];
 
 export interface Dbs {
   crm: Database.Database;
   space: Database.Database;
   rolodex: Repo;
+  vault: VaultContext;
 }
 
 /** Build the Express app around the open databases. */
@@ -39,6 +41,7 @@ export function createApp(dbs: Dbs): express.Express {
   app.use("/api/crm", crmRouter(dbs.crm));
   app.use("/api/space", spaceRouter(dbs.space));
   app.use("/api/rolodex", rolodexRouter(dbs.rolodex));
+  app.use("/api/vault", vaultRouter(dbs.vault));
 
   if (existsSync(webDist)) {
     app.use(express.static(webDist));
