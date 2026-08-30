@@ -17,7 +17,7 @@ import "./nav.css";
 
 type AppKey = "home" | "crm" | "space" | "rolodex";
 
-/** Colour marks the active app and nothing else: one amber chip, wherever you are. An app is
+/** Colour marks the active app and nothing else: one orange chip, wherever you are. An app is
     told apart by its glyph, which is what still works once there are more of them than there
     are brand colours. */
 const APPS: {
