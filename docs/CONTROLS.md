@@ -65,7 +65,7 @@ per workspace: type-aware linting reaches both tsconfigs through typescript-esli
 Two things need no package, only configuration:
 
 - The built-in size rules, which enforce "short functions, short modules": `max-lines` 500,
-  `max-lines-per-function` 200, `complexity` 15, `max-depth` 4, `max-params` 5. Seed and patch
+  `max-lines-per-function` 200, `complexity` 15, `max-depth` 4, `max-params` 5. Seed
   modules are literal data and exempt from the line counts, and `max-lines-per-function` is off for
   `.tsx`, whose bodies are mostly a JSX tree the rule counts as logic. `complexity` and
   `cognitive-complexity` measure whether a function is actually hard to follow, and stay strict.
@@ -227,7 +227,7 @@ Six jsdom and library gaps shape how the suites are written. None is a fault in 
 one of them will bite again:
 
 - **jsdom lays nothing out**, so `getBoundingClientRect` returns zeros and any component that maps a
-  coordinate to an index divides by zero. `VelocityLane.test.tsx` stubs the rect.
+  coordinate to an index divides by zero.
 - **recharts renders nothing without a measured size.** `ResponsiveContainer` reads its parent's box,
   which is zero in jsdom. `DashboardCharts.test.tsx` mocks the container to hand the chart a fixed
   640x240, which is what recharts itself does once it has measured one.

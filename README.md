@@ -174,7 +174,7 @@ past** - anything it reports is yours.
 npm run e2e
 ```
 
-Playwright drives a real Chromium through the launcher, CRM, Space and Rolodex and the shared theme
+Playwright drives a real Chromium through the launcher, the three apps and the shared theme
 toggle. It takes about a minute.
 
 What it does under the hood, which explains the wait and the ports:

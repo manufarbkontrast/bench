@@ -1,6 +1,6 @@
 # Bench - project overview
 
-Three local-first apps, merged from three separate repos into one project with **one frontend
+Three local-first apps, merged from four separate repos into one project with **one frontend
 server and one backend server**. Everything runs on your own machine: no login, no cloud, no
 external services, no secrets. Data lives in local SQLite files.
 

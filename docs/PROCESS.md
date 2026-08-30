@@ -62,8 +62,8 @@ sits at 87% on the server and 86% on web.
 Use these for logic with edges: calculations, filtering, sorting, migrations, data transforms. A
 new derived value or a new column default should get one.
 
-jsdom implements no layout, no pointer capture, no canvas, no audio and no `Blob.text()`, so any
-component that measures itself or reads a file needs a stub before it will render at all.
+jsdom implements no layout, no canvas and no `Blob.text()`, so any component that measures itself
+or reads a file needs a stub before it will render at all.
 [CONTROLS.md](./CONTROLS.md) lists the six that have bitten so far and what each suite does
 about them - read it before concluding that a component is untestable.
 
