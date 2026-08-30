@@ -59,3 +59,9 @@ test("the strip says which way the toggle goes", async ({ page }) => {
   await button.click();
   await expect(button).not.toHaveAttribute("aria-label", label!);
 });
+
+test("a first visit is dark", async ({ page }) => {
+  // A fresh context has nothing in localStorage, so this is the first-visit path in a real browser.
+  await page.goto("/");
+  expect(await theme(page)).toBe("dark");
+});
