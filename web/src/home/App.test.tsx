@@ -6,7 +6,6 @@ const APPS = [
   ["CRM", "/crm/", "Deals, and the people behind them"],
   ["Space", "/space/", "Everything you know, in one place"],
   ["Rolodex", "/rolodex/", "The people in your life, kept close"],
-  ["Groove", "/groove/", "A groovebox in the browser"],
 ];
 
 describe("launcher", () => {
@@ -35,5 +34,10 @@ describe("launcher", () => {
       expect(screen.getByRole("heading", { name })).toBeInTheDocument();
       expect(screen.getByText(tagline)).toBeInTheDocument();
     }
+  });
+
+  it("offers exactly three apps", () => {
+    render(<App />);
+    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(3);
   });
 });

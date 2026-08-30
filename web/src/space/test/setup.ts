@@ -2,11 +2,6 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 
-// jsdom implements no pointer capture, so Groove's knobs and faders throw on pointerdown without
-// this. Capture only decides which element receives the rest of a drag, and these tests dispatch
-// straight at the target, so a no-op loses nothing.
-Element.prototype.setPointerCapture = vi.fn();
-
 // jsdom's Blob has no text(), which is how Rolodex reads a file the moment you choose one. The
 // FileReader it does implement would only be a longer way of doing the same thing.
 // The cast is what makes the check legal: the DOM types say the method is always there.

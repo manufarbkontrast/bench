@@ -6,7 +6,6 @@ import { useState } from "react";
 import {
   BenchMark,
   IconCrm,
-  IconGroove,
   IconHome,
   IconMoon,
   IconRolodex,
@@ -16,7 +15,7 @@ import {
 import { currentTheme, toggleTheme, type Theme } from "./theme";
 import "./nav.css";
 
-type AppKey = "home" | "crm" | "space" | "rolodex" | "groove";
+type AppKey = "home" | "crm" | "space" | "rolodex";
 
 /** Colour marks the active app and nothing else: one amber chip, wherever you are. An app is
     told apart by its glyph, which is what still works once there are more of them than there
@@ -31,7 +30,6 @@ const APPS: {
   { key: "crm", href: "/crm/", label: "CRM", Icon: IconCrm },
   { key: "space", href: "/space/", label: "Space", Icon: IconSpace },
   { key: "rolodex", href: "/rolodex/", label: "Rolodex", Icon: IconRolodex },
-  { key: "groove", href: "/groove/", label: "Groove", Icon: IconGroove },
 ];
 
 export default function BenchNav({ active }: { active: AppKey }) {

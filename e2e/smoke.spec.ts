@@ -40,12 +40,6 @@ const APPS: {
     tab: "Rolodex",
     ready: (p) => p.getByRole("heading", { name: "Today" }),
   },
-  {
-    path: "/groove/",
-    title: "GROOVEBOX GX-4",
-    tab: "Groove",
-    ready: (p) => p.getByRole("region", { name: "RHYTHM" }),
-  },
 ];
 
 /** The one nav strip. Named, because every app has a second unnamed nav of its own. */
@@ -77,7 +71,6 @@ test("deep links load the owning app, not the launcher", async ({ page }) => {
     ["/space/p/does-not-exist", "Personal Space"],
     ["/rolodex/people", "Rolodex"],
     ["/rolodex/circles", "Rolodex"],
-    ["/groove/anything", "GROOVEBOX GX-4"],
   ]) {
     await page.goto(path);
     await expect(page).toHaveTitle(title);
@@ -126,7 +119,7 @@ test("the launcher links into each app and the back button returns", async ({
   page,
 }) => {
   await page.goto("/");
-  for (const name of ["CRM", "Space", "Rolodex", "Groove"]) {
+  for (const name of ["CRM", "Space", "Rolodex"]) {
     // The card, not the nav tab of the same name: only the card carries a heading.
     await page
       .getByRole("link")
@@ -158,7 +151,6 @@ test("the nav lists every app and marks the one you are in", async ({
       "CRM",
       "Space",
       "Rolodex",
-      "Groove",
     ]);
     await expect(primary(page).locator("[aria-current=page]")).toHaveText(
       app.tab,
@@ -169,7 +161,6 @@ test("the nav lists every app and marks the one you are in", async ({
 test("the nav reaches every app from every app", async ({ page }) => {
   await page.goto("/crm/");
   for (const [tab, title] of [
-    ["Groove", "GROOVEBOX GX-4"],
     ["Rolodex", "Rolodex"],
     ["Space", "Personal Space"],
     ["Home", "Bench"],
@@ -180,15 +171,15 @@ test("the nav reaches every app from every app", async ({ page }) => {
 });
 
 test("each app keeps its own stylesheet", async ({ page }) => {
-  // One bundle per document; if the apps ever share one, these backgrounds collide.
-  await page.goto("/crm/");
-  const crmSidebar = await page
-    .locator(".sidebar")
-    .first()
-    .evaluate((el) => getComputedStyle(el).backgroundColor);
-  await page.goto("/groove/");
-  const grooveBody = await page
+  // One bundle per document; if the apps ever share one, these backgrounds collide. Space paints
+  // its body white (#ffffff / #16181c), Rolodex grey (#f5f5f7 / #14171c), in both themes.
+  await page.goto("/space/");
+  const spaceBody = await page
     .locator("body")
     .evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(crmSidebar).not.toBe(grooveBody);
+  await page.goto("/rolodex/");
+  const rolodexBody = await page
+    .locator("body")
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(spaceBody).not.toBe(rolodexBody);
 });

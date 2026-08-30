@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 /** Multi-page build: one HTML entry per app, so their global styles never collide. */
 const entry = (name: string) => fileURLToPath(new URL(name, import.meta.url));
 
-const APPS = ["crm", "space", "rolodex", "groove"];
+const APPS = ["crm", "space", "rolodex"];
 
 /** Dev only: send a deep link like /crm/contacts to that app's HTML, not the launcher. */
 function appFallback(): PluginOption {
@@ -35,7 +35,6 @@ export default defineConfig({
         crm: entry("crm/index.html"),
         space: entry("space/index.html"),
         rolodex: entry("rolodex/index.html"),
-        groove: entry("groove/index.html"),
       },
     },
   },
@@ -56,15 +55,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**"],
-      // jsdom has no AudioContext, so Groove's audio graph cannot be unit tested without a mock
-      // that would assert nothing about how it sounds. EXPLORATORY.md records that gap; excluding
-      // it here keeps this threshold from implying coverage it does not have.
-      exclude: [
-        "src/**/main.tsx",
-        "src/**/test/**",
-        "src/**/*.test.*",
-        "src/groove/audio/**",
-      ],
+      exclude: ["src/**/main.tsx", "src/**/test/**", "src/**/*.test.*"],
       thresholds: { statements: 80 },
     },
   },

@@ -75,12 +75,6 @@ export const IconSpace = (p: IconProps) => (
   </Stroke>
 );
 
-export const IconGroove = (p: IconProps) => (
-  <Stroke {...p}>
-    <path d="M2.5 12h3L8 5l3.5 15L15 8l2 4h4" />
-  </Stroke>
-);
-
 /** A rolodex card, notched where the spindle passes through it - the thing itself, rather
     than another address book that would look like the CRM's contact card. */
 export const IconRolodex = (p: IconProps) => (

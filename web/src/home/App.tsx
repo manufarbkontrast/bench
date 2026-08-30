@@ -1,11 +1,6 @@
 /** Launcher: one card per app. Plain anchors - each app is its own document. */
 import BenchNav from "../shared/BenchNav";
-import {
-  IconCrm,
-  IconGroove,
-  IconRolodex,
-  IconSpace,
-} from "../shared/AppIcons";
+import { IconCrm, IconRolodex, IconSpace } from "../shared/AppIcons";
 
 interface AppCard {
   href: string;
@@ -43,15 +38,6 @@ const APPS: AppCard[] = [
       "Who you are due to contact, what is going on with them, birthdays coming up, and a timeline of every conversation.",
     facts: ["Check-ins", "Circles", "Calendar"],
     Icon: IconRolodex,
-  },
-  {
-    href: "/groove/",
-    name: "Groove",
-    tagline: "A groovebox in the browser",
-    detail:
-      "Four synth units, one transport and a master DJ filter. Pure Web Audio — no samples, no plugins, no latency budget.",
-    facts: ["4 units", "16 steps", "Web Audio"],
-    Icon: IconGroove,
   },
 ];
 
