@@ -3214,6 +3214,12 @@ describe("prepareMarkdown", () => {
     );
   });
 
+  it("accepts the escaped pipe Obsidian writes inside tables", () => {
+    expect(prepareMarkdown("| [[Cockpit\\|Das Cockpit]] |", links)).toBe(
+      "| [Das Cockpit](/vault/n/00_Index/Cockpit.md) |",
+    );
+  });
+
   it("turns an embed into an image served from the vault", () => {
     expect(prepareMarkdown("![[assets/skizze.svg]]", links)).toBe(
       "![assets/skizze.svg](/api/vault/file?path=assets%2Fskizze.svg)",
@@ -3395,6 +3401,9 @@ function replaceLink(
   return resolved ? `[${label}](/vault${noteUrl(resolved)})` : label;
 }
 
+/** Obsidian escapes the alias pipe inside tables: [[Note\|Alias]] means [[Note|Alias]]. */
+const unescapePipes = (line: string) => line.replace(/\\\|/g, "|");
+
 function transformProse(line: string, links: NoteLink[]): string {
   const callout = CALLOUT.exec(line);
   if (callout) {
@@ -3403,7 +3412,7 @@ function transformProse(line: string, links: NoteLink[]): string {
       title.trim() || type[0].toUpperCase() + type.slice(1).toLowerCase();
     return `${prefix}**${shown}**`;
   }
-  return line.replace(
+  return unescapePipes(line).replace(
     LINK,
     (_m, embed: string, target: string, heading?: string, alias?: string) =>
       replaceLink(links, embed, target, heading, alias),
