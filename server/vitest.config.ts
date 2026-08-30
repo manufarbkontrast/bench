@@ -9,7 +9,9 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**"],
-      exclude: ["src/index.ts"],
+      // The vault fixture is markdown, SVG and JSON data, not source - v8 tries to parse every
+      // included file that no test imported and fails loudly on each one otherwise.
+      exclude: ["src/index.ts", "src/vault/fixture/**"],
       thresholds: { statements: 80 },
     },
   },
