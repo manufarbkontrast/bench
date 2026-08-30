@@ -1,0 +1,41 @@
+import { describe, expect, it } from "vitest";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { configFrom, describeSources, loadConfig } from "../src/config.js";
+
+describe("configFrom", () => {
+  it("reads the vault path", () => {
+    expect(configFrom({ VAULT_DIR: "/v" }).vaultDir).toBe("/v");
+  });
+
+  it("treats a missing or blank value as unset", () => {
+    expect(configFrom({}).vaultDir).toBeUndefined();
+    expect(configFrom({ VAULT_DIR: "   " }).vaultDir).toBeUndefined();
+  });
+});
+
+describe("loadConfig", () => {
+  it("reads .env from the root when it exists", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "bench-config-"));
+    writeFileSync(path.join(root, ".env"), "VAULT_DIR=/from-file\n");
+    delete process.env.VAULT_DIR;
+    expect(loadConfig(root).vaultDir).toBe("/from-file");
+    delete process.env.VAULT_DIR;
+  });
+
+  it("copes without a .env", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "bench-config-"));
+    delete process.env.VAULT_DIR;
+    expect(loadConfig(root).vaultDir).toBeUndefined();
+  });
+});
+
+describe("describeSources", () => {
+  it("names the vault and says when it is not configured", () => {
+    expect(describeSources(configFrom({ VAULT_DIR: "/v" }))).toEqual([
+      "Vault: /v",
+    ]);
+    expect(describeSources(configFrom({}))).toEqual(["Vault: not configured"]);
+  });
+});
