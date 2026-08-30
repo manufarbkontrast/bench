@@ -4,19 +4,19 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { configFrom, describeSources, loadConfig } from "../src/config.js";
 
-const tempDirs: string[] = [];
+let root: string | undefined;
 
+/** A fresh directory per test; afterEach removes it whatever the assertions did. */
 function tempRoot(): string {
-  const dir = mkdtempSync(path.join(tmpdir(), "bench-config-"));
-  tempDirs.push(dir);
-  return dir;
+  root = mkdtempSync(path.join(tmpdir(), "bench-config-"));
+  return root;
 }
 
 afterEach(() => {
   delete process.env.VAULT_DIR;
-  while (tempDirs.length > 0) {
-    rmSync(tempDirs.pop()!, { recursive: true, force: true });
-  }
+  delete process.env.BENCH_DOTENV;
+  if (root) rmSync(root, { recursive: true, force: true });
+  root = undefined;
 });
 
 describe("configFrom", () => {
@@ -32,16 +32,23 @@ describe("configFrom", () => {
 
 describe("loadConfig", () => {
   it("reads .env from the root when it exists", () => {
-    const root = tempRoot();
-    writeFileSync(path.join(root, ".env"), "VAULT_DIR=/from-file\n");
+    const dir = tempRoot();
+    writeFileSync(path.join(dir, ".env"), "VAULT_DIR=/from-file\n");
     delete process.env.VAULT_DIR;
-    expect(loadConfig(root).vaultDir).toBe("/from-file");
+    expect(loadConfig(dir).vaultDir).toBe("/from-file");
   });
 
   it("copes without a .env", () => {
-    const root = tempRoot();
     delete process.env.VAULT_DIR;
-    expect(loadConfig(root).vaultDir).toBeUndefined();
+    expect(loadConfig(tempRoot()).vaultDir).toBeUndefined();
+  });
+
+  it("leaves .env unread when BENCH_DOTENV is off", () => {
+    const dir = tempRoot();
+    writeFileSync(path.join(dir, ".env"), "VAULT_DIR=/from-file\n");
+    delete process.env.VAULT_DIR;
+    process.env.BENCH_DOTENV = "off";
+    expect(loadConfig(dir).vaultDir).toBeUndefined();
   });
 });
 

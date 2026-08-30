@@ -1,6 +1,6 @@
 import { test as base, expect } from "@playwright/test";
 import { spawn } from "node:child_process";
-import { rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -32,6 +32,13 @@ export const test = base.extend<object, { appServer: string }>({
       const dataDir = path.join("e2e", ".tmp", `w${workerInfo.workerIndex}`);
       rmSync(path.join(root, dataDir), { recursive: true, force: true });
 
+      // Each worker indexes its own copy of the fixture vault, so a spec that adds a note never
+      // shows up in another worker's tree. Until Task 2 ships the fixture, the copy is empty.
+      const vaultDir = path.join(root, dataDir, "vault");
+      mkdirSync(vaultDir, { recursive: true });
+      const fixture = path.join(root, "server", "src", "vault", "fixture");
+      if (existsSync(fixture)) cpSync(fixture, vaultDir, { recursive: true });
+
       // npx is a .cmd on Windows, which child_process cannot execute by its bare name.
       const npx = process.platform === "win32" ? "npx.cmd" : "npx";
       const server = spawn(npx, ["tsx", "server/src/index.ts"], {
@@ -40,10 +47,10 @@ export const test = base.extend<object, { appServer: string }>({
           ...process.env,
           PORT: String(port),
           DATA_DIR: dataDir,
-          // The environment wins over .env in process.loadEnvFile, so an empty VAULT_DIR keeps a
-          // developer's real vault out of every e2e server. Phase 1 points this at a per-worker
-          // fixture vault instead.
-          VAULT_DIR: "",
+          // BENCH_DOTENV=off keeps a developer's .env out of every e2e server whatever keys it
+          // gains; VAULT_DIR then points at this worker's own copy of the fixture vault.
+          BENCH_DOTENV: "off",
+          VAULT_DIR: vaultDir,
         },
         stdio: "ignore",
       });

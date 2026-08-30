@@ -22,11 +22,13 @@ export function configFrom(env: NodeJS.ProcessEnv): Config {
 /**
  * Read `<root>/.env` into the environment if it exists, then build the config from it. A
  * variable already in the environment wins over the file - process.loadEnvFile never overrides
- * one - which is what lets e2e/fixtures.ts pin VAULT_DIR to an empty string.
+ * one. BENCH_DOTENV=off skips the file altogether, which is how the e2e servers stay clear of a
+ * developer's real .env whatever keys it gains later.
  */
 export function loadConfig(root: string): Config {
   const file = path.join(root, ".env");
-  if (existsSync(file)) process.loadEnvFile(file);
+  if (process.env.BENCH_DOTENV !== "off" && existsSync(file))
+    process.loadEnvFile(file);
   return configFrom(process.env);
 }
 
