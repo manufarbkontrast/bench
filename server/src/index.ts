@@ -4,6 +4,10 @@ import { fileURLToPath } from "node:url";
 import { describeSources, loadConfig } from "./config.js";
 import { openDb as openCrmDb } from "./crm/db.js";
 import { isSeeded, seed } from "./crm/seed.js";
+import { listProjects, openProjekteDb } from "./projekte/db.js";
+import { realGh } from "./projekte/gh.js";
+import { locateProjects } from "./projekte/locate.js";
+import type { ProjekteContext } from "./projekte/routes.js";
 import { openDb as openRolodexDb } from "./rolodex/db/index.js";
 import { seedIfEmpty as seedRolodex } from "./rolodex/seed.js";
 import { openDb as openVaultDb } from "./vault/db.js";
@@ -39,10 +43,24 @@ const vaultDb = openVaultDb(path.join(dataDir, "vault.sqlite"));
 const indexed = indexAll(vaultDb, vault.dir);
 watchVault(vaultDb, vault.dir);
 
+// No scan at startup - the first GET /list pays it, so boot stays fast.
+const projekteLocation = locateProjects(
+  config,
+  path.join(dataDir, "sample-projekte"),
+);
+const projekteDb = openProjekteDb(path.join(dataDir, "projekte.sqlite"));
+const projekte: ProjekteContext = {
+  db: projekteDb,
+  roots: projekteLocation.roots,
+  source: projekteLocation.source,
+  gh: process.env.BENCH_GH === "off" ? "off" : realGh,
+};
+
 createApp({
   crm,
   rolodex,
   vault: { db: vaultDb, dir: vault.dir, name: path.basename(vault.dir) },
+  projekte,
 }).listen(port, () => {
   console.log(`Bench running at http://localhost:${port}`);
   for (const line of describeSources(config)) console.log(`  ${line}`);
@@ -52,5 +70,13 @@ createApp({
     );
   console.log(
     `  Vault index: ${indexed.notes} notes, ${indexed.links} links, ${indexed.tasks} tasks from ${vault.dir}`,
+  );
+  const projekteRows = listProjects(projekteDb).length;
+  console.log(
+    `  Projekte: ${projekteLocation.roots.length} roots (${projekteLocation.source}), ${
+      projekteRows > 0
+        ? `${projekteRows} projects indexed`
+        : "index empty until first scan"
+    }`,
   );
 });
