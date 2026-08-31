@@ -57,6 +57,7 @@ export const test = base.extend<
           // gains; VAULT_DIR then points at this worker's own copy of the fixture vault.
           BENCH_DOTENV: "off",
           VAULT_DIR: vaultDir,
+          BENCH_GH: "off",
         },
         stdio: "ignore",
       });

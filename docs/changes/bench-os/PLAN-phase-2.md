@@ -535,9 +535,9 @@ export function findRepos(roots: string[]): string[] {
 
 ```ts
 it.each([
-  ["git@github.com:Owner/Repo.git", "github.com/owner/repo"],
+  ["git@github.com:Owner/Repo.git", "github.com/owner/repo"], // allow-secret: git remote fixture, not a real address
   ["https://github.com/owner/repo", "github.com/owner/repo"],
-  ["ssh://git@github.com/Owner/Repo/", "github.com/owner/repo"],
+  ["ssh://git@github.com/Owner/Repo/", "github.com/owner/repo"], // allow-secret: git remote fixture, not a real address
   ["https://gitlab.com/a/b.git", "gitlab.com/a/b"],
   [
     "/Users/someone/origins/leuchtfeuer.git",

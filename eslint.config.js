@@ -185,6 +185,12 @@ export default tseslint.config(
     rules: { "sonarjs/no-os-command-from-path": "off" },
   },
 
+  // Same reasoning: the sample workshop builder runs git to construct a synthetic repo tree.
+  {
+    files: ["server/src/projekte/**", "server/test/projekte/**"],
+    rules: { "sonarjs/no-os-command-from-path": "off" },
+  },
+
   {
     files: ["server/test/**/*.ts", "web/src/**/*.test.{ts,tsx}"],
     extends: [vitest.configs.recommended],

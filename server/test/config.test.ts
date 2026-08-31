@@ -1,8 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import os, { tmpdir } from "node:os";
 import path from "node:path";
-import { configFrom, describeSources, loadConfig } from "../src/config.js";
+import {
+  configFrom,
+  describeSources,
+  expandTilde,
+  loadConfig,
+} from "../src/config.js";
 
 let root: string | undefined;
 
@@ -15,6 +20,7 @@ function tempRoot(): string {
 afterEach(() => {
   delete process.env.VAULT_DIR;
   delete process.env.BENCH_DOTENV;
+  delete process.env.PROJECT_ROOTS;
   if (root) rmSync(root, { recursive: true, force: true });
   root = undefined;
 });
@@ -27,6 +33,27 @@ describe("configFrom", () => {
   it("treats a missing or blank value as unset", () => {
     expect(configFrom({}).vaultDir).toBeUndefined();
     expect(configFrom({ VAULT_DIR: "   " }).vaultDir).toBeUndefined();
+  });
+
+  it("defaults project roots to an empty list when unset", () => {
+    expect(configFrom({}).projectRoots).toEqual([]);
+  });
+
+  it("splits, trims, drops empties and expands tilde in project roots", () => {
+    expect(configFrom({ PROJECT_ROOTS: "~/a: /srv/b :" }).projectRoots).toEqual(
+      [path.join(os.homedir(), "a"), "/srv/b"],
+    );
+  });
+});
+
+describe("expandTilde", () => {
+  it("expands a leading ~ to the home directory", () => {
+    expect(expandTilde("~/a")).toBe(path.join(os.homedir(), "a"));
+    expect(expandTilde("~")).toBe(os.homedir());
+  });
+
+  it("leaves other paths untouched", () => {
+    expect(expandTilde("/srv/b")).toBe("/srv/b");
   });
 });
 
@@ -56,7 +83,17 @@ describe("describeSources", () => {
   it("names the vault and says when it is not configured", () => {
     expect(describeSources(configFrom({ VAULT_DIR: "/v" }))).toEqual([
       "Vault: /v",
+      "Projekte: not configured",
     ]);
-    expect(describeSources(configFrom({}))).toEqual(["Vault: not configured"]);
+    expect(describeSources(configFrom({}))).toEqual([
+      "Vault: not configured",
+      "Projekte: not configured",
+    ]);
+  });
+
+  it("counts configured project roots without naming their paths", () => {
+    expect(
+      describeSources(configFrom({ PROJECT_ROOTS: "~/a:/srv/b" })),
+    ).toEqual(["Vault: not configured", "Projekte: 2 roots"]);
   });
 });

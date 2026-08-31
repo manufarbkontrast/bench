@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 /**
@@ -9,14 +10,32 @@ import path from "node:path";
  */
 export interface Config {
   vaultDir?: string;
+  projectRoots: string[];
 }
 
 function optional(value: string | undefined): string | undefined {
   return value?.trim() || undefined;
 }
 
+export function expandTilde(p: string): string {
+  return p === "~" || p.startsWith("~/")
+    ? path.join(os.homedir(), p.slice(1))
+    : p;
+}
+
+function rootsFrom(value: string | undefined): string[] {
+  return (value ?? "")
+    .split(":")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map(expandTilde);
+}
+
 export function configFrom(env: NodeJS.ProcessEnv): Config {
-  return { vaultDir: optional(env.VAULT_DIR) };
+  return {
+    vaultDir: optional(env.VAULT_DIR),
+    projectRoots: rootsFrom(env.PROJECT_ROOTS),
+  };
 }
 
 /**
@@ -37,5 +56,12 @@ export function loadConfig(root: string): Config {
  * than silent - whether the .env is absent or just does not set it.
  */
 export function describeSources(config: Config): string[] {
-  return [`Vault: ${config.vaultDir ?? "not configured"}`];
+  const projekte =
+    config.projectRoots.length === 0
+      ? "not configured"
+      : `${config.projectRoots.length} roots`;
+  return [
+    `Vault: ${config.vaultDir ?? "not configured"}`,
+    `Projekte: ${projekte}`,
+  ];
 }
