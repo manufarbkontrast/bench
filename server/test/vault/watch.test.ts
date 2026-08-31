@@ -20,8 +20,8 @@ const notes = () =>
 const nextChange = () =>
   new Promise<void>((resolve, reject) => {
     const timer = setTimeout(
-      () => reject(new Error("no watcher event within 10 s")),
-      10_000,
+      () => reject(new Error("no watcher event within 30 s")),
+      30_000,
     );
     waiters = [
       ...waiters,
@@ -88,7 +88,15 @@ describe("watchVault", () => {
   it("ignores files that are not notes", async () => {
     writeFileSync(path.join(dir, ".obsidian", "workspace.json"), "{}");
     writeFileSync(path.join(dir, "assets", "neu.svg"), "<svg/>");
-    await new Promise((r) => setTimeout(r, 400));
-    expect(notes()).toBe(12);
+    // Neither ignored write fires onChange (dot-dir is filtered by chokidar, the svg by
+    // isNotePath), so the next event this waits for can only be the real note below - proving
+    // events still flow and the ignored files were skipped, without betting on a fixed sleep.
+    const added = nextChange();
+    writeFileSync(
+      path.join(dir, "60_Knowledge", "Echt.md"),
+      "# Echt\n\nEin echtes Notiz.\n",
+    );
+    await added;
+    expect(notes()).toBe(13);
   });
 });

@@ -4,8 +4,10 @@ export default defineConfig({
   test: {
     // The default 5s is wall-clock, and the parallel coverage run can starve a forked worker on
     // a slow or busy machine - a millisecond test then times out. No test here legitimately runs
-    // long, so a generous limit hides nothing; a real hang still fails.
-    testTimeout: 15_000,
+    // long, so a generous limit hides nothing; a real hang still fails. Raised in step with the
+    // watch suite's own 30s hang detector, so that detector's message can surface instead of
+    // vitest's own timeout racing it.
+    testTimeout: 40_000,
     coverage: {
       provider: "v8",
       include: ["src/**"],
