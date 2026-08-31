@@ -1,0 +1,15 @@
+# gitleaks runs in dir mode (scripts/run-gitleaks.mjs), which also scans gitignored files. data/
+# holds the local SQLite databases, and the vault index mirrors the user's own notes - anything
+# secret-shaped in a note would otherwise fail every check run on a configured machine.
+# check-secrets.mjs still fails hard if anything under data/ is ever tracked.
+#
+# A custom config REPLACES gitleaks' built-in rules rather than adding to them, so without this
+# [extend] block the allowlist below would be the entire ruleset - no rule would ever fire, on
+# data/ or anywhere else. Verified with a canary: with useDefault missing, a planted secret
+# outside data/ went undetected too.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local databases and indexes"
+paths = ['''^data/''']
