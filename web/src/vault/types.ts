@@ -9,9 +9,7 @@ export interface TreeEntry {
   folder: string;
 }
 
-// Not exported: nothing outside this file names these types directly, only through Note's
-// fields - Task 7 is expected to change that once NoteView renders links and backlinks.
-interface NoteLink {
+export interface NoteLink {
   target: string;
   heading: string | null;
   alias: string | null;
@@ -19,7 +17,7 @@ interface NoteLink {
   toPath: string | null;
 }
 
-interface Backlink {
+export interface Backlink {
   path: string;
   title: string;
 }

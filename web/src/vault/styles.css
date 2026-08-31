@@ -2,6 +2,7 @@
 
 :root {
   color-scheme: light;
+  /* The brand accent - stays the same value in both themes, unlike every other token here. */
   --accent: #ff5c00;
   --accent-ink: #b84200;
   --accent-wash: rgba(255, 92, 0, 0.12);
@@ -217,4 +218,179 @@ button {
 .note-missing {
   padding: 40px;
   color: var(--text-soft);
+}
+
+.note-header {
+  margin-bottom: 24px;
+}
+
+.note-actions {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.note-action {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-soft);
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.note-action:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.note-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.note-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.note-tags li {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.note-frontmatter {
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+
+.note-frontmatter th {
+  text-align: left;
+  padding: 3px 14px 3px 0;
+  color: var(--text-faint);
+  font-weight: 500;
+}
+
+.note-frontmatter td {
+  padding: 3px 0;
+  color: var(--text-soft);
+}
+
+.note-body {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.note-body h1,
+.note-body h2,
+.note-body h3 {
+  margin: 28px 0 10px;
+  line-height: 1.25;
+}
+
+.note-body h2 {
+  font-size: 21px;
+}
+
+.note-body h3 {
+  font-size: 17px;
+}
+
+.note-body p,
+.note-body ul,
+.note-body ol {
+  margin: 0 0 12px;
+}
+
+.note-body a {
+  color: var(--accent-ink);
+}
+
+.note-body a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.note-body blockquote {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  background: var(--bg-sidebar);
+  border-radius: 6px;
+  color: var(--text-soft);
+}
+
+.note-body blockquote p {
+  margin: 0;
+}
+
+.note-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  background: var(--code-bg);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.note-body pre {
+  padding: 12px 14px;
+  background: var(--code-bg);
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.note-body pre code {
+  padding: 0;
+  background: none;
+}
+
+.note-body table {
+  border-collapse: collapse;
+  margin: 0 0 12px;
+}
+
+.note-body th,
+.note-body td {
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  text-align: left;
+}
+
+.note-body img {
+  max-width: 100%;
+}
+
+.note-body input[type="checkbox"] {
+  margin-right: 6px;
+}
+
+.note-backlinks {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.note-backlinks h2 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+
+.note-backlinks ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.note-backlinks a {
+  color: var(--accent-ink);
+}
+
+.note-empty {
+  color: var(--text-faint);
 }
