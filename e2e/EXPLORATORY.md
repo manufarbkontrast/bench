@@ -27,6 +27,33 @@ The specs assert that each app's background actually changes and that the choice
 reload; whether the result is _legible_ - chart axes, chips on tinted backgrounds - is a judgement
 only you can make.
 
+## Vault
+
+Covered by specs against the fixture vault (`e2e/vault/{notes,search,live}.spec.ts`): the tree
+opens a note and marks it selected, a wikilink jumps and the backlinks region lists the referrers,
+a dangling link renders as plain text rather than a link while the raw view still shows the
+`[[...]]` source and the Obsidian link carries the right `obsidian://` href, a relative image is
+served from the vault, quick-find opens by shortcut and by the header button, narrows live,
+supports keyboard-only arrows-plus-Enter, shows "Keine Treffer", and a note written or edited on
+disk is re-read and shown within three seconds without a restart. Task 11 re-ran the same shape of
+checks against the real vault (77 notes, 367 links, 173 tasks): ten notes sampled across folders,
+including two with umlauts and spaces in the filename and five with callouts, all had rendered
+links, backlinks and search hits matching a `grep` over the markdown - once that `grep` accounts
+for wikilinks written as a full path (`[[50_Workflow/Coding_Style|Alias]]`, the norm in this vault
+rather than the bare-title form the fixture vault uses) and for the escaped pipe Obsidian requires
+inside a table cell (`[[Note\|Alias]]`), both of which the app resolves correctly and neither of
+which the fixture vault happens to exercise.
+
+Left to judgement: rendering fidelity on a real vault's own notes - tables, long pages, and
+callouts (an Obsidian `> [!tip] Title` renders as a plain blockquote with a bold first line; the
+callout type itself carries no icon or colour). Embedded `dataview` and `tasks` query blocks show
+as inert code, correctly unexecuted, but that also means a note built entirely around one - the
+real vault's own Cockpit note - renders as headings over code rather than the dashboard Obsidian
+would show. Whether `obsidian://open?vault=<name>&file=<path>` actually opens Obsidian and lands on
+the right note - the suite and this task both only assert the href. The feel of the tree past 70
+notes: how deep nesting gets before you scroll, and whether a note that links to the same target
+many times over (real project notes do) reads oddly repeated in the body.
+
 ## CRM
 
 Covered by specs: CRUD for organizations, contacts and deals, search, status filter, keyboard drag
