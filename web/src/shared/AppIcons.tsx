@@ -75,6 +75,14 @@ export const IconSpace = (p: IconProps) => (
   </Stroke>
 );
 
+/** An open book: the vault is read here, not written. */
+export const IconVault = (p: IconProps) => (
+  <Stroke {...p}>
+    <path d="M3 4.5h6a3 3 0 0 1 3 3v12.5a2 2 0 0 0-2-2H3z" />
+    <path d="M21 4.5h-6a3 3 0 0 0-3 3v12.5a2 2 0 0 1 2-2h7z" />
+  </Stroke>
+);
+
 /** A rolodex card, notched where the spindle passes through it - the thing itself, rather
     than another address book that would look like the CRM's contact card. */
 export const IconRolodex = (p: IconProps) => (

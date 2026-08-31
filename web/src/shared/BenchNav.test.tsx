@@ -11,7 +11,7 @@ beforeEach(() => {
 });
 
 describe("BenchNav", () => {
-  it("offers the launcher and all three apps, in order", () => {
+  it("offers the launcher and all four apps, in order", () => {
     render(<BenchNav active="crm" />);
     expect(
       nav()
@@ -19,6 +19,7 @@ describe("BenchNav", () => {
         .map((link) => [link.textContent, link.getAttribute("href")]),
     ).toEqual([
       ["Start", "/"],
+      ["Vault", "/vault/"],
       ["CRM", "/crm/"],
       ["Space", "/space/"],
       ["Rolodex", "/rolodex/"],

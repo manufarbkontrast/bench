@@ -3,6 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import App from "./App";
 
 const APPS = [
+  ["Vault", "/vault/", "Dein Obsidian-Vault, gelesen"],
   ["CRM", "/crm/", "Deals und die Menschen dahinter"],
   ["Space", "/space/", "Alles, was du weißt, an einem Ort"],
   ["Rolodex", "/rolodex/", "Die Menschen in deinem Leben, nah gehalten"],
@@ -36,8 +37,8 @@ describe("launcher", () => {
     }
   });
 
-  it("offers exactly three apps", () => {
+  it("offers exactly four apps", () => {
     render(<App />);
-    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(3);
+    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(4);
   });
 });

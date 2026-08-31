@@ -11,11 +11,12 @@ import {
   IconRolodex,
   IconSpace,
   IconSun,
+  IconVault,
 } from "./AppIcons";
 import { currentTheme, toggleTheme, type Theme } from "./theme";
 import "./nav.css";
 
-type AppKey = "home" | "crm" | "space" | "rolodex";
+type AppKey = "home" | "vault" | "crm" | "space" | "rolodex";
 
 /** Colour marks the active app and nothing else: one orange chip, wherever you are. An app is
     told apart by its glyph, which is what still works once there are more of them than there
@@ -27,6 +28,7 @@ const APPS: {
   Icon: (p: { size?: number }) => React.ReactElement;
 }[] = [
   { key: "home", href: "/", label: "Start", Icon: IconHome },
+  { key: "vault", href: "/vault/", label: "Vault", Icon: IconVault },
   { key: "crm", href: "/crm/", label: "CRM", Icon: IconCrm },
   { key: "space", href: "/space/", label: "Space", Icon: IconSpace },
   { key: "rolodex", href: "/rolodex/", label: "Rolodex", Icon: IconRolodex },

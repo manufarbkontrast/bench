@@ -1,6 +1,6 @@
 /** Launcher: one card per app. Plain anchors - each app is its own document. */
 import BenchNav from "../shared/BenchNav";
-import { IconCrm, IconRolodex, IconSpace } from "../shared/AppIcons";
+import { IconCrm, IconRolodex, IconSpace, IconVault } from "../shared/AppIcons";
 
 interface AppCard {
   href: string;
@@ -12,6 +12,15 @@ interface AppCard {
 }
 
 const APPS: AppCard[] = [
+  {
+    href: "/vault/",
+    name: "Vault",
+    tagline: "Dein Obsidian-Vault, gelesen",
+    detail:
+      "Ordnerbaum, Notizen mit funktionierenden Wikilinks und Rückverweisen, Volltextsuche - direkt aus den Markdown-Dateien, ohne Kopie.",
+    facts: ["Notizen", "Backlinks", "Suche"],
+    Icon: IconVault,
+  },
   {
     href: "/crm/",
     name: "CRM",
@@ -49,7 +58,7 @@ export default function App() {
         <header className="home-header">
           <h1>Bench</h1>
           <p className="home-lede">
-            Drei Apps, ein Server, ein Rechner. Deine Daten liegen als
+            Vier Apps, ein Server, ein Rechner. Deine Daten liegen als
             SQLite-Dateien auf dieser Platte und gehen nirgendwohin.
           </p>
         </header>

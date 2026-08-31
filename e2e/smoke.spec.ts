@@ -24,6 +24,12 @@ const APPS: {
     ready: (p) => p.getByRole("heading", { name: "CRM" }),
   },
   {
+    path: "/vault/",
+    title: "Vault",
+    tab: "Vault",
+    ready: (p) => p.getByRole("treeitem").first(),
+  },
+  {
     path: "/crm/",
     title: "Personal CRM",
     tab: "CRM",
@@ -72,6 +78,7 @@ test("deep links load the owning app, not the launcher", async ({ page }) => {
     ["/space/p/does-not-exist", "Personal Space"],
     ["/rolodex/people", "Rolodex"],
     ["/rolodex/circles", "Rolodex"],
+    ["/vault/n/anything", "Vault"],
   ]) {
     await page.goto(path);
     await expect(page).toHaveTitle(title);
@@ -108,6 +115,10 @@ test("both API namespaces answer and stay separate", async ({
   expect(people.ok()).toBeTruthy();
   expect((await json<{ id: number }[]>(people)).length).toBeGreaterThan(0);
 
+  const vault = await page.request.get(`${baseURL}/api/vault/tree`);
+  expect(vault.ok()).toBeTruthy();
+  expect((await json<{ path: string }[]>(vault)).length).toBeGreaterThan(0);
+
   // The pre-merge, un-namespaced paths must not resolve.
   expect(
     (await page.request.get(`${baseURL}/api/organizations`)).status(),
@@ -120,7 +131,7 @@ test("the launcher links into each app and the back button returns", async ({
   page,
 }) => {
   await page.goto("/");
-  for (const name of ["CRM", "Space", "Rolodex"]) {
+  for (const name of ["Vault", "CRM", "Space", "Rolodex"]) {
     // The card, not the nav tab of the same name: only the card carries a heading.
     await page
       .getByRole("link")
@@ -149,6 +160,7 @@ test("the nav lists every app and marks the one you are in", async ({
     const links = primary(page).getByRole("link");
     await expect(links, `${app.path} nav`).toHaveText([
       "Start",
+      "Vault",
       "CRM",
       "Space",
       "Rolodex",
@@ -162,6 +174,7 @@ test("the nav lists every app and marks the one you are in", async ({
 test("the nav reaches every app from every app", async ({ page }) => {
   await page.goto("/crm/");
   for (const [tab, title] of [
+    ["Vault", "Vault"],
     ["Rolodex", "Rolodex"],
     ["Space", "Personal Space"],
     ["Start", "Bench"],
