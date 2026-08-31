@@ -33,6 +33,14 @@ describe("BenchNav", () => {
     expect(current.map((link) => link.textContent)).toEqual(["Vault"]);
   });
 
+  it("marks the strip as German, unlike the document around it", () => {
+    render(<BenchNav active="crm" />);
+    expect(screen.getByRole("navigation", { name: "Primary" })).toHaveAttribute(
+      "lang",
+      "de",
+    );
+  });
+
   it("names the project", () => {
     render(<BenchNav active="home" />);
     expect(screen.getByText("Bench")).toBeInTheDocument();

@@ -34,13 +34,17 @@ const APPS: {
 
 export default function BenchNav({ active }: { active: AppKey }) {
   const [theme, setTheme] = useState<Theme>(currentTheme);
+  const switchLabel =
+    theme === "dark"
+      ? "Zum hellen Design wechseln"
+      : "Zum dunklen Design wechseln";
   return (
     <header className="bench-nav">
       <span className="bench-nav-brand">
         <BenchMark size={21} />
         Bench
       </span>
-      <nav className="bench-nav-links" aria-label="Primary">
+      <nav className="bench-nav-links" aria-label="Primary" lang="de">
         {APPS.map(({ key, href, label, Icon }) => (
           <a
             key={key}
@@ -57,16 +61,8 @@ export default function BenchNav({ active }: { active: AppKey }) {
         type="button"
         className="bench-nav-theme"
         onClick={() => setTheme(toggleTheme())}
-        aria-label={
-          theme === "dark"
-            ? "Zum hellen Design wechseln"
-            : "Zum dunklen Design wechseln"
-        }
-        title={
-          theme === "dark"
-            ? "Zum hellen Design wechseln"
-            : "Zum dunklen Design wechseln"
-        }
+        aria-label={switchLabel}
+        title={switchLabel}
       >
         {theme === "dark" ? <IconSun size={16} /> : <IconMoon size={16} />}
       </button>
