@@ -757,13 +757,13 @@ VAULT_DIR=/Users/you/path/to/your-obsidian-vault
 Create `.env` (already gitignored - confirm with `git check-ignore .env`):
 
 ```
-VAULT_DIR=/Users/manuwolfram/Downloads/obsidian
+VAULT_DIR=/Users/you/path/to/your-obsidian-vault
 ```
 
 - [ ] **Step 7: Prove both startup paths**
 
 Run: `npm run build && (PORT=8177 npm run start -w server & sleep 4; curl -s localhost:8177/api/space/tree | head -c 80; echo; kill %1)`
-Expected: the server prints `Bench running at http://localhost:8177` followed by one indented line `Vault: /Users/manuwolfram/Downloads/obsidian`, and the curl returns JSON.
+Expected: the server prints `Bench running at http://localhost:8177` followed by one indented line `Vault: /Users/you/path/to/your-obsidian-vault`, and the curl returns JSON.
 
 Run: `mv .env .env.local-backup && (PORT=8178 npm run start -w server & sleep 4; kill %1); mv .env.local-backup .env`
 Expected: the server starts and the line reads `Vault: not configured`.
