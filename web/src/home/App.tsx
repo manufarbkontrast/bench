@@ -1,6 +1,6 @@
 /** Launcher: one card per app. Plain anchors - each app is its own document. */
 import BenchNav from "../shared/BenchNav";
-import { IconCrm, IconRolodex, IconSpace, IconVault } from "../shared/AppIcons";
+import { IconCrm, IconRolodex, IconVault } from "../shared/AppIcons";
 
 interface AppCard {
   href: string;
@@ -31,15 +31,6 @@ const APPS: AppCard[] = [
     Icon: IconCrm,
   },
   {
-    href: "/space/",
-    name: "Space",
-    tagline: "Alles, was du weißt, an einem Ort",
-    detail:
-      "Seiten und Blöcke, beliebig tief verschachtelt, Datenbanken als Tabelle, Board und Liste, und eine Suche über alles.",
-    facts: ["Seiten", "Datenbanken", "Suche"],
-    Icon: IconSpace,
-  },
-  {
     href: "/rolodex/",
     name: "Rolodex",
     tagline: "Die Menschen in deinem Leben, nah gehalten",
@@ -58,7 +49,7 @@ export default function App() {
         <header className="home-header">
           <h1>Bench</h1>
           <p className="home-lede">
-            Vier Apps, ein Server, ein Rechner. Deine Daten liegen als
+            Drei Apps, ein Server, ein Rechner. Deine Daten liegen als
             SQLite-Dateien auf dieser Platte und gehen nirgendwohin.
           </p>
         </header>

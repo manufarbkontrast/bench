@@ -20,7 +20,7 @@ which is what makes running the checks locally a requirement rather than a court
 
 ## 1. Understand before changing
 
-- Read the app's docs first: [crm/](./crm/), [space/](./space/), [rolodex/](./rolodex/).
+- Read the app's docs first: [crm/](./crm/), [rolodex/](./rolodex/), [vault/](./vault/).
   Each holds an IMPLEMENTATION.md with the domain rules and the traps, and a
   REQUIREMENTS.md with the original brief.
 - For a bug, **prove the root cause before fixing it.** Reproduce it, measure it, show the evidence.
@@ -42,7 +42,7 @@ Work from the data outwards, because each layer can be validated on its own:
 1. **Schema and data layer** (`server/src/<app>/db.ts`). Existing databases are migrated in place -
    see the migration in `server/src/crm/db.ts` for the pattern: check `PRAGMA table_info`, add the
    column, backfill.
-2. **API routes** (`server/src/<app>/routes*.ts`), under `/api/crm` or `/api/space`.
+2. **API routes** (`server/src/<app>/routes*.ts`), under `/api/crm` or `/api/rolodex`.
 3. **Types and helpers** (`web/src/<app>/types.ts`). Derived values belong in one place that both
    the tables and the charts read from.
 4. **UI**.
@@ -55,7 +55,7 @@ Three layers, each with a different job. Add to whichever ones the change touche
 
 ### Unit tests - `npm test`
 
-vitest, server and web. Server suites live in `server/test/{crm,space,rolodex}/`; web suites sit
+vitest, server and web. Server suites live in `server/test/{crm,rolodex,vault}/`; web suites sit
 beside the code they cover. Coverage is measured across every app at 80% statements and currently
 sits at 88% on the server and 85% on web.
 
@@ -69,9 +69,9 @@ about them - read it before concluding that a component is untestable.
 
 ### End-to-end tests - `npm run e2e`
 
-Playwright, in `e2e/`. Layout: `smoke.spec.ts` (the seams between the apps), then `crm/`, `space/`.
-`e2e/tools/screenshots.mjs` is not part of the suite - it drives a running app and
-captures every screen in both themes, for reviewing a visual change in one pass.
+Playwright, in `e2e/`. Layout: `smoke.spec.ts` (the seams between the apps), then `crm/`, `rolodex/`,
+`vault/`, `theme.spec.ts`. `e2e/tools/chrome-shots.mjs` is not part of the suite - it drives a
+running app and captures every screen in both themes, for reviewing a visual change in one pass.
 
 Rules that keep this suite reliable:
 
@@ -89,10 +89,8 @@ Rules that keep this suite reliable:
   the viewport and dnd-kit drags never activate.
 - **Drag with the keyboard where the library supports it.** CRM's pipeline uses
   `@hello-pangea/dnd`: Space to lift, arrows to move, Space to drop - deterministic, no coordinates.
-  Space's board and Rolodex's circles use dnd-kit; the board now has a keyboard sensor, but its
-  specs stay mouse-driven because a column drag starts from a grip that only appears on hover.
-  A dnd-kit drag needs the pointer to move past its 6px activation distance in several steps before
-  it starts, so `mouse.move(..., { steps })` is not optional.
+  Rolodex's circles use dnd-kit. A dnd-kit drag needs the pointer to move past its 6px activation
+  distance in several steps before it starts, so `mouse.move(..., { steps })` is not optional.
 - `getByRole` name matching is substring-based: `{ name: "BASS step 1" }` also matches steps 10-16.
   Pass `exact: true` for numbered labels. **This is a Playwright rule only** - Testing Library's
   `name` already matches the whole string, and `exact` is not one of its options there.
@@ -149,7 +147,7 @@ elements around it, above and below included.
 - **Do not state test counts in the docs.** They are stale by the next commit. `npx playwright
 test --list` answers it on demand.
 - When you deliberately leave something uncovered, say so in `e2e/EXPLORATORY.md` rather than
-  letting a green suite imply coverage it does not have. Space's board drag is the standing
+  letting a green suite imply coverage it does not have. Rolodex's circle drag is the standing
   example - see EXPLORATORY.md.
 
 ## 6. Finishing

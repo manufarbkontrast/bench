@@ -9,14 +9,13 @@ repositories and controlling reports. The plan is in [changes/bench-os/](./chang
 `SPEC.md` for what, `PLAN.md` for the phases. Groove was removed in Phase 0; the apps below are
 what remain of the original four, and the new ones arrive one phase at a time.
 
-| App         | Path       | What it is                                                                                                                      | Backend                  |
-| ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| **CRM**     | `/crm`     | Personal sales CRM: organizations, contacts, deals, drag-and-drop pipeline, activities, dashboard                               | `data/crm.sqlite`        |
-| **Space**   | `/space`   | Personal knowledge manager, a single-user Notion: pages and blocks, databases with table/board/list views, search               | `data/personal-space.db` |
-| **Rolodex** | `/rolodex` | Personal CRM for your own people: check-in cadences, circles, birthdays, a timeline of every conversation, CSV and vCard import | `data/rolodex.sqlite`    |
+| App         | Path       | What it is                                                                                                                      | Backend               |
+| ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| **CRM**     | `/crm`     | Personal sales CRM: organizations, contacts, deals, drag-and-drop pipeline, activities, dashboard                               | `data/crm.sqlite`     |
+| **Rolodex** | `/rolodex` | Personal CRM for your own people: check-in cadences, circles, birthdays, a timeline of every conversation, CSV and vCard import | `data/rolodex.sqlite` |
 
 A launcher at `/` links to all three, and every page carries the same navigation strip: the Bench
-mark, then Start, CRM, Space and Rolodex, each with the icon that identifies it inside its
+mark, then Start, Vault, CRM and Rolodex, each with the icon that identifies it inside its
 own app too, and one theme toggle on the right.
 
 ## Detailed app documentation
@@ -27,7 +26,6 @@ app you are working in before changing its behaviour.
 | App     | Implementation                                           | Requirements                                         | Also |
 | ------- | -------------------------------------------------------- | ---------------------------------------------------- | ---- |
 | CRM     | [crm/IMPLEMENTATION.md](./crm/IMPLEMENTATION.md)         | [crm/REQUIREMENTS.md](./crm/REQUIREMENTS.md)         |      |
-| Space   | [space/IMPLEMENTATION.md](./space/IMPLEMENTATION.md)     | [space/REQUIREMENTS.md](./space/REQUIREMENTS.md)     |      |
 | Rolodex | [rolodex/IMPLEMENTATION.md](./rolodex/IMPLEMENTATION.md) | [rolodex/REQUIREMENTS.md](./rolodex/REQUIREMENTS.md) |      |
 
 **IMPLEMENTATION.md** is how the app is built now: structure, domain rules, and the traps.
@@ -42,17 +40,17 @@ package.json        npm workspaces: web, server. All commands run from the root.
 web/                ONE Vite project, multi-page (MPA)
   index.html          launcher            -> src/home/
   crm/index.html      -> src/crm/main.tsx
-  space/index.html    -> src/space/main.tsx
   rolodex/index.html  -> src/rolodex/main.tsx
+  vault/index.html    -> src/vault/main.tsx
   src/shared/         the navigation strip and the theme - the only code all four documents share
 server/             ONE Express app
   src/index.ts        opens the three DBs, listens on :8100
   src/app.ts          mounts routers, serves web/dist with per-prefix SPA fallback
   src/crm/            crm routes + db + seed
-  src/space/          space routes + db + seed
   src/rolodex/        rolodex routes + db + seed
-  test/{crm,space,rolodex}/   vitest suites
-data/                 crm.sqlite, personal-space.db, rolodex.sqlite (gitignored, seeded on first run)
+  src/vault/          vault routes + db + indexer
+  test/{crm,rolodex,vault}/   vitest suites
+data/                 crm.sqlite, rolodex.sqlite, vault.sqlite (gitignored, seeded on first run)
 .env                  this machine's vault path (gitignored); .env.example lists the keys as they arrive
 server/src/config.ts  loads .env and describes the sources at startup
 docs/                 this documentation; docs/<app>/ per app
@@ -94,13 +92,13 @@ Under `npm run dev` use **8101**. Port 8100 serves the last build, not your live
 These are settled. Changing one is a project-level decision, not an implementation detail.
 
 - **Multi-page, not one SPA.** The three apps keep their own global `styles.css`, and those files
-  genuinely collide: `.app`, `.sidebar`, `.btn`, `.chip`, `.board`, `.brand`, `.card`, `.page`, and
-  `:root` variables. Rolodex and Space both style `.board-col`, and differently. Separate HTML
-  entry points give one Vite server and one build while the stylesheets and routers never meet.
-  Do **not** merge these into a single bundle without scoping the CSS first.
-- **Router basenames.** crm and space each mount at `/` inside their own document, via
-  `<BrowserRouter basename="/crm">` / `basename="/space"`.
-- **API namespaces.** `/api/crm/*`, `/api/space/*` and `/api/rolodex/*`. The underlying route
+  genuinely collide: `.app`, `.sidebar`, `.btn`, `.chip`, `.board`, `.brand`, `.card`, and
+  `:root` variables. Separate HTML entry points give one Vite server and one build while the
+  stylesheets and routers never meet. Do **not** merge these into a single bundle without scoping
+  the CSS first.
+- **Router basenames.** crm and vault each mount at `/` inside their own document, via
+  `<BrowserRouter basename="/crm">` / `basename="/vault"`.
+- **API namespaces.** `/api/crm/*`, `/api/rolodex/*` and `/api/vault/*`. The underlying route
   names were already disjoint; the prefixes keep ownership obvious.
 - **`/api` answers `Cache-Control: no-store`.** Express attaches an ETag to every JSON reply, so a
   browser that revalidates one gets **304 with an empty body** - which the client then parses as

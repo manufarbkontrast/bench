@@ -136,13 +136,13 @@ export default tseslint.config(
   // The three apps stay separate. A denylist of the siblings rather than an allowlist of what is
   // permitted, so the shared module needs no rule change. This guards the module graph only: the
   // collision PROJECT.md warns about is the three global stylesheets, which no lint rule sees.
-  ...["crm", "space", "rolodex", "vault"].map((app) => ({
+  ...["crm", "rolodex", "vault"].map((app) => ({
     files: [`web/src/${app}/**`],
     rules: {
       "no-restricted-imports": [
         "error",
         {
-          patterns: ["crm", "space", "rolodex", "vault"]
+          patterns: ["crm", "rolodex", "vault"]
             .filter((other) => other !== app)
             .flatMap((other) => [`**/${other}/**`, `../${other}/*`]),
         },

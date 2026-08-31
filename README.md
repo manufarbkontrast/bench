@@ -7,7 +7,6 @@ in local SQLite files. Light and dark, one toggle for all three.
 |             |            |                                                                                                                     |
 | ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------- |
 | **CRM**     | `/crm`     | Personal sales CRM: organizations, contacts, deals, a drag-and-drop pipeline, activities and a dashboard.           |
-| **Space**   | `/space`   | Personal knowledge manager: pages and blocks, databases with table / board / list views, quick find.                |
 | **Rolodex** | `/rolodex` | Personal CRM for the people in your life: who to contact, circles, birthdays, and a timeline of every conversation. |
 
 This README is the full walkthrough: install it, run the checks, make a change, open a pull

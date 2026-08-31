@@ -67,14 +67,6 @@ export const IconCrm = (p: IconProps) => (
   </Stroke>
 );
 
-export const IconSpace = (p: IconProps) => (
-  <Stroke {...p}>
-    <path d="M12 3.5 21 8l-9 4.5L3 8l9-4.5Z" />
-    <path d="m3 12.5 9 4.5 9-4.5" />
-    <path d="m3 17 9 4.5 9-4.5" />
-  </Stroke>
-);
-
 /** An open book: the vault is read here, not written. */
 export const IconVault = (p: IconProps) => (
   <Stroke {...p}>

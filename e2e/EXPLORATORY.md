@@ -55,28 +55,16 @@ on the pipeline, delete confirmation, deep links. Left to judgement:
 - Long values: very long organization names, huge deal values, empty descriptions.
 - Does the pipeline stay usable with many deals in one stage?
 
-## Space
-
-The best-covered app - pages, editor, databases, all three views, search, themes, plus an
-adversarial suite. Left to judgement:
-
-- Editor feel: caret placement after slash-menu inserts, selection across blocks, paste of odd
-  content.
-- Dark mode on every surface, including modals, menus and the board.
-- Board drag with the mouse at narrow widths. The board needs a desktop-width window; below roughly
-  1400px its columns plus the sidebar overflow, and a card can sit outside the viewport. This is
-  why the suite pins 1440x900.
-
 ## Cross-app
 
 - The launcher, then into each app and back. Because the apps are separate documents, back is a
   full page load, not a router transition, and moving between apps through the nav strip is a
   navigation rather than a transition.
 - **The nav strip should look identical in all four documents (launcher and three apps)** - same
-  height, same dark, same orange line - including Space in dark mode. The suite asserts the
+  height, same dark, same orange line - including Vault in dark mode. The suite asserts the
   links and the current tab; it cannot see that the strip has picked up a host app's font,
   letter-spacing or palette. That is exactly what would go wrong.
-- Each app should keep its own look below the strip: CRM light, Space light/dark, Rolodex
+- Each app should keep its own look below the strip: CRM light, Vault light/dark, Rolodex
   light/dark. Any styling bleeding between them means the multi-page split has been broken.
 - Refresh on a deep link in **both** dev and prod.
 - After a chrome change, run `node e2e/tools/chrome-shots.mjs` against `npm start` and look at

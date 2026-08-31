@@ -20,9 +20,9 @@ if (!(Blob.prototype.text as unknown))
   };
 
 beforeEach(() => {
-  // The editor flushes pending block edits with a raw keepalive fetch when it unmounts. Node's
-  // fetch rejects relative URLs, so keep every test off the real one; suites that assert on
-  // requests stub it again themselves.
+  // Some components flush a request on unmount with a raw keepalive fetch. Node's fetch rejects
+  // relative URLs, so keep every test off the real one; suites that assert on requests stub it
+  // again themselves.
   vi.stubGlobal(
     "fetch",
     vi.fn().mockResolvedValue({

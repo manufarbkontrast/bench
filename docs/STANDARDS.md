@@ -82,7 +82,7 @@ These read as machine-written and are unwelcome here.
 - Left-border accent stripes on cards and callouts.
 - Drop shadows used for decoration rather than to lift something that is genuinely floating.
 - Emoji as icons. Use the inline SVG set in `web/src/crm/components/Icons.tsx`, or `lucide-react`
-  in Space.
+  in Vault and Rolodex.
 - Purple-to-blue hero gradients, glassmorphism, oversized rounded corners.
 
 The exception, kept deliberately: the small conic-gradient brand mark.

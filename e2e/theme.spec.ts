@@ -5,7 +5,7 @@
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
-const APPS = ["/", "/vault/", "/crm/", "/space/", "/rolodex/"];
+const APPS = ["/", "/vault/", "/crm/", "/rolodex/"];
 
 const theme = (page: Page) =>
   page.evaluate(() => document.documentElement.dataset.theme);
@@ -53,7 +53,7 @@ test("the choice survives a reload", async ({ page }) => {
 });
 
 test("the strip says which way the toggle goes", async ({ page }) => {
-  await page.goto("/space/");
+  await page.goto("/vault/");
   const button = page.getByRole("button", { name: /Design wechseln/ });
   const label = await button.getAttribute("aria-label");
   await button.click();

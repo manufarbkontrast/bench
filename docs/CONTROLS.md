@@ -201,7 +201,6 @@ Where it stands, from `npm run coverage`:
 | `web/src/crm`            | 100%       |
 | `web/src/crm/components` | 95%        |
 | `web/src/crm/pages`      | 96%        |
-| `web/src/space`          | 92%        |
 | `web/src/rolodex`        | 81%        |
 | `web/src/rolodex/pages`  | 80%        |
 | `web/src/home`           | 100%       |
@@ -221,8 +220,6 @@ from the measure; the test is worth more, because the seed is the first thing an
 
 ### What is not covered, and why
 
-The largest remaining hole is Space's `BoardView` at 31%.
-
 Six jsdom and library gaps shape how the suites are written. None is a fault in the code, and every
 one of them will bite again:
 
@@ -236,8 +233,8 @@ one of them will bite again:
   for whatever the chart last measured. Query the container `render` returns, not `screen`.
 - **`@hello-pangea/dnd` cannot drag in jsdom** - it measures the boxes it moves. `Pipeline.test.tsx`
   stubs the library and calls the `onDragEnd` the page hands it, which covers the optimistic
-  re-stage. The real drag is an e2e test. dnd-kit is the same: Space's board and Rolodex's circles
-  are dragged in `e2e/`, and their unit tests cover what the drag hands back.
+  re-stage. The real drag is an e2e test. dnd-kit is the same: Rolodex's circles are dragged in
+  `e2e/`, and its unit tests cover what the drag hands back.
 - **jsdom has no `Blob.text()`**, which is how Rolodex's import modal reads a chosen file - the
   upload succeeds and the read throws. The setup file polyfills it through `FileReader`, which
   jsdom does implement.
@@ -373,10 +370,10 @@ this makes it durable rather than dependent on `.gitignore` staying correct.
 
 **PII.** Flag email shapes and phone shapes, with three carve-outs:
 
-- **The seed files are excluded** - `server/src/crm/seed.ts`, `server/src/space/seed.ts` and
-  `server/src/rolodex/seed.ts`. They exist to hold synthetic data, and that is the standing
-  assumption: nothing real goes in them. If that ever stops holding, this exclusion is why a leak
-  would go unnoticed. Rolodex's seed is a list of invented people with addresses to match, and it
+- **The seed files are excluded** - `server/src/crm/seed.ts` and `server/src/rolodex/seed.ts`. They
+  exist to hold synthetic data, and that is the standing assumption: nothing real goes in them. If
+  that ever stops holding, this exclusion is why a leak would go unnoticed. Rolodex's seed is a
+  list of invented people with addresses to match, and it
   earned the exclusion the hard way: the check found 24 of them the moment the file was staged.
   The three that sat at **live** domains were changed rather than excused - an invented person at
   a real mailbox is the one case where synthetic data reaches someone.

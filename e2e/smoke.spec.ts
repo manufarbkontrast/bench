@@ -4,7 +4,7 @@
  * introduced, so they are what regresses.
  */
 import { test, expect } from "./fixtures";
-import { json, type Organization, type TreeNode } from "./api";
+import { json, type Organization } from "./api";
 import type { Locator, Page } from "@playwright/test";
 
 /**
@@ -34,12 +34,6 @@ const APPS: {
     title: "Personal CRM",
     tab: "CRM",
     ready: (p) => p.getByTestId("dash-total"),
-  },
-  {
-    path: "/space/",
-    title: "Personal Space",
-    tab: "Space",
-    ready: (p) => p.getByRole("treeitem").first(),
   },
   {
     path: "/rolodex/",
@@ -75,7 +69,6 @@ test("deep links load the owning app, not the launcher", async ({ page }) => {
   for (const [path, title] of [
     ["/crm/contacts", "Personal CRM"],
     ["/crm/pipeline", "Personal CRM"],
-    ["/space/p/does-not-exist", "Personal Space"],
     ["/rolodex/people", "Rolodex"],
     ["/rolodex/circles", "Rolodex"],
     ["/vault/n/anything", "Vault"],
@@ -107,10 +100,6 @@ test("both API namespaces answer and stay separate", async ({
   expect(orgs.ok()).toBeTruthy();
   expect((await json<Organization[]>(orgs)).length).toBeGreaterThan(0);
 
-  const tree = await page.request.get(`${baseURL}/api/space/tree`);
-  expect(tree.ok()).toBeTruthy();
-  expect((await json<TreeNode[]>(tree)).length).toBeGreaterThan(0);
-
   const people = await page.request.get(`${baseURL}/api/rolodex/people`);
   expect(people.ok()).toBeTruthy();
   expect((await json<{ id: number }[]>(people)).length).toBeGreaterThan(0);
@@ -123,7 +112,6 @@ test("both API namespaces answer and stay separate", async ({
   expect(
     (await page.request.get(`${baseURL}/api/organizations`)).status(),
   ).toBe(404);
-  expect((await page.request.get(`${baseURL}/api/tree`)).status()).toBe(404);
   expect((await page.request.get(`${baseURL}/api/people`)).status()).toBe(404);
 });
 
@@ -131,7 +119,7 @@ test("the launcher links into each app and the back button returns", async ({
   page,
 }) => {
   await page.goto("/");
-  for (const name of ["Vault", "CRM", "Space", "Rolodex"]) {
+  for (const name of ["Vault", "CRM", "Rolodex"]) {
     // The card, not the nav tab of the same name: only the card carries a heading.
     await page
       .getByRole("link")
@@ -162,7 +150,6 @@ test("the nav lists every app and marks the one you are in", async ({
       "Start",
       "Vault",
       "CRM",
-      "Space",
       "Rolodex",
     ]);
     await expect(primary(page).locator("[aria-current=page]")).toHaveText(
@@ -176,7 +163,6 @@ test("the nav reaches every app from every app", async ({ page }) => {
   for (const [tab, title] of [
     ["Vault", "Vault"],
     ["Rolodex", "Rolodex"],
-    ["Space", "Personal Space"],
     ["Start", "Bench"],
   ]) {
     await primary(page).getByRole("link", { name: tab }).click();
@@ -185,15 +171,21 @@ test("the nav reaches every app from every app", async ({ page }) => {
 });
 
 test("each app keeps its own stylesheet", async ({ page }) => {
-  // One bundle per document; if the apps ever share one, these backgrounds collide. Space paints
-  // its body white (#ffffff / #16181c), Rolodex grey (#f5f5f7 / #14171c), in both themes.
-  await page.goto("/space/");
-  const spaceBody = await page
-    .locator("body")
-    .evaluate((el) => getComputedStyle(el).backgroundColor);
-  await page.goto("/rolodex/");
-  const rolodexBody = await page
-    .locator("body")
-    .evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(spaceBody).not.toBe(rolodexBody);
+  // One bundle per document; if the apps ever share one, these backgrounds collide. Vault's
+  // sidebar is #f2f4f6 / #1c2128, Rolodex's body #f5f5f7 / #14171c - different in both themes.
+  for (const theme of ["dark", "light"]) {
+    await page.goto("/vault/");
+    await page.evaluate((t) => {
+      localStorage.setItem("bench.theme", t);
+    }, theme);
+    await page.reload();
+    const vaultSidebar = await page
+      .locator("nav.sidebar")
+      .evaluate((el) => getComputedStyle(el).backgroundColor);
+    await page.goto("/rolodex/");
+    const rolodexBody = await page
+      .locator("body")
+      .evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(vaultSidebar, `${theme} theme`).not.toBe(rolodexBody);
+  }
 });

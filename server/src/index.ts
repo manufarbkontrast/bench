@@ -6,8 +6,6 @@ import { openDb as openCrmDb } from "./crm/db.js";
 import { isSeeded, seed } from "./crm/seed.js";
 import { openDb as openRolodexDb } from "./rolodex/db/index.js";
 import { seedIfEmpty as seedRolodex } from "./rolodex/seed.js";
-import { openDb as openSpaceDb } from "./space/db.js";
-import { seedIfEmpty } from "./space/seed.js";
 import { openDb as openVaultDb } from "./vault/db.js";
 import { indexAll } from "./vault/index/indexer.js";
 import { locateVault } from "./vault/locate.js";
@@ -30,9 +28,6 @@ if (!isSeeded(crm)) {
   console.log("Seeded the CRM database with sample data");
 }
 
-const space = openSpaceDb(path.join(dataDir, "personal-space.db"));
-seedIfEmpty(space);
-
 const rolodex = openRolodexDb(path.join(dataDir, "rolodex.sqlite"));
 seedRolodex(rolodex);
 
@@ -46,7 +41,6 @@ watchVault(vaultDb, vault.dir);
 
 createApp({
   crm,
-  space,
   rolodex,
   vault: { db: vaultDb, dir: vault.dir, name: path.basename(vault.dir) },
 }).listen(port, () => {

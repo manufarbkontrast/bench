@@ -12,7 +12,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 
 for (const theme of ["dark", "light"]) {
-  for (const path of ["/", "/vault/", "/crm/", "/space/", "/rolodex/"]) {
+  for (const path of ["/", "/vault/", "/crm/", "/rolodex/"]) {
     await page.goto(base + path);
     await page.evaluate((t) => {
       localStorage.setItem("bench.theme", t);

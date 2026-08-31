@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 /** Multi-page build: one HTML entry per app, so their global styles never collide. */
 const entry = (name: string) => fileURLToPath(new URL(name, import.meta.url));
 
-const APPS = ["crm", "space", "rolodex", "vault"];
+const APPS = ["crm", "rolodex", "vault"];
 
 /** Dev only: send a deep link like /crm/contacts to that app's HTML, not the launcher. */
 function appFallback(): PluginOption {
@@ -33,7 +33,6 @@ export default defineConfig({
       input: {
         home: entry("index.html"),
         crm: entry("crm/index.html"),
-        space: entry("space/index.html"),
         rolodex: entry("rolodex/index.html"),
         vault: entry("vault/index.html"),
       },
@@ -47,7 +46,7 @@ export default defineConfig({
   preview: { port: 8102, strictPort: true },
   test: {
     environment: "jsdom",
-    setupFiles: ["src/space/test/setup.ts"],
+    setupFiles: ["src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     // The default 5s is wall-clock, and the parallel coverage run can starve a forked worker on
     // a slow or busy machine - a millisecond test then times out. No test here legitimately runs

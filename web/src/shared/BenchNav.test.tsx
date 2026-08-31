@@ -11,7 +11,7 @@ beforeEach(() => {
 });
 
 describe("BenchNav", () => {
-  it("offers the launcher and all four apps, in order", () => {
+  it("offers the launcher and all three apps, in order", () => {
     render(<BenchNav active="crm" />);
     expect(
       nav()
@@ -21,17 +21,16 @@ describe("BenchNav", () => {
       ["Start", "/"],
       ["Vault", "/vault/"],
       ["CRM", "/crm/"],
-      ["Space", "/space/"],
       ["Rolodex", "/rolodex/"],
     ]);
   });
 
   it("marks only the app it is rendered in", () => {
-    render(<BenchNav active="space" />);
+    render(<BenchNav active="vault" />);
     const current = nav()
       .getAllByRole("link")
       .filter((link) => link.getAttribute("aria-current") === "page");
-    expect(current.map((link) => link.textContent)).toEqual(["Space"]);
+    expect(current.map((link) => link.textContent)).toEqual(["Vault"]);
   });
 
   it("names the project", () => {
