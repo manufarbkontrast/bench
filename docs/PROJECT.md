@@ -11,6 +11,7 @@ what remain of the original four, and the new ones arrive one phase at a time.
 
 | App         | Path       | What it is                                                                                                                      | Backend               |
 | ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| **Vault**   | `/vault`   | Read-only window onto an Obsidian vault: folder tree, rendered notes with wikilinks and backlinks, tags, full-text search       | `data/vault.sqlite`   |
 | **CRM**     | `/crm`     | Personal sales CRM: organizations, contacts, deals, drag-and-drop pipeline, activities, dashboard                               | `data/crm.sqlite`     |
 | **Rolodex** | `/rolodex` | Personal CRM for your own people: check-in cadences, circles, birthdays, a timeline of every conversation, CSV and vCard import | `data/rolodex.sqlite` |
 
@@ -25,6 +26,7 @@ app you are working in before changing its behaviour.
 
 | App     | Implementation                                           | Requirements                                         | Also |
 | ------- | -------------------------------------------------------- | ---------------------------------------------------- | ---- |
+| Vault   | [vault/IMPLEMENTATION.md](./vault/IMPLEMENTATION.md)     | [vault/REQUIREMENTS.md](./vault/REQUIREMENTS.md)     |      |
 | CRM     | [crm/IMPLEMENTATION.md](./crm/IMPLEMENTATION.md)         | [crm/REQUIREMENTS.md](./crm/REQUIREMENTS.md)         |      |
 | Rolodex | [rolodex/IMPLEMENTATION.md](./rolodex/IMPLEMENTATION.md) | [rolodex/REQUIREMENTS.md](./rolodex/REQUIREMENTS.md) |      |
 
@@ -157,6 +159,8 @@ the rules above.
 - **Bench reads outside `data/`.** The vault, the repositories and the Plaud folder are the truth
   and stay where they are; Bench indexes them into `data/` and can rebuild every index. Paths come
   from `.env`, never from code.
+- **The vault index is derived.** `data/vault.sqlite` can be deleted at any time; the next start
+  rebuilds it from the markdown.
 - **Two write paths into the vault, guarded.** Toggling or creating a task, and importing a Plaud
   work item. Nothing else writes to a source.
 - **Local CLIs are fair game.** `git`, `gh` and `claude` run as processes on this machine, the way

@@ -169,7 +169,7 @@ Formatting is applied in four places, and the split between which ones **write**
 
 | Where                                    | Covers                          | Action               |
 | ---------------------------------------- | ------------------------------- | -------------------- |
-| Editor on save                           | Ed, in VS Code                  | write                |
+| Editor on save                           | The user, in VS Code            | write                |
 | `npm run format`, in the finishing steps | The agent's edits               | write                |
 | lefthook pre-commit                      | Anything that slipped past both | write, then re-stage |
 | `npm run check`, `prebuild`, CI          | The gate                        | **check only**       |
@@ -195,16 +195,18 @@ across every app: `server/vitest.config.ts` includes `src/**` and excludes `src/
 
 Where it stands, from `npm run coverage`:
 
-| Scope                    | Statements |
-| ------------------------ | ---------- |
-| `server/src`             | 88%        |
-| `web/src/crm`            | 100%       |
-| `web/src/crm/components` | 95%        |
-| `web/src/crm/pages`      | 96%        |
-| `web/src/rolodex`        | 81%        |
-| `web/src/rolodex/pages`  | 80%        |
-| `web/src/home`           | 100%       |
-| **web overall**          | **85%**    |
+| Scope                      | Statements |
+| -------------------------- | ---------- |
+| `server/src`               | 88%        |
+| `web/src/crm`              | 100%       |
+| `web/src/crm/components`   | 95%        |
+| `web/src/crm/pages`        | 96%        |
+| `web/src/rolodex`          | 81%        |
+| `web/src/rolodex/pages`    | 80%        |
+| `web/src/vault`            | 85%        |
+| `web/src/vault/components` | 82%        |
+| `web/src/home`             | 100%       |
+| **web overall**            | **87%**    |
 
 **Do not lower the bar to make a red run green.**
 
@@ -317,8 +319,8 @@ your machine.
 
 ### Branch protection
 
-A ruleset named `main` on `ed-donner/bench`, enforcement **active**, targeting the default branch,
-with an **empty bypass list** so it binds the repository owner too:
+A ruleset named `main` on `manufarbkontrast/bench`, enforcement **active**, targeting the default
+branch, with an **empty bypass list** so it binds the repository owner too:
 
 - Restrict deletions, block force pushes
 - Require a pull request before merging, 0 required approvals
@@ -395,8 +397,9 @@ unexplained standing exception is worse than a red run.
 
 ## Branching
 
-Ed creates a branch before work starts. The agent commits to it and **never pushes**; Ed pushes and
-opens the pull request, CI runs there, and the required check gates the merge into `main`.
+The user creates a branch before work starts. The agent commits to it and **never pushes**; the
+user pushes and opens the pull request, CI runs there, and the required check gates the merge into
+`main`.
 
 There is no conflict between committing and branch protection: protection governs `main` only, a
 feature branch is unprotected, and the agent never pushes anything anywhere.
@@ -404,8 +407,8 @@ feature branch is unprotected, and the agent never pushes anything anywhere.
 **If a session begins on `main`, branch before committing** rather than committing onto `main`, and
 say so in the reply.
 
-Because the agent never pushes, CI does not see the work until Ed pushes the branch. That is what
-makes running `npm run check` locally a requirement rather than a courtesy.
+Because the agent never pushes, CI does not see the work until the user pushes the branch. That is
+what makes running `npm run check` locally a requirement rather than a courtesy.
 
 ## Related documents
 

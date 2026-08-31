@@ -1,8 +1,8 @@
 # Exploratory testing charter
 
 What the automated suite deliberately does **not** cover, and how to check it by hand or with an
-agent. Run this when you change something the assertions cannot see: audio, visual design,
-animation, feel.
+agent. Run this when you change something the assertions cannot see: visual design, animation,
+feel.
 
 The automated suite lives beside this file. Prefer adding a spec over adding a line here - this
 document is for what genuinely cannot be asserted.

@@ -127,7 +127,8 @@ change working - see [PROCESS.md](./PROCESS.md). Do not leave completed work sit
 - **Leave the tree clean of scratch files** - delete any throwaway scripts you wrote along the way.
   Commit the work, not the workings.
 - **Do not rewrite history.** No amending, rebasing, force-pushing or tagging unless asked directly.
-- **Do not push** unless asked. Committing is now part of the job; publishing is still Ed's call.
+- **Do not push** unless asked. Committing is now part of the job; publishing is still the user's
+  call.
 
 ## Related documents
 

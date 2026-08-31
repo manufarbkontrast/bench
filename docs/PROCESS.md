@@ -14,8 +14,8 @@ open while lint fails. None of that lets you skip `npm run check` - a hook firin
 already failed.
 
 **The gate is CI.** It runs `check` and `e2e` on every push and pull request, and `main` is
-protected: no merge without it passing. That gate only sees the work once Ed pushes the branch,
-which is what makes running the checks locally a requirement rather than a courtesy. See
+protected: no merge without it passing. That gate only sees the work once the user pushes the
+branch, which is what makes running the checks locally a requirement rather than a courtesy. See
 [CONTROLS.md](./CONTROLS.md).
 
 ## 1. Understand before changing
@@ -56,8 +56,8 @@ Three layers, each with a different job. Add to whichever ones the change touche
 ### Unit tests - `npm test`
 
 vitest, server and web. Server suites live in `server/test/{crm,rolodex,vault}/`; web suites sit
-beside the code they cover. Coverage is measured across every app at 80% statements and currently
-sits at 88% on the server and 85% on web.
+beside the code they cover. Coverage is measured across every app at 80% statements; run
+`npm run coverage` for the current figure per workspace rather than trusting a number written here.
 
 Use these for logic with edges: calculations, filtering, sorting, migrations, data transforms. A
 new derived value or a new column default should get one.

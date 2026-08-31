@@ -6,6 +6,7 @@ in local SQLite files. Light and dark, one toggle for all three.
 
 |             |            |                                                                                                                     |
 | ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Vault**   | `/vault`   | A read-only window onto an Obsidian vault: folder tree, rendered notes, wikilinks, backlinks, full-text search.     |
 | **CRM**     | `/crm`     | Personal sales CRM: organizations, contacts, deals, a drag-and-drop pipeline, activities and a dashboard.           |
 | **Rolodex** | `/rolodex` | Personal CRM for the people in your life: who to contact, circles, birthdays, and a timeline of every conversation. |
 
@@ -48,7 +49,11 @@ confirm with `node -v`. If you would rather not use a package manager, the insta
 **Fork first - do not clone this repository directly.** You will be opening a pull request at the
 end, and that only works from your own copy.
 
-1. Go to **https://github.com/ed-donner/bench**
+This repository, `manufarbkontrast/bench`, is itself a fork of
+[ed-donner/bench](https://github.com/ed-donner/bench), now growing into Bench OS - see
+`docs/changes/bench-os/`. Fork **this** repository, not the upstream one.
+
+1. Go to **https://github.com/manufarbkontrast/bench**
 2. Click **Fork** (top right), then **Create fork**
 
 You now have `https://github.com/<your-username>/bench`.
@@ -57,7 +62,7 @@ You now have `https://github.com/<your-username>/bench`.
 directly instead and carry on from 1.4:
 
 ```bash
-git clone https://github.com/ed-donner/bench.git
+git clone https://github.com/manufarbkontrast/bench.git
 cd bench
 ```
 
@@ -88,10 +93,10 @@ only when you are deliberately adding a dependency.
 `npm ci` prints one deprecation warning, about `prebuild-install`. It is expected and harmless -
 the reason it stays is documented in [docs/PROJECT.md](./docs/PROJECT.md).
 
-## 1.5 Point Bench at your files (optional)
+## 1.5 Point Bench at your vault (optional)
 
-Copy `.env.example` to `.env` and fill in the vault path. Without it Bench runs on bundled samples.
-The server prints, on start, which sources it found.
+Copy `.env.example` to `.env` and fill in `VAULT_DIR` with the path to your Obsidian vault. Without
+it Bench shows a small sample vault. The server prints, on start, which sources it found.
 
 ## 1.6 Run it
 
@@ -265,7 +270,7 @@ Do this in the browser.
    button. Click it. (No banner? Click **Contribute** → **Open pull request**, or use the
    **Pull requests** tab → **New pull request**.)
 3. Check the four dropdowns at the top read:
-   - **base repository:** `ed-donner/bench`
+   - **base repository:** `manufarbkontrast/bench`
    - **base:** `main`
    - **head repository:** `<your-username>/bench`
    - **compare:** `my-change`
