@@ -54,6 +54,11 @@ the right note - the suite and this task both only assert the href. The feel of 
 notes: how deep nesting gets before you scroll, and whether a note that links to the same target
 many times over (real project notes do) reads oddly repeated in the body.
 
+Under `npm run dev`, a hard navigation to a note URL ending in `.md` serves the launcher rather
+than Vault, because the `appFallback` plugin in `web/vite.config.ts` treats the `.md` suffix as a
+static asset and skips its rewrite. Production (`npm start`) and the e2e suite, which navigate
+through the app rather than by direct URL, are unaffected.
+
 ## CRM
 
 Covered by specs: CRUD for organizations, contacts and deals, search, status filter, keyboard drag
