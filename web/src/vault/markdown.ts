@@ -14,9 +14,13 @@ function splitLinkInner(inner: string): {
   heading?: string;
   alias?: string;
 } {
-  const pipeAt = inner.indexOf("|");
-  const beforeAlias = pipeAt === -1 ? inner : inner.slice(0, pipeAt);
-  const alias = pipeAt === -1 ? undefined : inner.slice(pipeAt + 1);
+  // Obsidian escapes the alias pipe inside tables ([[Note\|Alias]] means [[Note|Alias]]); unescape
+  // only the link's own interior, not the whole line, so a stray \| elsewhere in a table cell
+  // (nothing to do with a wikilink) is left for the table renderer to unescape itself.
+  const unescaped = unescapePipes(inner);
+  const pipeAt = unescaped.indexOf("|");
+  const beforeAlias = pipeAt === -1 ? unescaped : unescaped.slice(0, pipeAt);
+  const alias = pipeAt === -1 ? undefined : unescaped.slice(pipeAt + 1);
   const hashAt = beforeAlias.indexOf("#");
   const target = hashAt === -1 ? beforeAlias : beforeAlias.slice(0, hashAt);
   const heading = hashAt === -1 ? undefined : beforeAlias.slice(hashAt + 1);
@@ -39,7 +43,7 @@ function replaceLink(
 }
 
 /** Obsidian escapes the alias pipe inside tables: [[Note\|Alias]] means [[Note|Alias]]. */
-const unescapePipes = (line: string) => line.replace(/\\\|/g, "|");
+const unescapePipes = (text: string) => text.replace(/\\\|/g, "|");
 
 /**
  * Scans by hand rather than one regex over the whole line: a pattern with `[[…]]`'s target,
@@ -65,6 +69,31 @@ function replaceLinks(line: string, links: NoteLink[]): string {
   }
 }
 
+/**
+ * Splits a line into alternating prose/inline-code segments on backtick runs, so a wikilink
+ * pattern written inside `[[Code]]`-style inline code is never touched. Scanned by hand, the
+ * same way replaceLinks scans for `[[…]]`, rather than with a regex over the whole line.
+ */
+function splitCodeSpans(line: string): { text: string; code: boolean }[] {
+  const segments: { text: string; code: boolean }[] = [];
+  let pos = 0;
+  for (;;) {
+    const open = line.indexOf("`", pos);
+    if (open === -1) {
+      segments.push({ text: line.slice(pos), code: false });
+      return segments;
+    }
+    const close = line.indexOf("`", open + 1);
+    if (close === -1) {
+      segments.push({ text: line.slice(pos), code: false });
+      return segments;
+    }
+    if (open > pos) segments.push({ text: line.slice(pos, open), code: false });
+    segments.push({ text: line.slice(open, close + 1), code: true });
+    pos = close + 1;
+  }
+}
+
 function transformProse(line: string, links: NoteLink[]): string {
   const prefix = QUOTE_PREFIX.exec(line)?.[0];
   const marker = prefix ? CALLOUT_MARKER.exec(line.slice(prefix.length)) : null;
@@ -74,7 +103,9 @@ function transformProse(line: string, links: NoteLink[]): string {
       title.trim() || type[0].toUpperCase() + type.slice(1).toLowerCase();
     return `${prefix}**${shown}**`;
   }
-  return replaceLinks(unescapePipes(line), links);
+  return splitCodeSpans(line)
+    .map((seg) => (seg.code ? seg.text : replaceLinks(seg.text, links)))
+    .join("");
 }
 
 /**

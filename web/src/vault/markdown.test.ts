@@ -57,6 +57,18 @@ describe("prepareMarkdown", () => {
     );
   });
 
+  it("leaves a wikilink inside inline code literal", () => {
+    expect(prepareMarkdown("Siehe `[[Cockpit]]` im Text.", links)).toBe(
+      "Siehe `[[Cockpit]]` im Text.",
+    );
+  });
+
+  it("keeps a literal escaped pipe in a table cell outside any wikilink", () => {
+    expect(prepareMarkdown("| a\\|b | [[Cockpit]] |", links)).toBe(
+      "| a\\|b | [Cockpit](/vault/n/00_Index/Cockpit.md) |",
+    );
+  });
+
   it("turns an embed into an image served from the vault", () => {
     expect(prepareMarkdown("![[assets/skizze.svg]]", links)).toBe(
       "![assets/skizze.svg](/api/vault/file?path=assets%2Fskizze.svg)",
