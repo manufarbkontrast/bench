@@ -45,6 +45,22 @@ describe("readGitState", () => {
     expect(state.behind).toBeNull();
   });
 
+  it("falls back to the only remote when it is not named origin", async () => {
+    const repo = path.join(scratch.dir, "backup-only");
+    mkdirSync(repo, { recursive: true });
+    execFileSync("git", ["init", "--initial-branch=main", "."], {
+      cwd: repo,
+      stdio: "ignore",
+    });
+    const backupUrl = path.join(scratch.dir, "backup-origin.git");
+    execFileSync("git", ["remote", "add", "backup", backupUrl], {
+      cwd: repo,
+      stdio: "ignore",
+    });
+    const state = await readGitState(repo);
+    expect(state.remote).toBe(backupUrl);
+  });
+
   it("does not throw on an unborn HEAD", async () => {
     const empty = path.join(scratch.dir, "empty");
     mkdirSync(empty, { recursive: true });

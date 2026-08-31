@@ -15,6 +15,7 @@ describe("normalizeRemote", () => {
       "/Users/someone/origins/leuchtfeuer.git",
       "/users/someone/origins/leuchtfeuer",
     ],
+    ["https://host/a:b", "host/a:b"],
   ])("normalizes %s", (raw, expected) => {
     expect(normalizeRemote(raw)).toBe(expected);
   });
