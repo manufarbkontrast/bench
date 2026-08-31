@@ -165,4 +165,14 @@ describe("GET /api/vault/file", () => {
       ).status,
     ).toBe(404);
   });
+
+  it("refuses a dot-directory path, the same rejection as traversal", async () => {
+    expect(
+      (
+        await request(app)
+          .get("/api/vault/file")
+          .query({ path: ".obsidian/Ignored.md" })
+      ).status,
+    ).toBe(400);
+  });
 });

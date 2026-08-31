@@ -2,7 +2,7 @@ import { readdirSync } from "node:fs";
 import path from "node:path";
 
 /** Obsidian's own folders and anything else hidden are not notes, whatever they contain. */
-function skipped(name: string): boolean {
+export function skipped(name: string): boolean {
   return name.startsWith(".") || name === "node_modules";
 }
 
