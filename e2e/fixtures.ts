@@ -6,6 +6,9 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+const workerVault = (index: number) =>
+  path.join(root, "e2e", ".tmp", `w${index}`, "vault");
+
 /** Poll the API until the server answers, so tests never race the boot. */
 async function waitForServer(url: string, timeoutMs = 60_000) {
   const deadline = Date.now() + timeoutMs;
@@ -25,7 +28,10 @@ async function waitForServer(url: string, timeoutMs = 60_000) {
  * One server per worker, each with its own freshly seeded databases, so specs running in
  * parallel never share state. Ports start at 8150.
  */
-export const test = base.extend<object, { appServer: string }>({
+export const test = base.extend<
+  object,
+  { appServer: string; vaultDir: string }
+>({
   appServer: [
     async ({}, use, workerInfo) => {
       const port = 8150 + workerInfo.workerIndex;
@@ -34,7 +40,7 @@ export const test = base.extend<object, { appServer: string }>({
 
       // Each worker indexes its own copy of the fixture vault, so a spec that adds a note never
       // shows up in another worker's tree.
-      const vaultDir = path.join(root, dataDir, "vault");
+      const vaultDir = workerVault(workerInfo.workerIndex);
       mkdirSync(vaultDir, { recursive: true });
       const fixture = path.join(root, "server", "src", "vault", "fixture");
       if (existsSync(fixture)) cpSync(fixture, vaultDir, { recursive: true });
@@ -62,6 +68,12 @@ export const test = base.extend<object, { appServer: string }>({
       server.kill();
     },
     { scope: "worker", auto: true },
+  ],
+  vaultDir: [
+    async ({}, use, workerInfo) => {
+      await use(workerVault(workerInfo.workerIndex));
+    },
+    { scope: "worker" },
   ],
   baseURL: async ({ appServer }, use) => {
     await use(appServer);

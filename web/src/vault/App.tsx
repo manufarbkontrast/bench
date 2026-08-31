@@ -5,6 +5,7 @@ import { api } from "./api";
 import { noteUrl, startNote } from "./tree";
 import type { Info, TreeEntry } from "./types";
 import NoteView from "./components/NoteView";
+import QuickFind from "./components/QuickFind";
 import Sidebar from "./components/Sidebar";
 
 export default function App() {
@@ -13,8 +14,12 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
-    void api.tree().then(setEntries);
+    const load = () => void api.tree().then(setEntries);
+    load();
     void api.info().then(setInfo);
+    // The watcher keeps the index fresh; the tree catches up whenever you come back to the tab.
+    window.addEventListener("focus", load);
+    return () => window.removeEventListener("focus", load);
   }, []);
 
   useEffect(() => {
@@ -52,7 +57,7 @@ export default function App() {
             />
           </Routes>
         </main>
-        {searchOpen && <div hidden />}
+        {searchOpen && <QuickFind onClose={() => setSearchOpen(false)} />}
       </div>
     </>
   );

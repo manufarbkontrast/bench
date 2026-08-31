@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import App from "./App";
 import { api } from "./api";
@@ -26,6 +27,12 @@ vi.mock("./api", () => ({
   },
 }));
 
+// api.tree's call count is asserted below; without this, an earlier test's mount leaves the
+// mock's call history in place and the count no longer starts from zero.
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
 describe("Vault App", () => {
   it("loads the tree and opens the Start note", async () => {
     render(
@@ -40,5 +47,20 @@ describe("Vault App", () => {
     expect(
       screen.getByRole("navigation", { name: "Primary" }),
     ).toBeInTheDocument();
+  });
+
+  it("opens the quick-find with the shortcut and refetches the tree on focus", async () => {
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <App />
+      </MemoryRouter>,
+    );
+    await screen.findByRole("heading", { name: "Start", level: 1 });
+    await userEvent.keyboard("{Meta>}k{/Meta}");
+    expect(
+      screen.getByRole("dialog", { name: "Schnellsuche" }),
+    ).toBeInTheDocument();
+    window.dispatchEvent(new Event("focus"));
+    await waitFor(() => expect(api.tree).toHaveBeenCalledTimes(2));
   });
 });
