@@ -107,8 +107,12 @@ test("creating a task from the default target adds it to the inbox note", async 
 
   // No due date and no priority, so the new task is unassigned rather than showing under Heute.
   await page.getByRole("button", { name: "Unzugeordnet", exact: true }).click();
+  // .first(): unlike the Plaud import ledger, POST /api/vault/tasks has no dedup guard, so a
+  // same-worker retry that re-enters this test appends a second identical line and renders a
+  // second checkbox with this name - this only asserts presence, matching the file-side check
+  // below, which already tolerates a duplicate the same way (indexOf finds the first match).
   await expect(
-    page.getByRole("checkbox", { name: "Anker streichen" }),
+    page.getByRole("checkbox", { name: "Anker streichen" }).first(),
   ).toBeVisible();
 
   const lines = readFileSync(

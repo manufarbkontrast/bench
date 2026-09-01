@@ -2,11 +2,20 @@
     target, the ledger surviving a reload, and the Issues tab's off-mode message. */
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "../fixtures";
 
 const HAFENRUNDE_TITLE = "08-20 Besprechung: Hafenrunde und Leuchtturm-Ausbau";
 const ROW4_WAS = "Die Werkstatt für den Winter vorbereiten";
+
+/** The Hafenrunde note's own card, scoped by title rather than the bare `.aufgaben-plaud-note`
+    class - the fixture has only one Plaud note today, but this stops a second one from now on
+    silently leaking its rows into these assertions. */
+function hafenrundeCard(page: Page): Locator {
+  return page
+    .locator("article.aufgaben-plaud-note")
+    .filter({ hasText: "Hafenrunde" });
+}
 
 /** Import row 4 unless a previous attempt already landed it: once the ledger has the row, the
     button is replaced by the "Übernommen" link, so a retry finds nothing to click. */
@@ -24,7 +33,7 @@ test("importing an unmatched Plaud row files it under the suggested target, and 
   await page.goto("/aufgaben/");
   await page.getByRole("button", { name: "Unzugeordnet", exact: true }).click();
 
-  const card = page.locator("article.aufgaben-plaud-note");
+  const card = hafenrundeCard(page);
   await expect(
     card.getByRole("heading", { name: HAFENRUNDE_TITLE }),
   ).toBeVisible();
@@ -56,8 +65,7 @@ test("importing an unmatched Plaud row files it under the suggested target, and 
   await page.reload();
   await page.getByRole("button", { name: "Unzugeordnet", exact: true }).click();
   await expect(
-    page
-      .locator("article.aufgaben-plaud-note")
+    hafenrundeCard(page)
       .locator("tbody tr")
       .nth(3)
       .getByRole("link", { name: "Übernommen" }),
