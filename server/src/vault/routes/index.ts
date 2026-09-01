@@ -4,6 +4,7 @@ import type Database from "better-sqlite3";
 import { filesRouter } from "./files.js";
 import { notesRouter } from "./notes.js";
 import { searchRouter } from "./search.js";
+import { tasksRouter } from "./tasks.js";
 
 export interface VaultContext {
   db: Database.Database;
@@ -18,5 +19,6 @@ export function vaultRouter(ctx: VaultContext): Router {
   router.use(notesRouter(ctx));
   router.use(searchRouter(ctx));
   router.use(filesRouter(ctx));
+  router.use(tasksRouter(ctx));
   return router;
 }

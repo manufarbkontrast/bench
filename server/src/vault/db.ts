@@ -4,7 +4,9 @@ import path from "node:path";
 
 /**
  * The index of one Obsidian vault. Every row here is derived from the markdown files and can be
- * rebuilt from them; the vault itself is never written by this app. Paths are vault-relative,
+ * rebuilt from them. The vault itself is not written by this app, except for the two guarded
+ * single-line edits in write.ts - toggling a task's checkbox and appending a new task line; both
+ * go through toggleTask/appendTask there, and nowhere else. Paths are vault-relative,
  * posix-separated, with the .md extension.
  */
 const SCHEMA = `
