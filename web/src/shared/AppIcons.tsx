@@ -85,6 +85,16 @@ export const IconRolodex = (p: IconProps) => (
   </Stroke>
 );
 
+/** Two checkouts of unequal size: repositories and working folders side by side. */
+export const IconProjekte = (p: IconProps) => (
+  <Stroke {...p}>
+    <path d="M4 4h6v10H4z" />
+    <path d="M14 4h6v6h-6z" />
+    <path d="M14 14h6v6h-6z" />
+    <path d="M4 18h6" />
+  </Stroke>
+);
+
 export const IconSun = (p: IconProps) => (
   <Stroke {...p}>
     <circle cx="12" cy="12" r="4" />

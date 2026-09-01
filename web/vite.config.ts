@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 /** Multi-page build: one HTML entry per app, so their global styles never collide. */
 const entry = (name: string) => fileURLToPath(new URL(name, import.meta.url));
 
-const APPS = ["crm", "rolodex", "vault"];
+const APPS = ["crm", "rolodex", "vault", "projekte"];
 
 /** Dev only: send a deep link like /crm/contacts to that app's HTML, not the launcher. */
 function appFallback(): PluginOption {
@@ -35,6 +35,7 @@ export default defineConfig({
         crm: entry("crm/index.html"),
         rolodex: entry("rolodex/index.html"),
         vault: entry("vault/index.html"),
+        projekte: entry("projekte/index.html"),
       },
     },
   },

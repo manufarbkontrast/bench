@@ -20,6 +20,7 @@ describe("BenchNav", () => {
     ).toEqual([
       ["Start", "/"],
       ["Vault", "/vault/"],
+      ["Projekte", "/projekte/"],
       ["CRM", "/crm/"],
       ["Rolodex", "/rolodex/"],
     ]);

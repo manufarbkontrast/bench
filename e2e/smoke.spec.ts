@@ -30,6 +30,15 @@ const APPS: {
     ready: (p) => p.getByRole("treeitem").first(),
   },
   {
+    path: "/projekte/",
+    title: "Projekte",
+    tab: "Projekte",
+    // The first visit to a fresh worker database triggers a lazy scan of the sample workshop,
+    // which shells out to git several times and can take longer than the default 5s expect
+    // timeout - waited for at the call site instead of here.
+    ready: (p) => p.locator(".projekte-table tbody tr").first(),
+  },
+  {
     path: "/crm/",
     title: "Personal CRM",
     tab: "CRM",
@@ -119,7 +128,7 @@ test("the launcher links into each app and the back button returns", async ({
   page,
 }) => {
   await page.goto("/");
-  for (const name of ["Vault", "CRM", "Rolodex"]) {
+  for (const name of ["Vault", "Projekte", "CRM", "Rolodex"]) {
     // The card, not the nav tab of the same name: only the card carries a heading.
     await page
       .getByRole("link")
@@ -135,7 +144,8 @@ test("each app boots without console errors", async ({ page }) => {
   for (const app of APPS) {
     const errors = watchErrors(page);
     await page.goto(app.path);
-    await expect(app.ready(page)).toBeVisible();
+    // Generous: /projekte/'s first visit per worker scans the sample workshop before it has rows.
+    await expect(app.ready(page)).toBeVisible({ timeout: 20_000 });
     expect(errors, `${app.path} logged errors`).toEqual([]);
   }
 });
@@ -149,6 +159,7 @@ test("the nav lists every app and marks the one you are in", async ({
     await expect(links, `${app.path} nav`).toHaveText([
       "Start",
       "Vault",
+      "Projekte",
       "CRM",
       "Rolodex",
     ]);
@@ -162,6 +173,7 @@ test("the nav reaches every app from every app", async ({ page }) => {
   await page.goto("/crm/");
   for (const [tab, title] of [
     ["Vault", "Vault"],
+    ["Projekte", "Projekte"],
     ["Rolodex", "Rolodex"],
     ["Start", "Bench"],
   ]) {

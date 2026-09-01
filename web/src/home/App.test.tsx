@@ -4,6 +4,11 @@ import App from "./App";
 
 const APPS = [
   ["Vault", "/vault/", "Dein Obsidian-Vault, gelesen"],
+  [
+    "Projekte",
+    "/projekte/",
+    "Repos und Arbeitsordner: Stand, Dubletten, Notizen.",
+  ],
   ["CRM", "/crm/", "Deals und die Menschen dahinter"],
   ["Rolodex", "/rolodex/", "Die Menschen in deinem Leben, nah gehalten"],
 ];
@@ -36,8 +41,15 @@ describe("launcher", () => {
     }
   });
 
-  it("offers exactly three apps", () => {
+  it("offers exactly four apps", () => {
     render(<App />);
-    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(3);
+    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(4);
+  });
+
+  it("counts the apps in its lede", () => {
+    render(<App />);
+    expect(
+      screen.getByText(/^Vier Apps, ein Server, ein Rechner\./),
+    ).toBeInTheDocument();
   });
 });
