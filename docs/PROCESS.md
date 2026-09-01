@@ -174,6 +174,18 @@ just the root one, or a stale nested copy shadows the hoisted package inside tha
 `rm -rf node_modules web/node_modules server/node_modules package-lock.json && npm install`. See
 [CONTROLS.md](./CONTROLS.md).
 
+**Never pipe a gate command through `tail` or `head`.** `npm run check | tail -150` reports the
+pipe's exit status, not the gate's - a Phase 3 session shipped past a real knip failure that way
+until a per-step foreground re-run caught it. Run each gate step plain and read its own exit code.
+
+**A long gate run that gets backgrounded is polled, not awaited.** Ending a turn "waiting for the
+run to finish" stalls the work - it happened three times in one phase. Poll the run's output until
+it exits, or re-run the gate piecewise in the foreground, each step with its own exit code.
+
+**Proving retry-safety of an e2e spec needs `--workers=1 --repeat-each=2`.** Plain
+`--repeat-each=2` can spread the repeats across workers with separate databases, passing while the
+same-worker re-entry the retry rule warns about still fails.
+
 See [CONTROLS.md](./CONTROLS.md) for what the checks are and how each layer is enforced.
 
 ## 7. Self-improvement
