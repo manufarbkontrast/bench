@@ -6,8 +6,12 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+// Relative, because it is handed to the spawned server as DATA_DIR with cwd: root - the single
+// source both the vault and projects fixtures below resolve against, rather than each
+// recomputing the worker's data directory on its own.
+const workerDataDir = (index: number) => path.join("e2e", ".tmp", `w${index}`);
 const workerVault = (index: number) =>
-  path.join(root, "e2e", ".tmp", `w${index}`, "vault");
+  path.join(root, workerDataDir(index), "vault");
 
 /** Poll the API until the server answers, so tests never race the boot. */
 async function waitForServer(url: string, timeoutMs = 60_000) {
@@ -30,12 +34,12 @@ async function waitForServer(url: string, timeoutMs = 60_000) {
  */
 export const test = base.extend<
   object,
-  { appServer: string; vaultDir: string }
+  { appServer: string; vaultDir: string; projectsDir: string }
 >({
   appServer: [
     async ({}, use, workerInfo) => {
       const port = 8150 + workerInfo.workerIndex;
-      const dataDir = path.join("e2e", ".tmp", `w${workerInfo.workerIndex}`);
+      const dataDir = workerDataDir(workerInfo.workerIndex);
       rmSync(path.join(root, dataDir), { recursive: true, force: true });
 
       // Each worker indexes its own copy of the fixture vault, so a spec that adds a note never
@@ -73,6 +77,20 @@ export const test = base.extend<
   vaultDir: [
     async ({}, use, workerInfo) => {
       await use(workerVault(workerInfo.workerIndex));
+    },
+    { scope: "worker" },
+  ],
+  // server/src/index.ts joins "sample-projekte" onto the same DATA_DIR the server above was
+  // spawned with - this mirrors that join rather than guessing the path independently.
+  projectsDir: [
+    async ({}, use, workerInfo) => {
+      await use(
+        path.join(
+          root,
+          workerDataDir(workerInfo.workerIndex),
+          "sample-projekte",
+        ),
+      );
     },
     { scope: "worker" },
   ],
