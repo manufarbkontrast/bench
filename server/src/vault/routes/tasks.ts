@@ -68,6 +68,7 @@ interface PostFields {
 function parsePostFields(body: PostBody): PostFields | { error: string } {
   const text = typeof body.text === "string" ? body.text.trim() : "";
   if (!text) return { error: "text is required" };
+  if (/[\r\n]/.test(text)) return { error: "text must be a single line" };
   const due = typeof body.due === "string" ? body.due : undefined;
   if (due !== undefined && !DUE.test(due))
     return { error: "due must be YYYY-MM-DD" };
@@ -75,9 +76,9 @@ function parsePostFields(body: PostBody): PostFields | { error: string } {
     typeof body.priority === "string" ? body.priority : undefined;
   if (priority !== undefined && !(priority in PRIORITY_EMOJI))
     return { error: "priority is invalid" };
-  const path =
+  const targetPath =
     typeof body.path === "string" && body.path ? body.path : TASK_INBOX;
-  return { text, due, priority, path };
+  return { text, due, priority, path: targetPath };
 }
 
 /** `- [ ] <text>`, then the priority emoji, then the due date - each only when present. */

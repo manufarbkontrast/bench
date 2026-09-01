@@ -182,6 +182,24 @@ describe("POST /api/aufgaben/import", () => {
     });
   });
 
+  it("answers 400 when file is path-shaped, without touching anything outside the plaud dir", async () => {
+    const res = await request(app).post("/api/aufgaben/import").send({
+      file: "../../etc/hosts",
+      rowHash: "whatever",
+      targetPath: TASK_INBOX,
+    });
+    expect(res.status).toBe(400);
+
+    const ledgerCount = (
+      aufgaben.ledger
+        .prepare("SELECT COUNT(*) AS c FROM task_imports")
+        .get() as {
+        c: number;
+      }
+    ).c;
+    expect(ledgerCount).toBe(0);
+  });
+
   it("answers 404 when the file is unknown", async () => {
     const res = await request(app).post("/api/aufgaben/import").send({
       file: "does-not-exist.md",

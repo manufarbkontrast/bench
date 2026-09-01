@@ -85,11 +85,17 @@ interface ImportFields {
   targetPath: string;
 }
 
-function parseImportFields(body: ImportBody): ImportFields | null {
+function parseImportFields(body: ImportBody): ImportFields | { error: string } {
   const file = typeof body.file === "string" ? body.file : "";
   const rowHash = typeof body.rowHash === "string" ? body.rowHash : "";
   const targetPath = typeof body.targetPath === "string" ? body.targetPath : "";
-  return file && rowHash && targetPath ? { file, rowHash, targetPath } : null;
+  if (!file || !rowHash || !targetPath)
+    return { error: "file, rowHash and targetPath are required" };
+  // Real files come from readdirSync as bare basenames - a "/" or "\" here can only be an attempt
+  // to read outside plaudDir, so reject it before findPlaudItem ever touches the filesystem.
+  if (file.includes("/") || file.includes("\\"))
+    return { error: "file must be a bare filename" };
+  return { file, rowHash, targetPath };
 }
 
 const BIS_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -144,10 +150,8 @@ export function aufgabenRouter(
 
   router.post("/import", (req, res) => {
     const fields = parseImportFields(req.body as ImportBody);
-    if (!fields) {
-      res
-        .status(400)
-        .json({ error: "file, rowHash and targetPath are required" });
+    if ("error" in fields) {
+      res.status(400).json({ error: fields.error });
       return;
     }
     const { file, rowHash, targetPath } = fields;

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
-import { readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import type express from "express";
 import { openDb } from "../../src/vault/db.js";
@@ -107,6 +107,16 @@ describe("POST /api/vault/tasks", () => {
       .send({ text: "   " });
 
     expect(res.status).toBe(400);
+  });
+
+  it("rejects text containing a newline, without touching the inbox", async () => {
+    const res = await request(app)
+      .post("/api/vault/tasks")
+      .send({ text: "Anker\n- [ ] zweite Zeile\n## Neue Sektion" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "text must be a single line" });
+    expect(existsSync(path.join(dir, TASK_INBOX))).toBe(false);
   });
 
   it("rejects a bad due date", async () => {
