@@ -3,8 +3,12 @@ import type express from "express";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import * as scanModule from "../../src/projekte/scan.js";
+import { openProjekteDb } from "../../src/projekte/db.js";
+import type { ProjekteContext } from "../../src/projekte/routes.js";
+import { openDb as openVaultDb } from "../../src/vault/db.js";
+import type { VaultContext } from "../../src/vault/routes/index.js";
 import { appWithProjekte, buildSampleContext } from "./app.js";
-import { scratchDir } from "./tmp.js";
+import { initGitRepo, scratchDir } from "./tmp.js";
 
 vi.mock("../../src/projekte/scan.js", async (importOriginal) => {
   const actual =
@@ -151,5 +155,73 @@ describe("GET /api/projekte/project", () => {
     expect(res.status).toBe(200);
     const body = res.body as { duplicates: ListedProjectJson[] };
     expect(body.duplicates).toEqual([]);
+  });
+});
+
+describe("scan logging", () => {
+  it("logs a path-free summary line exactly once when a scan actually runs", async () => {
+    const ctx = buildSampleContext(path.join(scratch.dir, "log"));
+    const logApp = appWithProjekte(ctx.projekte, ctx.vault);
+    const logSpy = vi.spyOn(console, "log");
+
+    await request(logApp).get("/api/projekte/list");
+    const scanLines = logSpy.mock.calls
+      .map((call) => String(call[0]))
+      .filter((line) => line.startsWith("Projekte scan:"));
+    logSpy.mockRestore();
+
+    expect(scanLines).toHaveLength(1);
+    expect(scanLines[0]).toMatch(
+      /^Projekte scan: 4 projects \(3 repos, 1 folders, 2 duplicates\) in \d+ ms$/,
+    );
+    expect(scanLines[0]).not.toContain(ctx.sampleDir);
+  });
+
+  it("does not log again on a cache hit", async () => {
+    const ctx = buildSampleContext(path.join(scratch.dir, "log-cached"));
+    const cachedApp = appWithProjekte(ctx.projekte, ctx.vault);
+    await request(cachedApp).get("/api/projekte/list");
+
+    const logSpy = vi.spyOn(console, "log");
+    await request(cachedApp).get("/api/projekte/list");
+    const scanLines = logSpy.mock.calls.filter((call) =>
+      String(call[0]).startsWith("Projekte scan:"),
+    );
+    logSpy.mockRestore();
+
+    expect(scanLines).toHaveLength(0);
+  });
+});
+
+describe("sameName", () => {
+  it("marks two projects with the same name under different groups, without marking them duplicates", async () => {
+    const dir = path.join(scratch.dir, "same-name");
+    initGitRepo(
+      path.join(dir, "group-a", "demo"),
+      "https://github.com/example/demo.git",
+    );
+    initGitRepo(path.join(dir, "group-b", "demo"));
+
+    const projekte: ProjekteContext = {
+      db: openProjekteDb(":memory:"),
+      roots: [dir],
+      source: "sample",
+      gh: "off",
+    };
+    const vault: VaultContext = {
+      db: openVaultDb(":memory:"),
+      dir,
+      name: "same-name",
+    };
+    const sameNameApp = appWithProjekte(projekte, vault);
+
+    const res = await request(sameNameApp).get("/api/projekte/list");
+    const body = res.body as ListResponse;
+    const demoRows = body.projects.filter((p) => p.name === "demo");
+
+    expect(demoRows).toHaveLength(2);
+    expect(new Set(demoRows.map((p) => p.groupKey)).size).toBe(2);
+    expect(demoRows.every((p) => p.sameName)).toBe(true);
+    expect(demoRows.every((p) => !p.isDuplicate)).toBe(true);
   });
 });

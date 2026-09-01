@@ -6,7 +6,7 @@ import type { GhRunner } from "../../src/projekte/gh.js";
 import { scanProjects } from "../../src/projekte/pipeline.js";
 import { buildSampleProjects } from "../../src/projekte/sample.js";
 import { openDb as openVaultDb } from "../../src/vault/db.js";
-import { scratchDir } from "./tmp.js";
+import { initGitRepo, scratchDir } from "./tmp.js";
 
 const scratch = scratchDir("bench-pipeline-");
 let sample: string;
@@ -44,6 +44,15 @@ function buildVault(sampleDir: string): Database.Database {
   );
   return db;
 }
+
+const CANNED_COUNTS = JSON.stringify({
+  data: {
+    repository: {
+      issues: { totalCount: 7 },
+      pullRequests: { totalCount: 2 },
+    },
+  },
+});
 
 describe("scanProjects", () => {
   it("builds git and folder rows, couples notes, and groups the duplicate pair", async () => {
@@ -103,5 +112,44 @@ describe("scanProjects", () => {
     expect(
       listProjects(db).every((r) => r.issues === null && r.prs === null),
     ).toBe(true);
+  });
+
+  it("fetches counts once per unique GitHub label and shares them across duplicate rows", async () => {
+    const ghDir = path.join(scratch.dir, "gh-labelled");
+    initGitRepo(
+      path.join(ghDir, "demo-a"),
+      "https://github.com/example/demo.git",
+    );
+    initGitRepo(
+      path.join(ghDir, "demo-b"),
+      "https://github.com/example/demo.git",
+    );
+    const vaultDb = openVaultDb(":memory:");
+    const db = openProjekteDb(":memory:");
+    const calls: string[][] = [];
+    const run: GhRunner = (args) => {
+      calls.push(args);
+      return Promise.resolve(CANNED_COUNTS);
+    };
+
+    const summary = await scanProjects(db, vaultDb, [ghDir], run);
+
+    expect(summary.repos).toBe(2);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toEqual([
+      "api",
+      "graphql",
+      "-f",
+      expect.stringContaining("query($o:String!,$n:String!)") as unknown,
+      "-F",
+      "o=example",
+      "-F",
+      "n=demo",
+    ]);
+
+    const rows = listProjects(db);
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map((r) => r.groupKey)).size).toBe(1);
+    expect(rows.every((r) => r.issues === 7 && r.prs === 2)).toBe(true);
   });
 });

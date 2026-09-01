@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -14,4 +15,21 @@ export function scratchDir(prefix: string): {
       rmSync(dir, { recursive: true, force: true });
     },
   };
+}
+
+/**
+ * An unborn checkout, optionally with an `origin` remote - enough for readGitState to read.
+ * Never fetches, so a github.com remote here is offline-safe.
+ */
+export function initGitRepo(dir: string, remoteUrl?: string): void {
+  mkdirSync(dir, { recursive: true });
+  execFileSync("git", ["init", "--initial-branch=main", "."], {
+    cwd: dir,
+    stdio: "ignore",
+  });
+  if (remoteUrl)
+    execFileSync("git", ["remote", "add", "origin", remoteUrl], {
+      cwd: dir,
+      stdio: "ignore",
+    });
 }

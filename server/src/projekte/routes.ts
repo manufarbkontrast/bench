@@ -36,10 +36,17 @@ function withDerived(rows: ProjectRow[]): ListedProject[] {
   }));
 }
 
+function logScan(summary: ScanSummary): void {
+  console.log(
+    `Projekte scan: ${summary.projects} projects (${summary.repos} repos, ${summary.folders} folders, ${summary.duplicates} duplicates) in ${summary.ms} ms`,
+  );
+}
+
 /**
  * A scan that is already running is shared rather than repeated - two GET /list calls racing on
  * an empty table must not scan twice, and POST /scan joins the same run rather than stacking a
- * second one against the same database.
+ * second one against the same database. The log line lives here rather than at each call site so
+ * it fires once per actual scan, not once per request that happened to trigger or join one.
  */
 function scanQueue(
   db: Database.Database,
@@ -49,9 +56,14 @@ function scanQueue(
 ): () => Promise<ScanSummary> {
   let inFlight: Promise<ScanSummary> | null = null;
   return () => {
-    inFlight ??= scanProjects(db, vaultDb, roots, gh).finally(() => {
-      inFlight = null;
-    });
+    inFlight ??= scanProjects(db, vaultDb, roots, gh)
+      .then((summary) => {
+        logScan(summary);
+        return summary;
+      })
+      .finally(() => {
+        inFlight = null;
+      });
     return inFlight;
   };
 }
