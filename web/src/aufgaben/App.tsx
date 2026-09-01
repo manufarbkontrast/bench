@@ -162,7 +162,14 @@ export default function App() {
     void toggle(path, line, raw);
 
   async function create(body: CreateBody) {
-    await api.create(body);
+    try {
+      await api.create(body);
+    } catch (err) {
+      // A failed create is a network or server problem the user can retry - logged so it is not
+      // silently dropped, without a banner for a request nothing else here reacts to.
+      console.error(err);
+      return;
+    }
     setCreating(false);
     await refetchTasks();
   }

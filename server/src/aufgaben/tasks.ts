@@ -56,7 +56,7 @@ function firstBrandByPath(db: Database.Database): Map<string, string> {
   return brands;
 }
 
-function hasExcludedSegment(taskPath: string): boolean {
+export function hasExcludedSegment(taskPath: string): boolean {
   return taskPath.split("/").some((segment) => EXCLUDED.has(segment));
 }
 

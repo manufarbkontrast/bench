@@ -111,8 +111,8 @@ export function groupByBrand(tasks: Task[]): TaskGroup[] {
   }));
 }
 
-/** Open tasks whose note carries no brand tag - the Unzugeordnet tab. The Plaud half of this
-    view arrives in a later phase. */
+/** Open tasks whose note carries no brand tag - the Unzugeordnet tab, shown alongside the Plaud
+    panel. */
 export function viewUnassigned(tasks: Task[]): Task[] {
   return tasks.filter((t) => isOpen(t) && t.brand === null);
 }

@@ -139,6 +139,31 @@ describe("GET /api/aufgaben/plaud", () => {
   });
 });
 
+describe("GET /api/aufgaben/plaud after an import", () => {
+  it("drops the just-imported row's own dedup hint but keeps a genuine one on a still-open row", async () => {
+    const before = await request(app).get("/api/aufgaben/plaud");
+    const items = (before.body as PlaudResponse).notes[0].items;
+    // items[0] dedups against the pre-existing Leuchtturm task and stays untouched by this
+    // import; items[1] has no pre-existing match, so importing it is what used to make it match
+    // its own freshly-written line.
+    expect(items[0].existing).toMatchObject({ path: LEUCHTTURM });
+    expect(items[1].existing).toBeNull();
+
+    const res = await request(app).post("/api/aufgaben/import").send({
+      file: PLAUD_FILE,
+      rowHash: items[1].rowHash,
+      targetPath: TASK_INBOX,
+    });
+    expect(res.status).toBe(201);
+
+    const after = await request(app).get("/api/aufgaben/plaud");
+    const afterItems = (after.body as PlaudResponse).notes[0].items;
+    expect(afterItems[1].imported).not.toBeNull();
+    expect(afterItems[1].existing).toBeNull();
+    expect(afterItems[0].existing).toMatchObject({ path: LEUCHTTURM });
+  });
+});
+
 describe("POST /api/aufgaben/import", () => {
   it("creates the inbox file with the provenance and due date, then rejects a repeat", async () => {
     const plaudRes = await request(app).get("/api/aufgaben/plaud");

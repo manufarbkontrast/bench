@@ -99,6 +99,10 @@ createApp({
         : "index empty until first scan"
     }`,
   );
+  if (plaudLocation.missing)
+    console.log(
+      "  Plaud: configured path not found - using the bundled sample",
+    );
   const importCount = (
     aufgabenDb.prepare("SELECT COUNT(*) AS c FROM task_imports").get() as {
       c: number;

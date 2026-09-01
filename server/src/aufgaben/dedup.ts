@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { hasExcludedSegment } from "./tasks.js";
 
 const MIN_WORD_LENGTH = 4;
 const OVERLAP_THRESHOLD = 0.5;
@@ -35,6 +36,8 @@ function byPathThenLine(a: OpenTaskRow, b: OpenTaskRow): number {
  * The open task whose text shares the most significant words with `was`, when that share is at
  * least half of `was`'s own words - below that, null. A done task can never win: a Plaud item
  * already finished elsewhere should still get imported, not silently absorbed into a closed row.
+ * A task under an EXCLUDED folder never wins either - the same housekeeping folders listTasks
+ * drops from aufgaben's own task list are not work a dedup hint should point at.
  */
 export function findExisting(
   vaultDb: Database.Database,
@@ -45,7 +48,9 @@ export function findExisting(
     vaultDb
       .prepare("SELECT path, line, text FROM tasks WHERE done = 0")
       .all() as OpenTaskRow[]
-  ).toSorted(byPathThenLine);
+  )
+    .filter((task) => !hasExcludedSegment(task.path))
+    .toSorted(byPathThenLine);
 
   let best: OpenTaskRow | null = null;
   let bestScore = 0;

@@ -49,7 +49,11 @@ starting with `.`, so chokidar never fires a spurious `add` for the tmp file app
 vanishing a moment later. The watcher does still fire once the rename lands on the real filename,
 which is redundant with the write function's own synchronous `indexNote`/`resolveLinks` call
 immediately after - harmless, since indexing one note is idempotent and cheap, but worth knowing
-before assuming every reindex trace came from the watcher.
+before assuming every reindex trace came from the watcher. `atomicWrite` only makes the write
+itself atomic, not the whole operation: `toggleTask` and `appendTask` each read the note, build the
+new content from what they read, and only then reach `atomicWrite` - a save from Obsidian landing
+in that window is invisible to the read and gets overwritten by the rename, same as any other
+read-modify-write race with no lock between the two writers.
 
 ## The exclusion list
 

@@ -172,6 +172,23 @@ describe("Aufgaben App", () => {
     });
   });
 
+  it("logs and keeps the form open when api.create fails", async () => {
+    const consoleError = vi.spyOn(console, "error");
+    vi.mocked(api.create).mockRejectedValue(new Error("boom"));
+    render(<App />);
+    await screen.findByText("Spezifikation schreiben");
+    await userEvent.click(screen.getByRole("button", { name: "Neue Aufgabe" }));
+    await userEvent.type(screen.getByLabelText("Text"), "Kabel bestellen");
+    await userEvent.click(screen.getByRole("button", { name: "Anlegen" }));
+
+    await waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(expect.any(Error));
+    });
+    expect(screen.getByLabelText("Notiz")).toBeInTheDocument();
+    expect(api.tasks).toHaveBeenCalledTimes(1);
+    consoleError.mockRestore();
+  });
+
   it("closes the create form on Abbrechen without submitting", async () => {
     render(<App />);
     await screen.findByText("Spezifikation schreiben");

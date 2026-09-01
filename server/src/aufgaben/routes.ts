@@ -65,11 +65,16 @@ function toPlaudNoteReply(
 ): PlaudNoteReply {
   const text = readFileSync(path.join(plaudDir, file), "utf8");
   const note = parsePlaudNote(file, text);
-  const items = note.items.map((item) => ({
-    ...item,
-    imported: toImportedReply(findImport(ledger, file, item.rowHash)),
-    existing: findExisting(vaultDb, item.was),
-  }));
+  const items = note.items.map((item) => {
+    const imported = toImportedReply(findImport(ledger, file, item.rowHash));
+    // Once imported, the item's own line now sits in the vault and would dedup-match itself -
+    // the hint is pre-import advice, so there is nothing left for it to say afterwards.
+    return {
+      ...item,
+      imported,
+      existing: imported ? null : findExisting(vaultDb, item.was),
+    };
+  });
   return { ...note, items, suggestedTarget: suggestTarget(text, vaultDb) };
 }
 

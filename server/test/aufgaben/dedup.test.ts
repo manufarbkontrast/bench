@@ -76,6 +76,40 @@ describe("findExisting", () => {
     expect(findExisting(db, WAS)).toBeNull();
   });
 
+  it("excludes a candidate filed under Templates from matching", () => {
+    const db = buildVault(
+      [
+        {
+          path: "Templates/note.md",
+          line: 1,
+          text: "Spezifikation schreiben",
+          done: 0,
+        },
+      ],
+      "excluded.sqlite",
+    );
+    expect(findExisting(db, WAS)).toBeNull();
+  });
+
+  it("still matches the same text when the note sits under 30_Projekte", () => {
+    const db = buildVault(
+      [
+        {
+          path: "30_Projekte/note.md",
+          line: 1,
+          text: "Spezifikation schreiben",
+          done: 0,
+        },
+      ],
+      "not-excluded.sqlite",
+    );
+    expect(findExisting(db, WAS)).toEqual({
+      path: "30_Projekte/note.md",
+      line: 1,
+      text: "Spezifikation schreiben",
+    });
+  });
+
   it("breaks a tie between equally-scoring tasks by path then line", () => {
     const db = buildVault(
       [
