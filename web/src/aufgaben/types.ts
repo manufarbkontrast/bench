@@ -137,3 +137,49 @@ export function targetNotes(tree: TreeEntry[]): TreeEntry[] {
       entry.path.startsWith("30_Projekte/"),
   );
 }
+
+/** Where a Plaud item already landed, once imported. */
+interface PlaudImported {
+  targetPath: string;
+  line: number;
+}
+
+/** The open vault task a Plaud item's Was overlaps with - the dedup hint's target. */
+interface PlaudExisting {
+  path: string;
+  line: number;
+  text: string;
+}
+
+export interface PlaudItem {
+  rowHash: string;
+  wer: string;
+  was: string;
+  bis: string;
+  zeitmarke: string;
+  imported: PlaudImported | null;
+  existing: PlaudExisting | null;
+}
+
+export interface PlaudNote {
+  file: string;
+  title: string;
+  date: string | null;
+  source: string | null;
+  items: PlaudItem[];
+  openQuestions: string[];
+  direct: string[];
+  suggestedTarget: string;
+}
+
+export interface Issue {
+  number: number;
+  title: string;
+  url: string;
+  labels: string[];
+}
+
+export interface IssueRepo {
+  label: string;
+  issues: Issue[] | null;
+}

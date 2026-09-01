@@ -1,4 +1,4 @@
-import type { Task, TreeEntry } from "./types";
+import type { IssueRepo, PlaudNote, Task, TreeEntry } from "./types";
 
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -58,6 +58,22 @@ export interface CreateBody {
   priority?: string;
 }
 
+interface PlaudReply {
+  source: "configured" | "sample";
+  notes: PlaudNote[];
+}
+
+interface ImportReply {
+  targetPath: string;
+  line: number;
+  raw: string;
+}
+
+interface IssuesReply {
+  source: "gh" | "off";
+  repos: IssueRepo[];
+}
+
 export const api = {
   tasks: () =>
     get<{ tasks: Task[] }>("/api/aufgaben/tasks").then((r) => r.tasks),
@@ -66,4 +82,12 @@ export const api = {
     send<ToggleReply>("PATCH", "/api/vault/tasks", { path, line, raw }),
   create: (body: CreateBody) =>
     send<CreateReply>("POST", "/api/vault/tasks", body),
+  plaud: () => get<PlaudReply>("/api/aufgaben/plaud"),
+  importItem: (file: string, rowHash: string, targetPath: string) =>
+    send<ImportReply>("POST", "/api/aufgaben/import", {
+      file,
+      rowHash,
+      targetPath,
+    }),
+  issues: () => get<IssuesReply>("/api/aufgaben/issues"),
 };

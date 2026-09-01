@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 import { api, HttpError } from "./api";
-import type { Task, TreeEntry } from "./types";
+import type { PlaudNote, Task, TreeEntry } from "./types";
 
 function task(overrides: Partial<Task> = {}): Task {
   return {
@@ -34,12 +34,36 @@ const tree: TreeEntry[] = [
   },
 ];
 
+const plaudNote: PlaudNote = {
+  file: "2026-08-20_hafenrunde.md",
+  title: "Hafenrunde und Leuchtturm-Ausbau",
+  date: "2026-08-20",
+  source: "08-20_Besprechung_Hafenrunde-transcript.pdf",
+  suggestedTarget: "00_Index/Task_Inbox.md",
+  items: [
+    {
+      rowHash: "hash-1",
+      wer: "Jonas",
+      was: "Das Material für die neue Lampe bestellen",
+      bis: "offen",
+      zeitmarke: "[00:02:40]",
+      imported: null,
+      existing: null,
+    },
+  ],
+  openQuestions: [],
+  direct: [],
+};
+
 vi.mock("./api", () => ({
   api: {
     tasks: vi.fn(),
     tree: vi.fn(),
     toggle: vi.fn(),
     create: vi.fn(),
+    plaud: vi.fn(),
+    importItem: vi.fn(),
+    issues: vi.fn(),
   },
   HttpError: class HttpError extends Error {
     status: number;
@@ -60,6 +84,13 @@ beforeEach(() => {
     line: 3,
     raw: "- [ ] Neu",
   });
+  vi.mocked(api.plaud).mockResolvedValue({ source: "sample", notes: [] });
+  vi.mocked(api.importItem).mockResolvedValue({
+    targetPath: "00_Index/Task_Inbox.md",
+    line: 5,
+    raw: "- [ ] x",
+  });
+  vi.mocked(api.issues).mockResolvedValue({ source: "off", repos: [] });
 });
 
 describe("Aufgaben App", () => {
@@ -76,7 +107,7 @@ describe("Aufgaben App", () => {
     expect(heute).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("shows all six views in order", async () => {
+  it("shows all seven views in order, Issues after Erledigt", async () => {
     render(<App />);
     await screen.findByText("Spezifikation schreiben");
     const group = within(screen.getByRole("group", { name: "Ansicht" }));
@@ -87,6 +118,7 @@ describe("Aufgaben App", () => {
       "Marke",
       "Unzugeordnet",
       "Erledigt",
+      "Issues",
     ]);
   });
 
@@ -147,5 +179,86 @@ describe("Aufgaben App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
     expect(screen.queryByLabelText("Notiz")).not.toBeInTheDocument();
     expect(api.create).not.toHaveBeenCalled();
+  });
+
+  it("shows the Plaud panel above the brandless tasks in Unzugeordnet", async () => {
+    vi.mocked(api.plaud).mockResolvedValue({
+      source: "sample",
+      notes: [plaudNote],
+    });
+    render(<App />);
+    await screen.findByText("Spezifikation schreiben");
+    await userEvent.click(screen.getByRole("button", { name: "Unzugeordnet" }));
+    expect(
+      await screen.findByText("Hafenrunde und Leuchtturm-Ausbau"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: /In Vault übernehmen/,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("imports a Plaud item by calling api.importItem then refetching api.plaud", async () => {
+    vi.mocked(api.plaud).mockResolvedValue({
+      source: "sample",
+      notes: [plaudNote],
+    });
+    render(<App />);
+    await screen.findByText("Spezifikation schreiben");
+    await userEvent.click(screen.getByRole("button", { name: "Unzugeordnet" }));
+    await waitFor(() => {
+      expect(api.plaud).toHaveBeenCalledTimes(1);
+    });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /In Vault übernehmen/ }),
+    );
+
+    expect(api.importItem).toHaveBeenCalledWith(
+      "2026-08-20_hafenrunde.md",
+      "hash-1",
+      "00_Index/Task_Inbox.md",
+    );
+    await waitFor(() => {
+      expect(api.plaud).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("refetches api.plaud after a 409 on double import", async () => {
+    vi.mocked(api.plaud).mockResolvedValue({
+      source: "sample",
+      notes: [plaudNote],
+    });
+    vi.mocked(api.importItem).mockRejectedValue(
+      new HttpError(409, "already imported"),
+    );
+    render(<App />);
+    await screen.findByText("Spezifikation schreiben");
+    await userEvent.click(screen.getByRole("button", { name: "Unzugeordnet" }));
+    await waitFor(() => {
+      expect(api.plaud).toHaveBeenCalledTimes(1);
+    });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /In Vault übernehmen/ }),
+    );
+
+    await waitFor(() => {
+      expect(api.plaud).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("shows the Issues tab renders IssuesPanel", async () => {
+    vi.mocked(api.issues).mockResolvedValue({
+      source: "gh",
+      repos: [{ label: "example/a", issues: [] }],
+    });
+    render(<App />);
+    await screen.findByText("Spezifikation schreiben");
+    await userEvent.click(screen.getByRole("button", { name: "Issues" }));
+    expect(
+      await screen.findByRole("heading", { name: "example/a" }),
+    ).toBeInTheDocument();
   });
 });

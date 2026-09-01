@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import BenchNav from "../shared/BenchNav";
 import { api, HttpError, type CreateBody } from "./api";
 import CreateForm from "./components/CreateForm";
+import IssuesPanel from "./components/IssuesPanel";
+import PlaudPanel from "./components/PlaudPanel";
 import TaskList from "./components/TaskList";
 import {
   groupByBrand,
@@ -10,13 +12,21 @@ import {
   viewToday,
   viewUnassigned,
   viewWeek,
+  type IssueRepo,
+  type PlaudNote,
   type Task,
   type TaskGroup,
   type TreeEntry,
 } from "./types";
 
 type View =
-  "heute" | "woche" | "projekt" | "marke" | "unzugeordnet" | "erledigt";
+  | "heute"
+  | "woche"
+  | "projekt"
+  | "marke"
+  | "unzugeordnet"
+  | "erledigt"
+  | "issues";
 
 const TABS: { key: View; label: string }[] = [
   { key: "heute", label: "Heute" },
@@ -25,6 +35,7 @@ const TABS: { key: View; label: string }[] = [
   { key: "marke", label: "Marke" },
   { key: "unzugeordnet", label: "Unzugeordnet" },
   { key: "erledigt", label: "Erledigt" },
+  { key: "issues", label: "Issues" },
 ];
 
 const CONFLICT_MESSAGE = "Die Notiz hat sich geändert – Liste neu geladen.";
@@ -93,13 +104,43 @@ export default function App() {
   const [view, setView] = useState<View>("heute");
   const [creating, setCreating] = useState(false);
   const [conflict, setConflict] = useState<string | null>(null);
+  const [plaudNotes, setPlaudNotes] = useState<PlaudNote[]>([]);
+  const [issuesSource, setIssuesSource] = useState<"gh" | "off">("off");
+  const [issuesRepos, setIssuesRepos] = useState<IssueRepo[]>([]);
 
   const refetchTasks = () => api.tasks().then(setTasks);
+  const refetchPlaud = () => api.plaud().then((r) => setPlaudNotes(r.notes));
 
   useEffect(() => {
     void refetchTasks();
     void api.tree().then(setNotes);
+    void refetchPlaud();
+    void api.issues().then((r) => {
+      setIssuesSource(r.source);
+      setIssuesRepos(r.repos);
+    });
   }, []);
+
+  async function importPlaudItem(
+    file: string,
+    rowHash: string,
+    targetPath: string,
+  ) {
+    try {
+      await api.importItem(file, rowHash, targetPath);
+    } catch (err) {
+      if (!(err instanceof HttpError && err.status === 409)) {
+        // A failed import otherwise is a network or server problem the user can retry - logged
+        // so it is not silently dropped.
+        console.error(err);
+        return;
+      }
+      // The ledger already has it - the UI just catches up below.
+    }
+    await refetchPlaud();
+  }
+  const handleImport = (file: string, rowHash: string, targetPath: string) =>
+    void importPlaudItem(file, rowHash, targetPath);
 
   async function toggle(path: string, line: number, raw: string) {
     setConflict(null);
@@ -172,10 +213,16 @@ export default function App() {
           <GroupedView groups={groupByBrand(tasks)} onToggle={handleToggle} />
         )}
         {view === "unzugeordnet" && (
-          <TaskList tasks={viewUnassigned(tasks)} onToggle={handleToggle} />
+          <div className="aufgaben-sections">
+            <PlaudPanel notes={plaudNotes} onImport={handleImport} />
+            <TaskList tasks={viewUnassigned(tasks)} onToggle={handleToggle} />
+          </div>
         )}
         {view === "erledigt" && (
           <TaskList tasks={viewDone(tasks)} onToggle={handleToggle} />
+        )}
+        {view === "issues" && (
+          <IssuesPanel repos={issuesRepos} source={issuesSource} />
         )}
 
         {creating && (
