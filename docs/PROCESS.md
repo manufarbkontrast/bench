@@ -20,8 +20,8 @@ branch, which is what makes running the checks locally a requirement rather than
 
 ## 1. Understand before changing
 
-- Read the app's docs first: [crm/](./crm/), [rolodex/](./rolodex/), [vault/](./vault/).
-  Each holds an IMPLEMENTATION.md with the domain rules and the traps, and a
+- Read the app's docs first: [crm/](./crm/), [projekte/](./projekte/), [rolodex/](./rolodex/),
+  [vault/](./vault/). Each holds an IMPLEMENTATION.md with the domain rules and the traps, and a
   REQUIREMENTS.md with the original brief.
 - For a bug, **prove the root cause before fixing it.** Reproduce it, measure it, show the evidence.
   Do not apply a workaround to a symptom you have not explained. If a fix depends on a guess, the
@@ -55,7 +55,7 @@ Three layers, each with a different job. Add to whichever ones the change touche
 
 ### Unit tests - `npm test`
 
-vitest, server and web. Server suites live in `server/test/{crm,rolodex,vault}/`; web suites sit
+vitest, server and web. Server suites live in `server/test/{crm,rolodex,vault,projekte}/`; web suites sit
 beside the code they cover. Coverage is measured across every app at 80% statements; run
 `npm run coverage` for the current figure per workspace rather than trusting a number written here.
 
@@ -69,8 +69,8 @@ about them - read it before concluding that a component is untestable.
 
 ### End-to-end tests - `npm run e2e`
 
-Playwright, in `e2e/`. Layout: `smoke.spec.ts` (the seams between the apps), then `crm/`, `rolodex/`,
-`vault/`, `theme.spec.ts`. `e2e/tools/chrome-shots.mjs` is not part of the suite - it drives a
+Playwright, in `e2e/`. Layout: `smoke.spec.ts` (the seams between the apps), then `crm/`, `projekte/`,
+`rolodex/`, `vault/`, `theme.spec.ts`. `e2e/tools/chrome-shots.mjs` is not part of the suite - it drives a
 running app and captures every screen in both themes, for reviewing a visual change in one pass.
 
 Rules that keep this suite reliable:

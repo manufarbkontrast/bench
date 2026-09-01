@@ -1,34 +1,36 @@
 # Bench - project overview
 
-Three local-first apps, merged from four separate repos into one project with **one frontend
-server and one backend server**. Everything runs on your own machine: no login, no cloud, no
-external services, no secrets. Data lives in local SQLite files.
+Four local-first apps behind **one frontend server and one backend server**: three merged from
+four separate repos into one project, the fourth built for Bench OS. Everything runs on your own
+machine: no login, no cloud, no external services, no secrets. Data lives in local SQLite files.
 
 This fork is becoming **Bench OS**: a window onto one person's Obsidian vault, Plaud notes, local
 repositories and controlling reports. The plan is in [changes/bench-os/](./changes/bench-os/):
 `SPEC.md` for what, `PLAN.md` for the phases. Groove was removed in Phase 0; the apps below are
 what remain of the original four, and the new ones arrive one phase at a time.
 
-| App         | Path       | What it is                                                                                                                      | Backend               |
-| ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| **Vault**   | `/vault`   | Read-only window onto an Obsidian vault: folder tree, rendered notes with wikilinks and backlinks, tags, full-text search       | `data/vault.sqlite`   |
-| **CRM**     | `/crm`     | Personal sales CRM: organizations, contacts, deals, drag-and-drop pipeline, activities, dashboard                               | `data/crm.sqlite`     |
-| **Rolodex** | `/rolodex` | Personal CRM for your own people: check-in cadences, circles, birthdays, a timeline of every conversation, CSV and vCard import | `data/rolodex.sqlite` |
+| App          | Path        | What it is                                                                                                                                                         | Backend                |
+| ------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- |
+| **Vault**    | `/vault`    | Read-only window onto an Obsidian vault: folder tree, rendered notes with wikilinks and backlinks, tags, full-text search                                          | `data/vault.sqlite`    |
+| **Projekte** | `/projekte` | Read-only inventory of git checkouts and coupled working folders: branch, dirty/ahead/behind, duplicates, brand and status from the vault, issues and PRs via `gh` | `data/projekte.sqlite` |
+| **CRM**      | `/crm`      | Personal sales CRM: organizations, contacts, deals, drag-and-drop pipeline, activities, dashboard                                                                  | `data/crm.sqlite`      |
+| **Rolodex**  | `/rolodex`  | Personal CRM for your own people: check-in cadences, circles, birthdays, a timeline of every conversation, CSV and vCard import                                    | `data/rolodex.sqlite`  |
 
-A launcher at `/` links to all three, and every page carries the same navigation strip: the Bench
-mark, then Start, Vault, CRM and Rolodex, each with the icon that identifies it inside its
-own app too, and one theme toggle on the right.
+A launcher at `/` links to all four, and every page carries the same navigation strip: the Bench
+mark, then Start, Vault, Projekte, CRM and Rolodex, each with the icon that identifies it inside
+its own app too, and one theme toggle on the right.
 
 ## Detailed app documentation
 
 One directory per app. Read these on demand - they are not loaded into context by default. Open the
 app you are working in before changing its behaviour.
 
-| App     | Implementation                                           | Requirements                                         | Also |
-| ------- | -------------------------------------------------------- | ---------------------------------------------------- | ---- |
-| Vault   | [vault/IMPLEMENTATION.md](./vault/IMPLEMENTATION.md)     | [vault/REQUIREMENTS.md](./vault/REQUIREMENTS.md)     |      |
-| CRM     | [crm/IMPLEMENTATION.md](./crm/IMPLEMENTATION.md)         | [crm/REQUIREMENTS.md](./crm/REQUIREMENTS.md)         |      |
-| Rolodex | [rolodex/IMPLEMENTATION.md](./rolodex/IMPLEMENTATION.md) | [rolodex/REQUIREMENTS.md](./rolodex/REQUIREMENTS.md) |      |
+| App      | Implementation                                             | Requirements                                           | Also |
+| -------- | ---------------------------------------------------------- | ------------------------------------------------------ | ---- |
+| Vault    | [vault/IMPLEMENTATION.md](./vault/IMPLEMENTATION.md)       | [vault/REQUIREMENTS.md](./vault/REQUIREMENTS.md)       |      |
+| Projekte | [projekte/IMPLEMENTATION.md](./projekte/IMPLEMENTATION.md) | [projekte/REQUIREMENTS.md](./projekte/REQUIREMENTS.md) |      |
+| CRM      | [crm/IMPLEMENTATION.md](./crm/IMPLEMENTATION.md)           | [crm/REQUIREMENTS.md](./crm/REQUIREMENTS.md)           |      |
+| Rolodex  | [rolodex/IMPLEMENTATION.md](./rolodex/IMPLEMENTATION.md)   | [rolodex/REQUIREMENTS.md](./rolodex/REQUIREMENTS.md)   |      |
 
 **IMPLEMENTATION.md** is how the app is built now: structure, domain rules, and the traps.
 **REQUIREMENTS.md** is the original product brief, kept for intent and scope; their phased plans
@@ -44,15 +46,17 @@ web/                ONE Vite project, multi-page (MPA)
   crm/index.html      -> src/crm/main.tsx
   rolodex/index.html  -> src/rolodex/main.tsx
   vault/index.html    -> src/vault/main.tsx
-  src/shared/         the navigation strip and the theme - the only code all four documents share
+  projekte/index.html -> src/projekte/main.tsx
+  src/shared/         the navigation strip and the theme - the only code all five documents share
 server/             ONE Express app
-  src/index.ts        opens the three DBs, listens on :8100
+  src/index.ts        opens the four DBs, listens on :8100
   src/app.ts          mounts routers, serves web/dist with per-prefix SPA fallback
   src/crm/            crm routes + db + seed
   src/rolodex/        rolodex routes + db + seed
   src/vault/          vault routes + db + indexer
-  test/{crm,rolodex,vault}/   vitest suites
-data/                 crm.sqlite, rolodex.sqlite, vault.sqlite (gitignored, seeded on first run)
+  src/projekte/       projekte routes + db + scan pipeline
+  test/{crm,rolodex,vault,projekte}/   vitest suites
+data/                 crm.sqlite, rolodex.sqlite, vault.sqlite, projekte.sqlite (gitignored, seeded/scanned on first run)
 .env                  this machine's vault path (gitignored); .env.example lists the keys as they arrive
 server/src/config.ts  loads .env and describes the sources at startup
 docs/                 this documentation; docs/<app>/ per app
@@ -165,9 +169,10 @@ the rules above.
   work item. Nothing else writes to a source.
 - **Local CLIs are fair game.** `git`, `gh` and `claude` run as processes on this machine, the way
   Bench already runs `gitleaks`. No cloud call is made directly and no token is held.
-- **`aufgaben` reads the vault index.** A task is a line in a vault note, so the Aufgaben app reads
-  `vault.sqlite` through `server/src/vault/` - the one exception to "one database per app", and a
-  one-way dependency.
+- **`aufgaben` and `projekte` read the vault index.** A task is a line in a vault note, and a
+  project's brand and status come from the vault note that couples to it, so both apps read
+  `vault.sqlite` through `server/src/vault/` - the exception to "one database per app", and a
+  one-way dependency in each case.
 - **German interface, English code.** Routes and labels are German (`/projekte`, `Aufgaben`); the
   code, the docs and the commits stay English.
 - **Immutable data.** New code builds new objects rather than mutating - the user's standing rule,

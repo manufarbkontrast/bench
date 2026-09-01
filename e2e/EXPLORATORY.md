@@ -22,7 +22,7 @@ With `agent-browser`: `agent-browser --session bench open http://localhost:8101/
 `snapshot -i` to list interactive elements. Two traps worth knowing - `fill @ref ""` does **not**
 clear a field (reload instead), and refs go stale after navigation, so re-snapshot before clicking.
 
-**Check both themes.** The toggle sits on the right of the nav strip and applies to all three apps.
+**Check both themes.** The toggle sits on the right of the nav strip and applies to all four apps.
 The specs assert that each app's background actually changes and that the choice survives a
 reload; whether the result is _legible_ - chart axes, chips on tinted backgrounds - is a judgement
 only you can make.
@@ -59,6 +59,32 @@ than Vault, because the `appFallback` plugin in `web/vite.config.ts` treats the 
 static asset and skips its rewrite. Production (`npm start`) and the e2e suite, which navigate
 through the app rather than by direct URL, are unaffected.
 
+## Projekte
+
+Covered by specs against the built sample workshop (`e2e/projekte/{table,board,scan}.spec.ts`): the
+table lists the sample's git checkouts with their git state, the duplicate pair carries `Dublette`,
+the remoteless checkout carries `Kein Remote`, issue cells read the em dash with `gh` off; the
+board groups the (uncoupled) sample into one `Ohne Marke` section and one `Unzugeordnet` column, a
+card opens the detail panel and lists its duplicate; `Neu scannen` picks up a checkout created
+after the first scan without a reload.
+
+Left to judgement, because the sample workshop cannot exercise it and a live `gh` call has no
+place in an automated suite:
+
+- **Scan breadth on a real machine.** The sample is three checkouts and one coupled folder; a real
+  `PROJECT_ROOTS` scan over an actual home directory - depth, checkout count, how long it takes,
+  which repositories the depth cap or the ignore rules quietly miss - is only exercised by hand,
+  against the real machine's roots.
+- **`gh` against live repositories.** Every e2e worker runs with `BENCH_GH: "off"`, so
+  `fetchCounts` reaching the real CLI, a real GraphQL response, and a real offline/not-logged-in
+  failure path are none of them exercised by the suite. `server/test/projekte/gh.test.ts` covers
+  the parsing and the null-on-failure rule against a fake runner only.
+- **Coupled brand/status grouping, in the browser.** `web/src/projekte/components/Board.test.tsx`
+  covers multi-brand, multi-status grouping against mock rows in jsdom, but the bundled sample
+  vault couples none of the sample workshop's checkouts - `board.spec.ts` only ever sees one
+  section and one column. A board actually split across several brands and statuses has never been
+  seen rendered in a real browser by the automated suite.
+
 ## CRM
 
 Covered by specs: CRUD for organizations, contacts and deals, search, status filter, keyboard drag
@@ -92,12 +118,13 @@ on the pipeline, delete confirmation, deep links. Left to judgement:
 - The launcher, then into each app and back. Because the apps are separate documents, back is a
   full page load, not a router transition, and moving between apps through the nav strip is a
   navigation rather than a transition.
-- **The nav strip should look identical in all four documents (launcher and three apps)** - same
+- **The nav strip should look identical in all five documents (launcher and four apps)** - same
   height, same dark, same orange line - including Vault in dark mode. The suite asserts the
   links and the current tab; it cannot see that the strip has picked up a host app's font,
   letter-spacing or palette. That is exactly what would go wrong.
-- Each app should keep its own look below the strip: CRM light, Vault light/dark, Rolodex
-  light/dark. Any styling bleeding between them means the multi-page split has been broken.
+- Each app should keep its own look below the strip: CRM light, Vault light/dark, Projekte
+  light/dark, Rolodex light/dark. Any styling bleeding between them means the multi-page split has
+  been broken.
 - Refresh on a deep link in **both** dev and prod.
 - After a chrome change, run `node e2e/tools/chrome-shots.mjs` against `npm start` and look at
   all eight images. The suite asserts labels and the current tab; whether orange on the dark strip
