@@ -1,6 +1,10 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { openAufgabenDb } from "./aufgaben/db.js";
+import { realGh as realAufgabenGh } from "./aufgaben/gh.js";
+import { locatePlaud } from "./aufgaben/locate.js";
+import type { AufgabenSources } from "./aufgaben/routes.js";
 import { describeSources, loadConfig } from "./config.js";
 import { openDb as openCrmDb } from "./crm/db.js";
 import { isSeeded, seed } from "./crm/seed.js";
@@ -56,11 +60,23 @@ const projekte: ProjekteContext = {
   gh: process.env.BENCH_GH === "off" ? "off" : realGh,
 };
 
+const plaudLocation = locatePlaud(
+  config,
+  path.join(root, "server", "src", "aufgaben", "fixture", "notizen"),
+);
+const aufgabenDb = openAufgabenDb(path.join(dataDir, "aufgaben.sqlite"));
+const aufgaben: AufgabenSources = {
+  ledger: aufgabenDb,
+  plaud: { dir: plaudLocation.dir, source: plaudLocation.source },
+  gh: process.env.BENCH_GH === "off" ? "off" : realAufgabenGh,
+};
+
 createApp({
   crm,
   rolodex,
   vault: { db: vaultDb, dir: vault.dir, name: path.basename(vault.dir) },
   projekte,
+  aufgaben,
 }).listen(port, () => {
   console.log(`Bench running at http://localhost:${port}`);
   for (const line of describeSources(config)) console.log(`  ${line}`);
@@ -82,5 +98,13 @@ createApp({
         ? `${projekteRows} projects indexed`
         : "index empty until first scan"
     }`,
+  );
+  const importCount = (
+    aufgabenDb.prepare("SELECT COUNT(*) AS c FROM task_imports").get() as {
+      c: number;
+    }
+  ).c;
+  console.log(
+    `  Aufgaben: plaud ${plaudLocation.source}, ledger ${importCount} imports`,
   );
 });

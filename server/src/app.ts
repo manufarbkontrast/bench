@@ -3,7 +3,13 @@ import type Database from "better-sqlite3";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  aufgabenRouter,
+  type AufgabenContext,
+  type AufgabenSources,
+} from "./aufgaben/routes.js";
 import { crmRouter } from "./crm/routes.js";
+import { listProjects } from "./projekte/db.js";
 import { projekteRouter, type ProjekteContext } from "./projekte/routes.js";
 import { rolodexRouter } from "./rolodex/routes/index.js";
 import type { Repo } from "./rolodex/db/index.js";
@@ -22,6 +28,23 @@ export interface Dbs {
   rolodex: Repo;
   vault: VaultContext;
   projekte: ProjekteContext;
+  aufgaben: AufgabenSources;
+}
+
+/**
+ * The GitHub labels aufgaben's issue view fetches - one per scanned project with a remote, read
+ * fresh on each call rather than snapshotted once. The route dedupes; two projects can share a
+ * label. Built here, not in server/src/aufgaben/, which never imports from server/src/projekte/.
+ */
+function githubLabelsFrom(projekteDb: Database.Database): () => string[] {
+  return () =>
+    listProjects(projekteDb)
+      .map((project) => project.remoteLabel)
+      .filter((label): label is string => label !== null);
+}
+
+function aufgabenContext(dbs: Dbs): AufgabenContext {
+  return { ...dbs.aufgaben, githubLabels: githubLabelsFrom(dbs.projekte.db) };
 }
 
 /** Build the Express app around the open databases. */
@@ -42,6 +65,7 @@ export function createApp(dbs: Dbs): express.Express {
   app.use("/api/rolodex", rolodexRouter(dbs.rolodex));
   app.use("/api/vault", vaultRouter(dbs.vault));
   app.use("/api/projekte", projekteRouter(dbs.projekte, dbs.vault.db));
+  app.use("/api/aufgaben", aufgabenRouter(aufgabenContext(dbs), dbs.vault));
 
   if (existsSync(webDist)) {
     app.use(express.static(webDist));

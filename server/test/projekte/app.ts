@@ -11,6 +11,7 @@ import { buildSampleProjects } from "../../src/projekte/sample.js";
 import { openDb as openRolodexDb } from "../../src/rolodex/db/index.js";
 import { openDb as openVaultDb } from "../../src/vault/db.js";
 import type { VaultContext } from "../../src/vault/routes/index.js";
+import { emptyAufgaben } from "../aufgaben/app.js";
 
 /** An empty in-memory scan for suites that only need the app to boot. */
 export function emptyProjekte(): ProjekteContext {
@@ -31,6 +32,7 @@ export function appWithProjekte(
     rolodex: openRolodexDb(":memory:"),
     vault,
     projekte,
+    aufgaben: emptyAufgaben(),
   });
 }
 
