@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { readGitState } from "../../src/projekte/git.js";
@@ -59,6 +59,37 @@ describe("readGitState", () => {
     });
     const state = await readGitState(repo);
     expect(state.remote).toBe(backupUrl);
+  });
+
+  it("counts an untracked directory once, matching plain git status - not once per file inside it", async () => {
+    const repo = path.join(scratch.dir, "untracked-dir");
+    mkdirSync(repo, { recursive: true });
+    execFileSync("git", ["init", "--initial-branch=main", "."], {
+      cwd: repo,
+      stdio: "ignore",
+    });
+    writeFileSync(path.join(repo, "tracked.txt"), "a\n");
+    execFileSync("git", ["add", "tracked.txt"], { cwd: repo, stdio: "ignore" });
+    execFileSync(
+      "git",
+      [
+        "-c",
+        "user.email=bench@example.com",
+        "-c",
+        "user.name=Bench",
+        "commit",
+        "-m",
+        "init",
+      ],
+      { cwd: repo, stdio: "ignore" },
+    );
+    appendFileSync(path.join(repo, "tracked.txt"), "b\n");
+    mkdirSync(path.join(repo, "untracked"));
+    writeFileSync(path.join(repo, "untracked", "one.txt"), "1\n");
+    writeFileSync(path.join(repo, "untracked", "two.txt"), "2\n");
+
+    const state = await readGitState(repo);
+    expect(state.dirty).toBe(2);
   });
 
   it("does not throw on an unborn HEAD", async () => {

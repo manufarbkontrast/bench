@@ -12,7 +12,11 @@ export interface GitState {
 
 export async function readGitState(dir: string): Promise<GitState> {
   const git = simpleGit(dir);
-  const status = await git.status();
+  // simple-git's status task bakes a bare "-u" (untracked-files=all) into the command it runs,
+  // which counts every file inside an untracked directory separately. git's own argument parsing
+  // is last-flag-wins, so appending "normal" here overrides that rather than adding a second,
+  // conflicting flag - and normal is what plain `git status` shows the user by default.
+  const status = await git.status(["--untracked-files=normal"]);
   const remotes = await git.getRemotes(true);
   const origin = remotes.find((r) => r.name === "origin") ?? remotes.at(0);
   let lastCommitAt: number | null = null;

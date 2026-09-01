@@ -39,7 +39,7 @@ export interface ProjectRow {
   branch: string | null;
   lastCommitAt: number | null;
   lastCommitSubject: string | null;
-  /** SQLite's 0 or 1, not a boolean - see crm/db.ts's Activity for the same convention. */
+  /** The count of dirty entries from `git status`, not a boolean - an untracked directory counts once. */
   dirty: number;
   ahead: number | null;
   behind: number | null;

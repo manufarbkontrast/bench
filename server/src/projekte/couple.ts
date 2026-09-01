@@ -50,5 +50,18 @@ export function vaultCouplings(vaultDb: Database.Database): Coupling[] {
       status: tagWithPrefix(tags, "status/"),
     });
   }
-  return couplings.sort((a, b) => ordinal(a.notePath, b.notePath));
+  const sorted = couplings.toSorted((a, b) => ordinal(a.notePath, b.notePath));
+
+  // projects.path is the pipeline's primary key, so two notes naming the same resolved path
+  // would otherwise reach it as two rows and crash the whole scan with a UNIQUE constraint
+  // failure - deduping here, once, keeps both row kinds safe rather than fixing each separately.
+  const seen = new Set<string>();
+  const deduped: Coupling[] = [];
+  for (const coupling of sorted) {
+    const key = coupling.projectPath.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(coupling);
+  }
+  return deduped;
 }

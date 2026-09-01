@@ -7,7 +7,7 @@ export interface Project {
   branch: string | null;
   lastCommitAt: number | null;
   lastCommitSubject: string | null;
-  /** SQLite's 0 or 1, not a boolean - see server/src/projekte/db.ts's ProjectRow. */
+  /** The count of dirty entries from `git status`, not a boolean - see server/src/projekte/db.ts's ProjectRow. */
   dirty: number;
   ahead: number | null;
   behind: number | null;

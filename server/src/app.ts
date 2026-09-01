@@ -56,5 +56,27 @@ export function createApp(dbs: Dbs): express.Express {
       res.sendFile(path.join(webDist, owner ?? "", "index.html"));
     });
   }
+
+  // Express 5 forwards a rejected async handler here automatically. Without this, its default
+  // error page answers with an HTML stack trace - absolute paths from a machine only Bench runs
+  // on - instead of the JSON every other reply on /api already is.
+  app.use(
+    (
+      err: unknown,
+      _req: express.Request,
+      res: express.Response,
+      next: express.NextFunction,
+    ) => {
+      // Express's own documented rule: once headers are sent, delegate to its default handler
+      // (which closes the connection) rather than trying to send a second response.
+      if (res.headersSent) {
+        next(err);
+        return;
+      }
+      console.error(err);
+      res.status(500).json({ error: "Internal server error" });
+    },
+  );
+
   return app;
 }

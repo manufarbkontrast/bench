@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -32,4 +32,16 @@ export function initGitRepo(dir: string, remoteUrl?: string): void {
       cwd: dir,
       stdio: "ignore",
     });
+}
+
+/**
+ * A stale worktree pointer: `findRepos` sees the `.git` file and treats the directory as a
+ * checkout, but the gitdir it names is gone, so any git command against it throws.
+ */
+export function initBrokenWorktree(dir: string): void {
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    path.join(dir, ".git"),
+    `gitdir: ${path.join(dir, "does-not-exist")}\n`,
+  );
 }

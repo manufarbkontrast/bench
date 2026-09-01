@@ -17,13 +17,24 @@ export function skippedDir(name: string): boolean {
 const MAX_DEPTH = 3;
 
 export function findRepos(roots: string[]): string[] {
-  const seen = new Set<string>();
+  // A plain seen-Set would make a nested configured root a no-op when its parent is scanned
+  // first (PROJECT_ROOTS=~/Downloads:~/Downloads/Projekte): the parent's walk already marks
+  // Projekte as visited on its way past, several levels deep, so the nested root's own walk -
+  // which needs to start counting from depth 0 - would short-circuit on that stale visit and
+  // never reach a repo its own depth budget could otherwise find. Tracking the best (smallest)
+  // depth a directory was reached at instead makes the walk order-independent: a root visiting a
+  // directory shallower than before re-opens it.
+  const best = new Map<string, number>();
+  const foundPaths = new Set<string>();
   const found: string[] = [];
   const walk = (dir: string, depth: number): void => {
-    if (seen.has(dir)) return;
-    seen.add(dir);
+    if ((best.get(dir) ?? Infinity) <= depth) return;
+    best.set(dir, depth);
     if (existsSync(path.join(dir, ".git"))) {
-      found.push(dir);
+      if (!foundPaths.has(dir)) {
+        foundPaths.add(dir);
+        found.push(dir);
+      }
       return;
     }
     if (depth >= MAX_DEPTH) return;

@@ -134,6 +134,15 @@ describe("Projekte App", () => {
     await screen.findByRole("button", { name: "Neu scannen" });
   });
 
+  it("re-enables the scan button when the scan fails", async () => {
+    vi.mocked(api.scan).mockRejectedValue(new Error("scan failed"));
+    render(<App />);
+    await screen.findByText("leuchtfeuer");
+    await userEvent.click(screen.getByRole("button", { name: "Neu scannen" }));
+    await screen.findByRole("button", { name: "Neu scannen" });
+    expect(screen.getByRole("button", { name: "Neu scannen" })).toBeEnabled();
+  });
+
   it("switches between table and board, moving aria-pressed", async () => {
     render(<App />);
     await screen.findByText("leuchtfeuer");

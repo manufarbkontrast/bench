@@ -18,11 +18,11 @@ filesystem, `git` and `gh` are the truth; Bench never writes to any of them. Bac
 One table, `projects` (`server/src/projekte/db.ts`) - a denormalised scan result, no foreign
 keys: `path` (primary key), `name`, `kind` (`'git'` or `'folder'`), `remote`, `remote_label`
 (the `owner/repo` GitHub label, if the remote is on GitHub), `branch`, `last_commit_at`,
-`last_commit_subject`, `dirty` (SQLite's 0 or 1, not a boolean - the same convention as CRM's
-`Activity`), `ahead`, `behind`, `note_path`, `brand`, `status`, `issues`, `prs`, `group_key`, and
-`scanned_at`. `replaceProjects` deletes and reinserts the whole table inside one transaction on
-every scan, so a project gone from the roots also vanishes from the index - nothing here is
-reconciled row by row.
+`last_commit_subject`, `dirty` (the count of dirty entries from `git status`, not a boolean -
+an untracked directory counts once, matching plain `git status`), `ahead`, `behind`, `note_path`,
+`brand`, `status`, `issues`, `prs`, `group_key`, and `scanned_at`. `replaceProjects` deletes and
+reinserts the whole table inside one transaction on every scan, so a project gone from the roots
+also vanishes from the index - nothing here is reconciled row by row.
 
 ## The scan pipeline
 
@@ -32,7 +32,9 @@ reconciled row by row.
 2. **`readStates`** (`pipeline.ts`) calls `readGitState` (`git.ts`) for each checkout, in batches of
    8 (`GIT_STATE_BATCH`) rather than all at once - each read spawns several git processes, and
    unbounded parallelism over a large root would exhaust file descriptors. `readGitState` itself
-   reads exactly one checkout's state per call; the batching is `readStates`'s concern, not its own.
+   reads exactly one checkout's state per call, via `git status --untracked-files=normal` - the
+   same untracked mode plain `git status` uses; the batching is `readStates`'s concern, not its
+   own.
 3. **`vaultCouplings`** (`couple.ts`) reads every project-pointing note from the vault index.
 4. **Rows are built**: one per found checkout (`kind: 'git'`), matched against a coupling by
    lowercased resolved path; one per coupling whose path exists on disk but was not itself found
@@ -50,9 +52,13 @@ it finds in a directory (a repository is never walked into further) and skipping
 whose name starts with `.`, plus `node_modules`, `Library`, `Applications`, `Music`, `Movies` and
 `Pictures` - the same rule Vault's indexer uses for the dot-prefix, plus the macOS bulk folders a
 home-directory scan must not enter. Symlinked directories are never followed. **The walk stops at
-depth 3 below each root** (`MAX_DEPTH`); a repository nested deeper is never found. Overlapping
-roots (`~/Downloads` and `~/Downloads/Projekte` both configured) yield each repository once - the
-walk tracks visited directories in a `Set`.
+depth 3 below each root** (`MAX_DEPTH`); a repository nested deeper than that root's own budget is
+never found. Overlapping roots (`~/Downloads` and `~/Downloads/Projekte` both configured) yield
+each repository once - the walk tracks the _best_ (smallest) depth each directory was reached at,
+in a `Map`, rather than a plain seen-Set: a nested root gets its own full depth budget regardless
+of scan order, so a repository too deep for the parent root's budget but within the nested root's
+own is still found when the parent is configured first, which is the order `PROJECT_ROOTS` is
+usually written in.
 
 ## Remote normalisation and the two duplicate notions
 
@@ -167,9 +173,11 @@ translated for the paths, English commit subjects.
 
 ## The web app
 
-`App.tsx` (mounted at `/projekte` by its own `BrowserRouter`) fetches the list on load, offers
-`Neu scannen` (`POST /scan` then a re-fetch of `/list`, disabled and reading `Scannt …` while
-running), and toggles between `ProjectsTable` and `Board`. Selecting a row or card fetches
+`App.tsx` (served at `/projekte` from its own HTML entry point; `main.tsx` renders `<App />`
+directly, with no `BrowserRouter` - the app has no client-side routes of its own to manage) fetches
+the list on load, offers `Neu scannen` (`POST /scan` then a re-fetch of `/list`, disabled and
+reading `Scannt …` while running - and re-enabled even if the scan fails), and toggles between
+`ProjectsTable` and `Board`. Selecting a row or card fetches
 `GET /project?path=` and opens `Detail`, a side panel closed by its own button or Escape.
 
 - **`ProjectsTable`** sorts rows by `lastCommitAt` descending, nulls last; each row shows the
@@ -193,6 +201,9 @@ trimmed, empty entries dropped. `locateProjects` (`locate.ts`) keeps the configu
 exist and reports the ones that do not (`missing`); with none usable it builds the sample workshop
 instead and reports `source: "sample"`. `BENCH_GH=off` switches the `gh` counts off; without it
 the real CLI is invoked.
+
+After changing `PROJECT_ROOTS`, delete `data/projekte.sqlite` or click `Neu scannen` - the index
+does not notice the change by itself.
 
 ## Tests
 
@@ -219,8 +230,14 @@ waits for the new row without a reload - the "one scan finds it" criterion in mi
 - **An unborn HEAD has no log.** A freshly `git init`ed repository with no commit throws on
   `git log`; `readGitState` catches that specifically and leaves `lastCommitAt`/
   `lastCommitSubject` null rather than failing the whole read - every other field still comes back.
+- **A broken checkout does not fail the scan.** A stale worktree pointer - a `.git` file naming a
+  gitdir that no longer exists - makes every git command against that directory throw. `readStates`
+  catches that per checkout rather than letting one broken repo take down the whole `Promise.all`,
+  and the row comes back with every git field null: visible on disk, "Kein Git-Status" rather than
+  gone.
 - **The depth cap can hide a real repository.** A checkout nested more than three directories below
-  a configured root is silently never found; there is no warning that the walk stopped short of it.
+  _every_ configured root that could reach it is silently never found; there is no warning that the
+  walk stopped short of it.
 - **`e2e/projekte/scan.spec.ts` guards against its own retry.** `playwright.config.ts` sets
   `retries: 1`, and `projectsDir` is worker-scoped rather than per-test, so a retry of that spec
   re-enters against the exact repository the first attempt already built. `initNewRepo` checks

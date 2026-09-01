@@ -30,9 +30,16 @@ export default function App() {
 
   const rescan = async () => {
     setScanning(true);
-    await api.scan();
-    setList(await api.list());
-    setScanning(false);
+    try {
+      await api.scan();
+      setList(await api.list());
+    } catch (err) {
+      // A failed scan is a network or server problem the user can just retry - logged so it is
+      // not silently dropped, without a banner for a request nothing else here reacts to.
+      console.error(err);
+    } finally {
+      setScanning(false);
+    }
   };
 
   const openDetail = (path: string) => {

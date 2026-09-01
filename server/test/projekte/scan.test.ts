@@ -1,3 +1,4 @@
+import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { findRepos, skippedDir } from "../../src/projekte/scan.js";
@@ -30,5 +31,21 @@ describe("findRepos", () => {
   });
   it("copes with an unreadable root", () => {
     expect(findRepos([path.join(dir, "does-not-exist")])).toEqual([]);
+  });
+
+  it("finds a repo nested under a parent-first configured root pair, in either order", () => {
+    const parent = path.join(scratch.dir, "nested-root", "downloads");
+    const nested = path.join(parent, "Projekte");
+    const repo = path.join(nested, "a", "b", "repo-with-git");
+    mkdirSync(path.join(repo, ".git"), { recursive: true });
+
+    // The user's real order: the parent root before the root nested inside it. The parent's own
+    // depth budget cannot reach a repo four levels down, but the nested root's budget can - and
+    // must not be short-circuited just because the parent's walk already visited that directory.
+    const parentFirst = findRepos([parent, nested]);
+    expect(parentFirst.filter((p) => p === repo)).toHaveLength(1);
+
+    const nestedFirst = findRepos([nested, parent]);
+    expect(nestedFirst.filter((p) => p === repo)).toHaveLength(1);
   });
 });

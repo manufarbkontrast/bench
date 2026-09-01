@@ -15,8 +15,11 @@ interface NoteFixture {
   tags?: string[];
 }
 
-function buildVault(notes: NoteFixture[]): Database.Database {
-  const db = openVaultDb(path.join(scratch.dir, "vault.sqlite"));
+function buildVault(
+  notes: NoteFixture[],
+  name = "vault.sqlite",
+): Database.Database {
+  const db = openVaultDb(path.join(scratch.dir, name));
   const insertNote = db.prepare(
     "INSERT INTO notes (path, title, folder, frontmatter, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?)",
   );
@@ -63,6 +66,35 @@ describe("vaultCouplings", () => {
         projectPath: path.resolve(path.join(os.homedir(), "x/repo")),
         brand: "nordlicht",
         status: "active",
+      },
+    ]);
+  });
+
+  it("dedupes two notes naming the same path, keeping the alphabetically first note", () => {
+    const db = buildVault(
+      [
+        {
+          path: "zz-later.md",
+          frontmatter: { path: "/abs/twin" },
+          tags: ["brand/spaet"],
+        },
+        {
+          path: "aa-earlier.md",
+          frontmatter: { path: "/abs/twin" },
+          tags: ["brand/frueh"],
+        },
+      ],
+      "vault-dedupe.sqlite",
+    );
+
+    const couplings = vaultCouplings(db);
+
+    expect(couplings).toEqual([
+      {
+        notePath: "aa-earlier.md",
+        projectPath: path.resolve("/abs/twin"),
+        brand: "frueh",
+        status: null,
       },
     ]);
   });

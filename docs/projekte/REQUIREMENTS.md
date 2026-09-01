@@ -36,7 +36,8 @@ writing git commands is the sample builder, and it writes only under Bench's own
 ## The product
 
 - **A scan** over the configured roots, finding every git checkout and reading its state: branch,
-  remote, last commit, dirty file count, ahead/behind its upstream.
+  remote, last commit, dirty entry count - an untracked directory counts once, matching plain
+  `git status` - ahead/behind its upstream.
 - **Duplicate detection** - checkouts that normalise to the same remote are grouped; checkouts with
   no remote fall back to a name-based group, which the UI marks separately as a possible rather
   than a confirmed duplicate.

@@ -6,7 +6,7 @@ import type { GhRunner } from "../../src/projekte/gh.js";
 import { scanProjects } from "../../src/projekte/pipeline.js";
 import { buildSampleProjects } from "../../src/projekte/sample.js";
 import { openDb as openVaultDb } from "../../src/vault/db.js";
-import { initGitRepo, scratchDir } from "./tmp.js";
+import { initBrokenWorktree, initGitRepo, scratchDir } from "./tmp.js";
 
 const scratch = scratchDir("bench-pipeline-");
 let sample: string;
@@ -112,6 +112,110 @@ describe("scanProjects", () => {
     expect(
       listProjects(db).every((r) => r.issues === null && r.prs === null),
     ).toBe(true);
+  });
+
+  it("survives two notes coupling to the same non-git folder, keeping one row for the alphabetically first note", async () => {
+    const vaultDb = openVaultDb(":memory:");
+    const insertNote = vaultDb.prepare(
+      "INSERT INTO notes (path, title, folder, frontmatter, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    );
+    const insertTag = vaultDb.prepare(
+      "INSERT INTO tags (path, tag) VALUES (?, ?)",
+    );
+    const strandgut = path.join(sample, "atelier", "strandgut");
+    insertNote.run(
+      "zz-later.md",
+      "Later",
+      "",
+      JSON.stringify({ path: strandgut }),
+      "",
+      0,
+      0,
+    );
+    insertTag.run("zz-later.md", "brand/spaet");
+    insertNote.run(
+      "aa-earlier.md",
+      "Earlier",
+      "",
+      JSON.stringify({ path: strandgut }),
+      "",
+      0,
+      0,
+    );
+    insertTag.run("aa-earlier.md", "brand/frueh");
+    const db = openProjekteDb(":memory:");
+
+    const summary = await scanProjects(db, vaultDb, [sample], "off");
+
+    const rows = listProjects(db).filter((r) => r.path === strandgut);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].notePath).toBe("aa-earlier.md");
+    expect(rows[0].brand).toBe("frueh");
+    expect(summary.folders).toBe(1);
+  });
+
+  it("survives two notes coupling to the same git repo, keeping the alphabetically first note's coupling", async () => {
+    const vaultDb = openVaultDb(":memory:");
+    const insertNote = vaultDb.prepare(
+      "INSERT INTO notes (path, title, folder, frontmatter, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    );
+    const insertTag = vaultDb.prepare(
+      "INSERT INTO tags (path, tag) VALUES (?, ?)",
+    );
+    const leuchtfeuer = path.join(sample, "werkstatt", "leuchtfeuer");
+    insertNote.run(
+      "zz-later.md",
+      "Later",
+      "",
+      JSON.stringify({ path: leuchtfeuer }),
+      "",
+      0,
+      0,
+    );
+    insertTag.run("zz-later.md", "brand/spaet");
+    insertNote.run(
+      "aa-earlier.md",
+      "Earlier",
+      "",
+      JSON.stringify({ path: leuchtfeuer }),
+      "",
+      0,
+      0,
+    );
+    insertTag.run("aa-earlier.md", "brand/frueh");
+    const db = openProjekteDb(":memory:");
+
+    const summary = await scanProjects(db, vaultDb, [sample], "off");
+
+    const rows = listProjects(db).filter((r) => r.path === leuchtfeuer);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].notePath).toBe("aa-earlier.md");
+    expect(rows[0].brand).toBe("frueh");
+    expect(summary.repos).toBe(3);
+  });
+
+  it("keeps scanning past a checkout whose .git file points at a deleted gitdir", async () => {
+    const brokenDir = path.join(scratch.dir, "broken-worktree");
+    initBrokenWorktree(brokenDir);
+    const vaultDb = openVaultDb(":memory:");
+    const db = openProjekteDb(":memory:");
+
+    const summary = await scanProjects(db, vaultDb, [sample, brokenDir], "off");
+
+    expect(summary.repos).toBe(4);
+    const rows = listProjects(db);
+    const broken = rows.find((r) => r.path === brokenDir);
+    expect(broken?.kind).toBe("git");
+    expect(broken?.branch).toBeNull();
+    expect(broken?.remote).toBeNull();
+    expect(broken?.dirty).toBe(0);
+    expect(broken?.ahead).toBeNull();
+    expect(broken?.behind).toBeNull();
+    // The other repos in the same scan must still read normally.
+    const leuchtfeuer = rows.find(
+      (r) => r.path === path.join(sample, "werkstatt", "leuchtfeuer"),
+    );
+    expect(leuchtfeuer?.branch).toBe("main");
   });
 
   it("fetches counts once per unique GitHub label and shares them across duplicate rows", async () => {

@@ -20,11 +20,33 @@ export interface ScanSummary {
 // exhaust file descriptors, so states are read in fixed-size batches instead.
 const GIT_STATE_BATCH = 8;
 
+/**
+ * A stale worktree pointer (a `.git` file naming a gitdir that is gone) makes every git command
+ * against that checkout throw. Skipping the row would hide a repo the user still has on disk;
+ * this reads like scan.ts's readdirSync catch - one broken entry does not fail the whole scan,
+ * it just comes back with "Kein Git-Status" instead of a real one.
+ */
+async function readOneState(dir: string): Promise<GitState> {
+  try {
+    return await readGitState(dir);
+  } catch {
+    return {
+      branch: null,
+      remote: null,
+      lastCommitAt: null,
+      lastCommitSubject: null,
+      dirty: 0,
+      ahead: null,
+      behind: null,
+    };
+  }
+}
+
 async function readStates(dirs: string[]): Promise<GitState[]> {
   const states: GitState[] = [];
   for (let i = 0; i < dirs.length; i += GIT_STATE_BATCH) {
     const batch = dirs.slice(i, i + GIT_STATE_BATCH);
-    states.push(...(await Promise.all(batch.map(readGitState))));
+    states.push(...(await Promise.all(batch.map(readOneState))));
   }
   return states;
 }

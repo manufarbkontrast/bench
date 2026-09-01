@@ -68,6 +68,10 @@ createApp({
     console.log(
       `  Vault: ${vault.missing} not found - using the bundled sample`,
     );
+  if (projekteLocation.missing.length > 0)
+    console.log(
+      `  Projekte: ${projekteLocation.missing.length} configured root(s) not found`,
+    );
   console.log(
     `  Vault index: ${indexed.notes} notes, ${indexed.links} links, ${indexed.tasks} tasks from ${vault.dir}`,
   );

@@ -193,6 +193,27 @@ describe("scan logging", () => {
   });
 });
 
+describe("async error handling", () => {
+  it("answers a route that throws with a JSON 500, no stack trace and no machine paths", async () => {
+    const ctx = buildSampleContext(path.join(scratch.dir, "error-mw"));
+    const errorApp = appWithProjekte(ctx.projekte, ctx.vault);
+    const findRepos = vi.mocked(scanModule.findRepos);
+    findRepos.mockImplementationOnce(() => {
+      throw new Error("boom: " + ctx.sampleDir);
+    });
+
+    const res = await request(errorApp).get("/api/projekte/list");
+
+    expect(res.status).toBe(500);
+    expect(res.type).toBe("application/json");
+    const body = JSON.stringify(res.body);
+    expect(body).not.toContain("boom");
+    expect(body).not.toContain(ctx.sampleDir);
+    expect(body).not.toContain("at Object");
+    expect(body).not.toContain(".ts:");
+  });
+});
+
 describe("sameName", () => {
   it("marks two projects with the same name under different groups, without marking them duplicates", async () => {
     const dir = path.join(scratch.dir, "same-name");
