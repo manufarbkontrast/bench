@@ -21,7 +21,7 @@ const webDist = path.resolve(
 );
 
 /** The apps with their own HTML entry point in web/dist, for deep-link fallback. */
-const APPS = ["crm", "rolodex", "vault", "projekte"];
+const APPS = ["crm", "rolodex", "vault", "projekte", "aufgaben"];
 
 export interface Dbs {
   crm: Database.Database;

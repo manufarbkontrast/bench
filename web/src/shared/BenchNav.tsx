@@ -5,6 +5,7 @@
 import { useState } from "react";
 import {
   BenchMark,
+  IconAufgaben,
   IconCrm,
   IconHome,
   IconMoon,
@@ -16,7 +17,7 @@ import {
 import { currentTheme, toggleTheme, type Theme } from "./theme";
 import "./nav.css";
 
-type AppKey = "home" | "vault" | "projekte" | "crm" | "rolodex";
+type AppKey = "home" | "vault" | "projekte" | "aufgaben" | "crm" | "rolodex";
 
 /** Colour marks the active app and nothing else: one orange chip, wherever you are. An app is
     told apart by its glyph, which is what still works once there are more of them than there
@@ -34,6 +35,12 @@ const APPS: {
     href: "/projekte/",
     label: "Projekte",
     Icon: IconProjekte,
+  },
+  {
+    key: "aufgaben",
+    href: "/aufgaben/",
+    label: "Aufgaben",
+    Icon: IconAufgaben,
   },
   { key: "crm", href: "/crm/", label: "CRM", Icon: IconCrm },
   { key: "rolodex", href: "/rolodex/", label: "Rolodex", Icon: IconRolodex },

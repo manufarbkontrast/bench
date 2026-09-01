@@ -95,6 +95,26 @@ export const IconProjekte = (p: IconProps) => (
   </Stroke>
 );
 
+/** An open task above a checked one - the app's own subject. */
+export const IconAufgaben = ({ size = 18 }: IconProps) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M4 5h5v5H4z" />
+    <path d="M12 7h8" />
+    <path d="m4.5 16 2 2 3-3.5" />
+    <path d="M12 17h8" />
+  </svg>
+);
+
 export const IconSun = (p: IconProps) => (
   <Stroke {...p}>
     <circle cx="12" cy="12" r="4" />
