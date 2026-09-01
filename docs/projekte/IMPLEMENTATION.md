@@ -29,9 +29,10 @@ reconciled row by row.
 `scanProjects` (`pipeline.ts`), in order:
 
 1. **`findRepos`** (`scan.ts`) walks the configured roots for `.git` entries.
-2. **`readGitState`** (`git.ts`) reads each checkout's git state, batched 8 at a time
-   (`GIT_STATE_BATCH`) - each read spawns several git processes, and unbounded parallelism over a
-   large root would exhaust file descriptors.
+2. **`readStates`** (`pipeline.ts`) calls `readGitState` (`git.ts`) for each checkout, in batches of
+   8 (`GIT_STATE_BATCH`) rather than all at once - each read spawns several git processes, and
+   unbounded parallelism over a large root would exhaust file descriptors. `readGitState` itself
+   reads exactly one checkout's state per call; the batching is `readStates`'s concern, not its own.
 3. **`vaultCouplings`** (`couple.ts`) reads every project-pointing note from the vault index.
 4. **Rows are built**: one per found checkout (`kind: 'git'`), matched against a coupling by
    lowercased resolved path; one per coupling whose path exists on disk but was not itself found
@@ -59,10 +60,9 @@ walk tracks visited directories in a `Set`.
 against arbitrary URL shapes is exactly what `sonarjs` flags. It strips the protocol
 (`ssh://`, `git://`, `https://`, `http://`), the user before an `@`, turns scp-style
 `host:path` into `host/path`, drops a trailing slash and a `.git` suffix, and lowercases the
-result - so `git@github.com:Owner/Repo.git`, `https://github.com/owner/repo` and
-`ssh://git@github.com/Owner/Repo/` all normalise to `github.com/owner/repo`. `githubLabel` returns
-the `owner/repo` part when the normalised remote is on `github.com`, null otherwise - only GitHub
-remotes are asked for issue/PR counts.
+result, so `git@github.com:Owner/Repo.git`, `https://github.com/owner/repo` and `ssh://git@github.com/Owner/Repo/` all normalise to `github.com/owner/repo` (allow-secret: git remote fixtures, not real addresses).
+`githubLabel` returns the `owner/repo` part when the normalised remote is on `github.com`, null
+otherwise - only GitHub remotes are asked for issue/PR counts.
 
 `groupKey` (`remotes.ts`) is the normalised remote when there is one, or `` `name:${basename}` ``
 (lowercased) when there is not - a folder-only or remoteless checkout groups by name alone. Two
@@ -136,9 +136,12 @@ Mounted at `/api/projekte` (`routes.ts`), three routes:
 | `POST /scan`         | `{ summary }` - a full rebuild, joining an in-flight scan if one is already running                       |
 | `GET /project?path=` | `{ project, duplicates }` for one absolute path, or 400/404                                               |
 
-`GET /list` and `GET /project` both compute `isDuplicate` and `sameName` per row at request time
-(`withDerived`) rather than storing them, since both depend on the whole result set, not on any
-one row.
+Only `GET /list` computes `isDuplicate` and `sameName`, via `withDerived` over the whole result set
+at request time rather than stored columns - a row's duplicate status depends on every other row,
+not on itself. `GET /project` deliberately does not: `project` and each entry in `duplicates` come
+back as the raw scanned row, with neither flag. The web `ProjectDetail` type spells out the reason
+in its own comment - those flags "describe a row's place in the whole list, not the row on its
+own," so a single-project lookup has no list to place it in.
 
 ## The sample workshop
 
@@ -148,14 +151,14 @@ Without configured roots, the server builds a synthetic workshop under its data 
 Idempotent: an existing directory is trusted as already built, never rebuilt. The exact shape,
 under the sample directory:
 
-| Path                                          | Kind                              | State                                                          |
-| --------------------------------------------- | --------------------------------- | -------------------------------------------------------------- |
-| `.origins/leuchtfeuer.git`                    | bare origin                       | two commits                                                    |
-| `werkstatt/leuchtfeuer`                       | clone, `origin` → the bare repo   | branch `main`, one commit ahead (unpushed), one file dirty     |
-| `archiv/leuchtfeuer-alt`                      | second clone of the same origin   | one commit behind, clean - the duplicate pair with leuchtfeuer |
-| `werkstatt/treibgut`                          | `git init`, no remote, one commit | the "Kein Remote" case                                         |
-| `atelier/strandgut`                           | plain folder, one text file       | only ever listed through a vault coupling                      |
-| `.cache/hidden`, `werkstatt/node_modules/dep` | git repos                         | decoys the scanner must skip                                   |
+| Path                                          | Kind                                                   | State                                                          |
+| --------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------- |
+| `.origins/leuchtfeuer.git`                    | bare origin                                            | two commits                                                    |
+| `werkstatt/leuchtfeuer`                       | `git init`, `origin` added and pushed to the bare repo | branch `main`, one commit ahead (unpushed), one file dirty     |
+| `archiv/leuchtfeuer-alt`                      | a clone of the same origin                             | one commit behind, clean - the duplicate pair with leuchtfeuer |
+| `werkstatt/treibgut`                          | `git init`, no remote, one commit                      | the "Kein Remote" case                                         |
+| `atelier/strandgut`                           | plain folder, one text file                            | only ever listed through a vault coupling                      |
+| `.cache/hidden`, `werkstatt/node_modules/dep` | git repos                                              | decoys the scanner must skip                                   |
 
 The sample is deliberately uncoupled: no vault note in the bundled fixture points at any of its
 paths, so every row in the sample lands under `Ohne Marke` / `Unzugeordnet` on the board. All

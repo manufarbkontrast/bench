@@ -99,9 +99,10 @@ These are settled. Changing one is a project-level decision, not an implementati
 
 - **Multi-page, not one SPA.** The three apps keep their own global `styles.css`, and those files
   genuinely collide: `.app`, `.sidebar`, `.btn`, `.chip`, `.board`, `.brand`, `.card`, and
-  `:root` variables. Separate HTML entry points give one Vite server and one build while the
-  stylesheets and routers never meet. Do **not** merge these into a single bundle without scoping
-  the CSS first.
+  `:root` variables. Projekte is the deliberate exception - every one of its classes is
+  `projekte-`-prefixed, so it never collides on those bare names. Separate HTML entry points give
+  one Vite server and one build while the stylesheets and routers never meet. Do **not** merge
+  these into a single bundle without scoping the CSS first.
 - **Router basenames.** crm and vault each mount at `/` inside their own document, via
   `<BrowserRouter basename="/crm">` / `basename="/vault"`.
 - **API namespaces.** `/api/crm/*`, `/api/rolodex/*` and `/api/vault/*`. The underlying route
