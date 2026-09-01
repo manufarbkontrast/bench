@@ -3,14 +3,19 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 import { api } from "./api";
-import type { ListReply, Project, ScanSummary } from "./types";
+import type {
+  ListReply,
+  Project,
+  ProjectDetailReply,
+  ScanSummary,
+} from "./types";
 
 function project(overrides: Partial<Project> = {}): Project {
   return {
     path: "/home/m/werkstatt/leuchtfeuer",
     name: "leuchtfeuer",
     kind: "git",
-    remote: "git@github.com:manu/leuchtfeuer.git",
+    remote: "git@github.com:manu/leuchtfeuer.git", // allow-secret: SSH remote fixture, not an email address
     remoteLabel: "manu/leuchtfeuer",
     branch: "main",
     lastCommitAt: Date.UTC(2026, 7, 20),
@@ -45,10 +50,16 @@ const scanSummary: ScanSummary = {
   ms: 5,
 };
 
+const projectDetail: ProjectDetailReply = {
+  project: project(),
+  duplicates: [],
+};
+
 vi.mock("./api", () => ({
   api: {
     list: vi.fn(),
     scan: vi.fn(),
+    project: vi.fn(),
   },
 }));
 
@@ -56,6 +67,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(api.list).mockResolvedValue(loadedList);
   vi.mocked(api.scan).mockResolvedValue(scanSummary);
+  vi.mocked(api.project).mockResolvedValue(projectDetail);
 });
 
 describe("Projekte App", () => {
@@ -120,5 +132,38 @@ describe("Projekte App", () => {
     expect(button).toBeDisabled();
     resolveScan(scanSummary);
     await screen.findByRole("button", { name: "Neu scannen" });
+  });
+
+  it("switches between table and board, moving aria-pressed", async () => {
+    render(<App />);
+    await screen.findByText("leuchtfeuer");
+    const tableBtn = screen.getByRole("button", { name: "Tabelle" });
+    const boardBtn = screen.getByRole("button", { name: "Board" });
+    expect(tableBtn).toHaveAttribute("aria-pressed", "true");
+    expect(boardBtn).toHaveAttribute("aria-pressed", "false");
+
+    await userEvent.click(boardBtn);
+    expect(boardBtn).toHaveAttribute("aria-pressed", "true");
+    expect(tableBtn).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByText("Ohne Marke")).toBeInTheDocument();
+  });
+
+  it("loads and shows the detail when a project is selected, from either view", async () => {
+    render(<App />);
+    await screen.findByText("leuchtfeuer");
+
+    await userEvent.click(screen.getByRole("button", { name: "leuchtfeuer" }));
+    expect(api.project).toHaveBeenCalledWith(loadedList.projects[0].path);
+    await screen.findByRole("button", { name: "Schließen" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Schließen" }));
+    expect(
+      screen.queryByRole("button", { name: "Schließen" }),
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Board" }));
+    await userEvent.click(screen.getByRole("button", { name: /leuchtfeuer/ }));
+    expect(api.project).toHaveBeenCalledTimes(2);
+    await screen.findByRole("button", { name: "Schließen" });
   });
 });

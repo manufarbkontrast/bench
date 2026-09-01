@@ -35,3 +35,12 @@ export interface ListReply {
   summary: ScanSummary | null;
   projects: Project[];
 }
+
+/** GET /api/projekte/project's shape: a row as scanned, without the list's derived duplicate
+    flags - those describe a row's place in the whole list, not the row on its own. */
+export type ProjectDetail = Omit<Project, "isDuplicate" | "sameName">;
+
+export interface ProjectDetailReply {
+  project: ProjectDetail;
+  duplicates: ProjectDetail[];
+}

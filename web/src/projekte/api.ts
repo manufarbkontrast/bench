@@ -1,4 +1,4 @@
-import type { ListReply, ScanSummary } from "./types";
+import type { ListReply, ProjectDetailReply, ScanSummary } from "./types";
 
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -23,5 +23,9 @@ export const api = {
   scan: () =>
     post<{ summary: ScanSummary }>("/api/projekte/scan").then(
       (reply) => reply.summary,
+    ),
+  project: (path: string) =>
+    get<ProjectDetailReply>(
+      `/api/projekte/project?path=${encodeURIComponent(path)}`,
     ),
 };

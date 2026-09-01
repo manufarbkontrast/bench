@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import BenchNav from "../shared/BenchNav";
 import { api } from "./api";
+import Board from "./components/Board";
+import Detail from "./components/Detail";
 import ProjectsTable from "./components/ProjectsTable";
 import { dateText } from "./format";
-import type { ListReply } from "./types";
+import type { ListReply, ProjectDetailReply } from "./types";
+
+type View = "table" | "board";
 
 function summaryLine(list: ListReply): string {
   const repos = list.projects.filter((p) => p.kind === "git").length;
@@ -17,6 +21,8 @@ function summaryLine(list: ListReply): string {
 export default function App() {
   const [list, setList] = useState<ListReply | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [view, setView] = useState<View>("table");
+  const [detail, setDetail] = useState<ProjectDetailReply | null>(null);
 
   useEffect(() => {
     void api.list().then(setList);
@@ -27,6 +33,10 @@ export default function App() {
     await api.scan();
     setList(await api.list());
     setScanning(false);
+  };
+
+  const openDetail = (path: string) => {
+    void api.project(path).then(setDetail);
   };
 
   return (
@@ -41,14 +51,23 @@ export default function App() {
             </p>
           </div>
           <div className="projekte-actions">
-            <div className="projekte-view" role="tablist" aria-label="Ansicht">
-              <span
-                className="projekte-view-tab active"
-                role="tab"
-                aria-selected="true"
+            <div className="projekte-view" role="group" aria-label="Ansicht">
+              <button
+                type="button"
+                className="projekte-view-btn"
+                aria-pressed={view === "table"}
+                onClick={() => setView("table")}
               >
                 Tabelle
-              </span>
+              </button>
+              <button
+                type="button"
+                className="projekte-view-btn"
+                aria-pressed={view === "board"}
+                onClick={() => setView("board")}
+              >
+                Board
+              </button>
             </div>
             <button
               type="button"
@@ -65,7 +84,22 @@ export default function App() {
           <p className="projekte-empty">Keine Projekte gefunden.</p>
         )}
         {list && list.projects.length > 0 && (
-          <ProjectsTable projects={list.projects} />
+          <div className="projekte-content">
+            <div className="projekte-primary">
+              {view === "table" ? (
+                <ProjectsTable projects={list.projects} onSelect={openDetail} />
+              ) : (
+                <Board projects={list.projects} onSelect={openDetail} />
+              )}
+            </div>
+            {detail && (
+              <Detail
+                project={detail.project}
+                duplicates={detail.duplicates}
+                onClose={() => setDetail(null)}
+              />
+            )}
+          </div>
         )}
       </main>
     </>

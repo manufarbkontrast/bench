@@ -1,4 +1,6 @@
-/** German summaries for a scanned project row: change counts and dates. */
+/** German summaries for a scanned project row: change counts, dates and vault note links. */
+
+export const EM_DASH = "—";
 
 export function deltaText(
   dirty: number,
@@ -14,6 +16,18 @@ export function deltaText(
 }
 
 export function dateText(ms: number | null): string {
-  if (ms === null) return "—";
+  if (ms === null) return EM_DASH;
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(ms);
+}
+
+/** A note's link text is its basename without the .md extension - the same convention as
+    web/src/vault/obsidian.ts's file names, applied here to a note a project points at rather
+    than the note being viewed. */
+export function noteTitle(notePath: string): string {
+  const base = notePath.split("/").pop() ?? notePath;
+  return base.replace(/\.md$/, "");
+}
+
+export function noteHref(notePath: string): string {
+  return `/vault/n/${notePath.split("/").map(encodeURIComponent).join("/")}`;
 }

@@ -1,20 +1,6 @@
-import { dateText, deltaText } from "../format";
+import { EM_DASH, dateText, deltaText, noteHref, noteTitle } from "../format";
 import type { Project } from "../types";
 import WarningBadges from "./WarningBadges";
-
-const EM_DASH = "—";
-
-/** A note's link text is its basename without the .md extension - the same convention as
-    web/src/vault/obsidian.ts's file names, applied here to a note the project points at rather
-    than the note being viewed. */
-function noteTitle(notePath: string): string {
-  const base = notePath.split("/").pop() ?? notePath;
-  return base.replace(/\.md$/, "");
-}
-
-function noteHref(notePath: string): string {
-  return `/vault/n/${notePath.split("/").map(encodeURIComponent).join("/")}`;
-}
 
 /** Most recently active first; a checkout the pipeline never read a commit for sorts last. */
 function byLastCommitDesc(a: Project, b: Project): number {
@@ -36,11 +22,23 @@ const HEADERS = [
   "Hinweise",
 ];
 
-function ProjectRow({ project }: { project: Project }) {
+function ProjectRow({
+  project,
+  onSelect,
+}: {
+  project: Project;
+  onSelect: (path: string) => void;
+}) {
   return (
     <tr>
       <td>
-        <strong className="projekte-name">{project.name}</strong>
+        <button
+          type="button"
+          className="projekte-name"
+          onClick={() => onSelect(project.path)}
+        >
+          {project.name}
+        </button>
         <div className="projekte-path">{project.path}</div>
       </td>
       <td>{project.brand ?? EM_DASH}</td>
@@ -64,7 +62,13 @@ function ProjectRow({ project }: { project: Project }) {
   );
 }
 
-export default function ProjectsTable({ projects }: { projects: Project[] }) {
+export default function ProjectsTable({
+  projects,
+  onSelect,
+}: {
+  projects: Project[];
+  onSelect: (path: string) => void;
+}) {
   const rows = [...projects].sort(byLastCommitDesc);
   return (
     <table className="projekte-table">
@@ -79,7 +83,11 @@ export default function ProjectsTable({ projects }: { projects: Project[] }) {
       </thead>
       <tbody>
         {rows.map((project) => (
-          <ProjectRow key={project.path} project={project} />
+          <ProjectRow
+            key={project.path}
+            project={project}
+            onSelect={onSelect}
+          />
         ))}
       </tbody>
     </table>
