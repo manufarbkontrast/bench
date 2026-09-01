@@ -117,7 +117,7 @@ These are settled. Changing one is a project-level decision, not an implementati
   browser that revalidates one gets **304 with an empty body** - which the client then parses as
   JSON and fails on, with a message that names neither the request nor the status. Nothing is
   saved by caching a list that changes whenever you touch it, on a machine talking to itself.
-- **Three SQLite files, one process.** The schemas are unrelated - do not merge them. Each is
+- **Five SQLite files, one process.** The schemas are unrelated - do not merge them. Each is
   opened separately and seeded if empty. They run in WAL mode, so recent writes live in the `-wal` sidecar
   rather than the main file: copy or move the whole set together, or checkpoint first
   (`sqlite3 f.sqlite "PRAGMA wal_checkpoint(TRUNCATE);"`). Deleting a `-wal` as a stray artifact
@@ -128,9 +128,9 @@ These are settled. Changing one is a project-level decision, not an implementati
   refresh on `/crm/contacts` serves the Cockpit. Both carry the same `APPS` list, and they have
   disagreed before - check both when you touch routing.
 - **One shared module: `web/src/shared/`.** The navigation strip and the theme are the only code
-  the four documents have in common, and the `no-restricted-imports` rule allows it because that
+  the six documents have in common, and the `no-restricted-imports` rule allows it because that
   rule is a denylist of the sibling apps, not an allowlist. **Its CSS has to be self-contained.**
-  It loads into four stylesheets that collide on `.brand` and `:root`, each app redefines its own
+  It loads into six stylesheets that collide on `.brand` and `:root`, each app redefines its own
   palette under `[data-theme]` - so every class in `nav.css` is `bench-nav`-prefixed and every
   value is a literal, never a variable. The strip looks the same over all of them, which is the
   point: it is chrome above the app, not part of it.
