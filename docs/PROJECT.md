@@ -1,7 +1,7 @@
 # Bench - project overview
 
-Four local-first apps behind **one frontend server and one backend server**: three merged from
-four separate repos into one project, the fourth built for Bench OS. Everything runs on your own
+Five local-first apps behind **one frontend server and one backend server**: three merged from
+four separate repos into one project, two built for Bench OS. Everything runs on your own
 machine: no login, no cloud, no external services, no secrets. Data lives in local SQLite files.
 
 This fork is becoming **Bench OS**: a window onto one person's Obsidian vault, Plaud notes, local
@@ -9,16 +9,18 @@ repositories and controlling reports. The plan is in [changes/bench-os/](./chang
 `SPEC.md` for what, `PLAN.md` for the phases. Groove was removed in Phase 0; the apps below are
 what remain of the original four, and the new ones arrive one phase at a time.
 
-| App          | Path        | What it is                                                                                                                                                         | Backend                |
-| ------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- |
-| **Vault**    | `/vault`    | Read-only window onto an Obsidian vault: folder tree, rendered notes with wikilinks and backlinks, tags, full-text search                                          | `data/vault.sqlite`    |
-| **Projekte** | `/projekte` | Read-only inventory of git checkouts and coupled working folders: branch, dirty/ahead/behind, duplicates, brand and status from the vault, issues and PRs via `gh` | `data/projekte.sqlite` |
-| **CRM**      | `/crm`      | Personal sales CRM: organizations, contacts, deals, drag-and-drop pipeline, activities, dashboard                                                                  | `data/crm.sqlite`      |
-| **Rolodex**  | `/rolodex`  | Personal CRM for your own people: check-in cadences, circles, birthdays, a timeline of every conversation, CSV and vCard import                                    | `data/rolodex.sqlite`  |
+| App          | Path        | What it is                                                                                                                                                                         | Backend                                     |
+| ------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| **Vault**    | `/vault`    | A window onto an Obsidian vault, writable only through Aufgaben's guarded task toggle and create: folder tree, rendered notes with wikilinks and backlinks, tags, full-text search | `data/vault.sqlite`                         |
+| **Projekte** | `/projekte` | Read-only inventory of git checkouts and coupled working folders: branch, dirty/ahead/behind, duplicates, brand and status from the vault, issues and PRs via `gh`                 | `data/projekte.sqlite`                      |
+| **Aufgaben** | `/aufgaben` | One board over the vault's tasks (toggle and create), Plaud work items awaiting import, and GitHub issues read-only                                                                | `data/aufgaben.sqlite` (import ledger only) |
+| **CRM**      | `/crm`      | Personal sales CRM: organizations, contacts, deals, drag-and-drop pipeline, activities, dashboard                                                                                  | `data/crm.sqlite`                           |
+| **Rolodex**  | `/rolodex`  | Personal CRM for your own people: check-in cadences, circles, birthdays, a timeline of every conversation, CSV and vCard import                                                    | `data/rolodex.sqlite`                       |
 
-A launcher at `/` links to all four, and every page carries the same navigation strip: the Bench
-mark, then Start, Vault, Projekte, CRM and Rolodex, each with the icon that identifies it inside
-its own app too, and one theme toggle on the right.
+The Cockpit at `/` replaces the old card-grid launcher: seven panels onto tasks, moving
+repositories and the vault's own session note, plus a plain link into each app. Every page carries
+the same navigation strip: the Bench mark, then Start, Vault, Projekte, Aufgaben, CRM and Rolodex,
+each with the icon that identifies it inside its own app too, and one theme toggle on the right.
 
 ## Detailed app documentation
 
@@ -27,8 +29,10 @@ app you are working in before changing its behaviour.
 
 | App      | Implementation                                             | Requirements                                           | Also |
 | -------- | ---------------------------------------------------------- | ------------------------------------------------------ | ---- |
+| Cockpit  | [cockpit/IMPLEMENTATION.md](./cockpit/IMPLEMENTATION.md)   | [cockpit/REQUIREMENTS.md](./cockpit/REQUIREMENTS.md)   |      |
 | Vault    | [vault/IMPLEMENTATION.md](./vault/IMPLEMENTATION.md)       | [vault/REQUIREMENTS.md](./vault/REQUIREMENTS.md)       |      |
 | Projekte | [projekte/IMPLEMENTATION.md](./projekte/IMPLEMENTATION.md) | [projekte/REQUIREMENTS.md](./projekte/REQUIREMENTS.md) |      |
+| Aufgaben | [aufgaben/IMPLEMENTATION.md](./aufgaben/IMPLEMENTATION.md) | [aufgaben/REQUIREMENTS.md](./aufgaben/REQUIREMENTS.md) |      |
 | CRM      | [crm/IMPLEMENTATION.md](./crm/IMPLEMENTATION.md)           | [crm/REQUIREMENTS.md](./crm/REQUIREMENTS.md)           |      |
 | Rolodex  | [rolodex/IMPLEMENTATION.md](./rolodex/IMPLEMENTATION.md)   | [rolodex/REQUIREMENTS.md](./rolodex/REQUIREMENTS.md)   |      |
 
@@ -42,21 +46,23 @@ worth understanding before you close it.
 ```
 package.json        npm workspaces: web, server. All commands run from the root.
 web/                ONE Vite project, multi-page (MPA)
-  index.html          launcher            -> src/home/
+  index.html          Cockpit             -> src/home/
   crm/index.html      -> src/crm/main.tsx
   rolodex/index.html  -> src/rolodex/main.tsx
   vault/index.html    -> src/vault/main.tsx
   projekte/index.html -> src/projekte/main.tsx
-  src/shared/         the navigation strip and the theme - the only code all five documents share
+  aufgaben/index.html -> src/aufgaben/main.tsx
+  src/shared/         the navigation strip and the theme - the only code all six documents share
 server/             ONE Express app
-  src/index.ts        opens the four DBs, listens on :8100
+  src/index.ts        opens the five DBs, listens on :8100
   src/app.ts          mounts routers, serves web/dist with per-prefix SPA fallback
   src/crm/            crm routes + db + seed
   src/rolodex/        rolodex routes + db + seed
-  src/vault/          vault routes + db + indexer
+  src/vault/          vault routes + db + indexer, and the one write path (write.ts)
   src/projekte/       projekte routes + db + scan pipeline
-  test/{crm,rolodex,vault,projekte}/   vitest suites
-data/                 crm.sqlite, rolodex.sqlite, vault.sqlite, projekte.sqlite (gitignored, seeded/scanned on first run)
+  src/aufgaben/       aufgaben routes + import ledger db, reads vault.sqlite
+  test/{crm,rolodex,vault,projekte,aufgaben}/   vitest suites
+data/                 crm.sqlite, rolodex.sqlite, vault.sqlite, projekte.sqlite, aufgaben.sqlite (gitignored, seeded/scanned on first run)
 .env                  this machine's vault path (gitignored); .env.example lists the keys as they arrive
 server/src/config.ts  loads .env and describes the sources at startup
 docs/                 this documentation; docs/<app>/ per app
@@ -119,7 +125,7 @@ These are settled. Changing one is a project-level decision, not an implementati
 - **Ports:** 8100 API, 8101 Vite, 8150+ e2e (one per Playwright worker).
 - **Deep-link fallback lives in two places.** `server/src/app.ts` handles production; the
   `appFallback` plugin in `web/vite.config.ts` does the same for the dev server. Without it a
-  refresh on `/crm/contacts` serves the launcher. Both carry the same `APPS` list, and they have
+  refresh on `/crm/contacts` serves the Cockpit. Both carry the same `APPS` list, and they have
   disagreed before - check both when you touch routing.
 - **One shared module: `web/src/shared/`.** The navigation strip and the theme are the only code
   the four documents have in common, and the `no-restricted-imports` rule allows it because that
@@ -134,9 +140,9 @@ These are settled. Changing one is a project-level decision, not an implementati
   theme on every navigation between apps. The first visit is dark. Every app
   defines its palette twice - once on `:root`, once under `[data-theme="dark"]` - and sets
   `color-scheme` so native controls follow.
-- **Colour means state, not identity.** In the strip and on the launcher, **orange `#ff5c00`** marks
+- **Colour means state, not identity.** In the strip and on the Cockpit, **orange `#ff5c00`** marks
   the app you are in and nothing else; the apps are told apart by their glyph. That is what keeps a
-  fourth app from needing a fourth brand colour. Inside an app, its own accents are its own business.
+  fifth app from needing a fifth brand colour. Inside an app, its own accents are its own business.
 - **One dependency set per workspace.** All three UIs live in `web/`, so they share one set of
   versions: TypeScript 6, Vite 8, vitest 4, react-router 8, React 19.
 - **TypeScript 6.0.3, pinned exactly, everywhere.** Root and both workspaces, one hoisted copy.
@@ -167,7 +173,8 @@ the rules above.
 - **The vault index is derived.** `data/vault.sqlite` can be deleted at any time; the next start
   rebuilds it from the markdown.
 - **Two write paths into the vault, guarded.** Toggling or creating a task, and importing a Plaud
-  work item. Nothing else writes to a source.
+  work item - both go through the single write surface in `server/src/vault/write.ts`. Nothing
+  else writes to a source.
 - **Local CLIs are fair game.** `git`, `gh` and `claude` run as processes on this machine, the way
   Bench already runs `gitleaks`. No cloud call is made directly and no token is held.
 - **`aufgaben` and `projekte` read the vault index.** A task is a line in a vault note, and a
@@ -185,10 +192,10 @@ the rules above.
 
 A new `web/<name>/index.html`, a new `web/src/<name>/`, an entry in `vite.config.ts`
 `rollupOptions.input`, the prefix in the `APPS` list in **both** `server/src/app.ts` and
-`web/vite.config.ts`, and a card on the launcher in `web/src/home/App.tsx`. A backend, if it has
-one, is a `server/src/<name>/` with its own database file opened in `server/src/index.ts` and its
-router mounted at `/api/<name>` - and a `no-restricted-imports` entry in `eslint.config.js` so it
-stays separate from its siblings.
+`web/vite.config.ts`, and a link in the Cockpit's app row in `web/src/home/App.tsx`. A backend, if
+it has one, is a `server/src/<name>/` with its own database file opened in `server/src/index.ts`
+and its router mounted at `/api/<name>` - and a `no-restricted-imports` entry in
+`eslint.config.js` so it stays separate from its siblings.
 
 Then the navigation: an icon in `web/src/shared/AppIcons.tsx`, an entry in the `APPS` list in
 `web/src/shared/BenchNav.tsx`, the new key in that file's `AppKey` union, and

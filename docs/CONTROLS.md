@@ -92,15 +92,14 @@ reason next to it.
 | `no-confusing-void-expression` (arrow shorthand)                                   | The braced form it wants at ~190 React handlers reads worse                                                                                                       |
 | In `e2e/` and `scripts/`: `sonarjs/assertions-in-tests`, `no-os-command-from-path` | Plugin limits, not findings: it does not recognise `await expect.poll(...)`, and its PATH rule is aimed at services, not a local run of this repo's own toolchain |
 
-### The two inline suppressions
+### The three inline suppressions
 
-`react-hooks/incompatible-library` is the only rule suppressed at a call site rather than in the
-config. It warns that React Compiler will skip memoizing a component that calls
-`useReactTable()`, because TanStack Table returns functions that cannot be memoized safely. Both
-of Bench's tables hit it - `web/src/crm/components/DataTable.tsx` and
-`web/src/rolodex/pages/People.tsx` - and neither can do anything about it: it is the library's only
-API, the check is keyed on the module name so no version of TanStack Table changes it, and Bench
-does not run React Compiler at all.
+`react-hooks/incompatible-library` is suppressed at a call site rather than in the config, twice.
+It warns that React Compiler will skip memoizing a component that calls `useReactTable()`, because
+TanStack Table returns functions that cannot be memoized safely. Both of Bench's tables hit it -
+`web/src/crm/components/DataTable.tsx` and `web/src/rolodex/pages/People.tsx` - and neither can do
+anything about it: it is the library's only API, the check is keyed on the module name so no
+version of TanStack Table changes it, and Bench does not run React Compiler at all.
 
 Two `eslint-disable-next-line` comments rather than turning the rule off, for two reasons. The rule
 covers React Hook Form's `watch()` and TanStack Virtual's `useVirtualizer()` too, and should still
@@ -110,6 +109,13 @@ the config would just sit there.
 
 Neither `"use no memo"` nor `"use no forget"` silences it - the compiler logs the diagnostic before
 it reads the directive, so the warning is reported either way. That was measured, not assumed.
+
+The third is `max-params`, on `toggleTask` in `server/src/vault/write.ts`. The function takes six:
+`vaultDir`, `db`, `relPath`, `line` and `raw` each stand for something distinct the caller has to
+supply, and `today` on top is what makes the toggle testable without faking the clock - the
+signature Phase 3's plan mandated outright rather than a shape this codebase drifted into. An
+options object would hide the same five required values behind one more level of destructuring for
+no reduction in what the caller has to know.
 
 **`eslint-plugin-unicorn` is not installed.** Three of its rules fight this codebase directly.
 `prevent-abbreviations` would rename `db` (185 uses), `(req, res)` (39 Express handlers), `(e) =>`

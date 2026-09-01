@@ -16,13 +16,13 @@ npm start       # everything from :8100 - the production path
 
 **Check both when you touch routing.** Deep-link fallback is implemented twice - `server/src/app.ts`
 for production, the `appFallback` plugin in `web/vite.config.ts` for the dev server. They have
-already disagreed once: prod served the right app while dev served the launcher.
+already disagreed once: prod served the right app while dev served the Cockpit.
 
 With `agent-browser`: `agent-browser --session bench open http://localhost:8101/crm/`, then
 `snapshot -i` to list interactive elements. Two traps worth knowing - `fill @ref ""` does **not**
 clear a field (reload instead), and refs go stale after navigation, so re-snapshot before clicking.
 
-**Check both themes.** The toggle sits on the right of the nav strip and applies to all four apps.
+**Check both themes.** The toggle sits on the right of the nav strip and applies to all five apps.
 The specs assert that each app's background actually changes and that the choice survives a
 reload; whether the result is _legible_ - chart axes, chips on tinted backgrounds - is a judgement
 only you can make.
@@ -54,7 +54,7 @@ the right note - the suite and this task both only assert the href. The feel of 
 notes: how deep nesting gets before you scroll, and whether a note that links to the same target
 many times over (real project notes do) reads oddly repeated in the body.
 
-Under `npm run dev`, a hard navigation to a note URL ending in `.md` serves the launcher rather
+Under `npm run dev`, a hard navigation to a note URL ending in `.md` serves the Cockpit rather
 than Vault, because the `appFallback` plugin in `web/vite.config.ts` treats the `.md` suffix as a
 static asset and skips its rewrite. Production (`npm start`) and the e2e suite, which navigate
 through the app rather than by direct URL, are unaffected.
@@ -84,6 +84,45 @@ place in an automated suite:
   vault couples none of the sample workshop's checkouts - `board.spec.ts` only ever sees one
   section and one column. A board actually split across several brands and statuses has never been
   seen rendered in a real browser by the automated suite.
+
+## Aufgaben and Cockpit
+
+Covered by specs against the fixture vault and the bundled Plaud sample
+(`e2e/aufgaben/{tasks,import}.spec.ts`, `e2e/cockpit.spec.ts`): a checkbox toggle writes the file
+and moves the task between Heute and Erledigt, unchecking reverts the file exactly, a conflicting
+edit on disk is rejected with the file left as the edit made it, creating a task from the default
+target lands it under the inbox's heading; importing an unmatched Plaud row files it under the
+suggested target and the ledger survives a reload, the dedup hint appears on a row that overlaps
+an existing open task, the Issues tab shows its off-mode message. The Cockpit's own spec covers all
+seven panels rendering in order against the sample data, an overdue task, the session note's first
+section with its Vault link, and a moving project.
+
+Left to judgement, for the same reason as Projekte's own `gh` gap below - a live call has no place
+in an automated suite, and the fixture data was built to exercise specific behaviour once each
+rather than realistic breadth:
+
+- **`gh` against live repositories, on the Aufgaben side.** Every e2e worker runs with
+  `BENCH_GH: "off"`, so `GET /api/aufgaben/issues` reaching the real CLI, a real GraphQL-adjacent
+  `gh issue list` response and a real offline/not-logged-in failure path are none of them exercised
+  by the suite - the same gap Projekte's own issue counts already carry.
+  `server/test/aufgaben/gh.test.ts` covers the parsing and the null-on-failure rule against a fake
+  runner only.
+- **Real Plaud notes.** The fixture note is one synthetic meeting with four rows, built to exercise
+  the dedup hint and one mapping rule each. A real `PLAUD_HOME/notizen` folder - months of
+  meetings, a note with no `Arbeitsaufträge` table at all, a `titel` carrying more than one
+  unquoted colon, a `Was` cell long enough to wrap or carrying its own markdown - is only exercised
+  by hand.
+- **Recurrence is deliberately not computed**, and no spec demonstrates that by omission - it is
+  documented behaviour (see [docs/aufgaben/IMPLEMENTATION.md](../docs/aufgaben/IMPLEMENTATION.md)),
+  not a gap a new test could close, since there is no code path that computes a next occurrence to
+  exercise.
+- **The watcher-vs-sync-reindex overlap.** Every write through `vault/write.ts` reindexes the note
+  synchronously before its response goes out, and the same write's rename onto the real filename
+  also trips `watchVault`'s own `change` handler a moment later, reindexing the same note again.
+  Each path is covered on its own - the write path by `aufgaben/tasks.spec.ts`, the watcher by
+  `vault/live.spec.ts` - but nothing asserts that the watcher's follow-on reindex is a harmless
+  no-op rather than a race against a request landing in the gap between the two. It has not
+  misbehaved in practice; it has also not been proven not to.
 
 ## CRM
 
@@ -115,16 +154,16 @@ on the pipeline, delete confirmation, deep links. Left to judgement:
 
 ## Cross-app
 
-- The launcher, then into each app and back. Because the apps are separate documents, back is a
+- The Cockpit, then into each app and back. Because the apps are separate documents, back is a
   full page load, not a router transition, and moving between apps through the nav strip is a
   navigation rather than a transition.
-- **The nav strip should look identical in all five documents (launcher and four apps)** - same
+- **The nav strip should look identical in all six documents (the Cockpit and five apps)** - same
   height, same dark, same orange line - including Vault in dark mode. The suite asserts the
   links and the current tab; it cannot see that the strip has picked up a host app's font,
   letter-spacing or palette. That is exactly what would go wrong.
 - Each app should keep its own look below the strip: CRM light, Vault light/dark, Projekte
-  light/dark, Rolodex light/dark. Any styling bleeding between them means the multi-page split has
-  been broken.
+  light/dark, Aufgaben light/dark, Rolodex light/dark. Any styling bleeding between them means the
+  multi-page split has been broken.
 - Refresh on a deep link in **both** dev and prod.
 - After a chrome change, run `node e2e/tools/chrome-shots.mjs` against `npm start` and look at
   all eight images. The suite asserts labels and the current tab; whether orange on the dark strip
