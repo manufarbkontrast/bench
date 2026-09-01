@@ -21,7 +21,10 @@ const APPS: {
     path: "/",
     title: "Bench",
     tab: "Start",
-    ready: (p) => p.getByRole("heading", { name: "CRM" }),
+    // The Cockpit's panel headings render on mount, before any of its three fetches - including
+    // the projekte list, which can itself trigger the same lazy scan as /projekte/ below -
+    // resolve, so this needs no extra wait despite sharing that slow first call.
+    ready: (p) => p.getByRole("heading", { name: "Überfällig" }),
   },
   {
     path: "/vault/",
@@ -37,6 +40,12 @@ const APPS: {
     // which shells out to git several times and can take longer than the default 5s expect
     // timeout - waited for at the call site instead of here.
     ready: (p) => p.locator(".projekte-table tbody tr").first(),
+  },
+  {
+    path: "/aufgaben/",
+    title: "Aufgaben",
+    tab: "Aufgaben",
+    ready: (p) => p.getByRole("button", { name: "Heute" }),
   },
   {
     path: "/crm/",
@@ -55,6 +64,10 @@ const APPS: {
 /** The one nav strip. Named, because every app has a second unnamed nav of its own. */
 const primary = (page: Page) =>
   page.getByRole("navigation", { name: "Primary" });
+
+/** The Cockpit's slim app row - named too, since it carries a link of the same name as the
+    strip's own tab for every app but Start. */
+const appRow = (page: Page) => page.getByRole("navigation", { name: "Apps" });
 
 /** Collect console and page errors for the lifetime of a page. */
 function watchErrors(page: Page): string[] {
@@ -124,16 +137,12 @@ test("both API namespaces answer and stay separate", async ({
   expect((await page.request.get(`${baseURL}/api/people`)).status()).toBe(404);
 });
 
-test("the launcher links into each app and the back button returns", async ({
+test("the start page links into each app and the back button returns", async ({
   page,
 }) => {
   await page.goto("/");
-  for (const name of ["Vault", "Projekte", "CRM", "Rolodex"]) {
-    // The card, not the nav tab of the same name: only the card carries a heading.
-    await page
-      .getByRole("link")
-      .filter({ has: page.getByRole("heading", { name }) })
-      .click();
+  for (const name of ["Vault", "Projekte", "Aufgaben", "CRM", "Rolodex"]) {
+    await appRow(page).getByRole("link", { name }).click();
     await expect(page).not.toHaveTitle("Bench");
     await page.goBack();
     await expect(page).toHaveTitle("Bench");

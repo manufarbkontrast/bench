@@ -58,7 +58,7 @@ describe("watchVault", () => {
       "# Neu\n\nVerweist auf [[Start]].\n",
     );
     await added;
-    expect(notes()).toBe(13);
+    expect(notes()).toBe(14);
     expect(
       db
         .prepare("SELECT to_path FROM links WHERE from_path = ?")
@@ -82,7 +82,7 @@ describe("watchVault", () => {
     const removed = nextChange();
     unlinkSync(path.join(dir, "60_Knowledge", "Neu.md"));
     await removed;
-    expect(notes()).toBe(12);
+    expect(notes()).toBe(13);
   });
 
   it("ignores files that are not notes", async () => {
@@ -97,6 +97,6 @@ describe("watchVault", () => {
       "# Echt\n\nEin echtes Notiz.\n",
     );
     await added;
-    expect(notes()).toBe(13);
+    expect(notes()).toBe(14);
   });
 });
