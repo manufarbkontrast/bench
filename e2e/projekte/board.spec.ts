@@ -42,9 +42,10 @@ test("groups the uncoupled sample under one section and column, and a card opens
     exact: true,
   });
   await expect(detail).toBeVisible();
-  await expect(detail.locator(".projekte-detail-duplicates")).toContainText(
-    "leuchtfeuer-alt",
-  );
+  await expect(
+    detail.getByRole("heading", { name: "Duplikate", exact: true }),
+  ).toBeVisible();
+  await expect(detail.getByRole("listitem")).toContainText("leuchtfeuer-alt");
 
   await detail.getByRole("button", { name: "Schließen", exact: true }).click();
   await expect(detail).toBeHidden();

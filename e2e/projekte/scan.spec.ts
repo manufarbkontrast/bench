@@ -5,7 +5,7 @@
  * pipeline already knows how to read.
  */
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test, expect } from "../fixtures";
 
@@ -32,7 +32,11 @@ function git(cwd: string, ...args: string[]): void {
   );
 }
 
+// playwright.config.ts sets retries: 1, and projectsDir is worker-scoped rather than per-test, so
+// a retry re-enters this test against the repo the first attempt already built - mirrors the
+// same guard in server/src/projekte/sample.ts's buildSampleProjects.
 function initNewRepo(dir: string): void {
+  if (existsSync(dir)) return;
   mkdirSync(dir, { recursive: true });
   git(dir, "init", "--initial-branch=main", ".");
   writeFileSync(path.join(dir, "README.md"), "# Neuzugang\n");
@@ -57,7 +61,9 @@ test("a repo created after the first scan is found by Neu scannen, without a rel
 
   await page.getByRole("button", { name: "Neu scannen", exact: true }).click();
 
+  // Generous, same as above: POST /scan rebuilds the whole table, re-shelling out to git for
+  // every repo it already knew about plus this new one, not just reading the new row.
   await expect(
     page.getByRole("button", { name: "neuzugang", exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 20_000 });
 });
