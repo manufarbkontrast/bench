@@ -11,9 +11,13 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**"],
-      // The vault fixture is markdown, SVG and JSON data, not source - v8 tries to parse every
-      // included file that no test imported and fails loudly on each one otherwise.
-      exclude: ["src/index.ts", "src/vault/fixture/**"],
+      // The vault and Plaud fixtures are markdown, SVG and JSON data, not source - v8 tries to
+      // parse every included file that no test imported and fails loudly on each one otherwise.
+      exclude: [
+        "src/index.ts",
+        "src/vault/fixture/**",
+        "src/aufgaben/fixture/**",
+      ],
       thresholds: { statements: 80 },
     },
   },

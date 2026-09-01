@@ -21,6 +21,7 @@ afterEach(() => {
   delete process.env.VAULT_DIR;
   delete process.env.BENCH_DOTENV;
   delete process.env.PROJECT_ROOTS;
+  delete process.env.PLAUD_HOME;
   if (root) rmSync(root, { recursive: true, force: true });
   root = undefined;
 });
@@ -42,6 +43,16 @@ describe("configFrom", () => {
   it("splits, trims, drops empties and expands tilde in project roots", () => {
     expect(configFrom({ PROJECT_ROOTS: "~/a: /srv/b :" }).projectRoots).toEqual(
       [path.join(os.homedir(), "a"), "/srv/b"],
+    );
+  });
+
+  it("treats a missing PLAUD_HOME as unset", () => {
+    expect(configFrom({}).plaudHome).toBeUndefined();
+  });
+
+  it("expands tilde in the Plaud home", () => {
+    expect(configFrom({ PLAUD_HOME: "~/Plaud" }).plaudHome).toBe(
+      path.join(os.homedir(), "Plaud"),
     );
   });
 });
@@ -84,16 +95,30 @@ describe("describeSources", () => {
     expect(describeSources(configFrom({ VAULT_DIR: "/v" }))).toEqual([
       "Vault: /v",
       "Projekte: not configured",
+      "Plaud: not configured",
     ]);
     expect(describeSources(configFrom({}))).toEqual([
       "Vault: not configured",
       "Projekte: not configured",
+      "Plaud: not configured",
     ]);
   });
 
   it("counts configured project roots without naming their paths", () => {
     expect(
       describeSources(configFrom({ PROJECT_ROOTS: "~/a:/srv/b" })),
-    ).toEqual(["Vault: not configured", "Projekte: 2 roots"]);
+    ).toEqual([
+      "Vault: not configured",
+      "Projekte: 2 roots",
+      "Plaud: not configured",
+    ]);
+  });
+
+  it("says Plaud is configured without ever printing the machine path", () => {
+    expect(describeSources(configFrom({ PLAUD_HOME: "~/Plaud" }))).toEqual([
+      "Vault: not configured",
+      "Projekte: not configured",
+      "Plaud: configured",
+    ]);
   });
 });

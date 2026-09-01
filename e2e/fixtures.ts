@@ -67,6 +67,9 @@ export const test = base.extend<
           // real PROJECT_ROOTS exported in the shell would otherwise flip every worker onto the
           // real machine instead of the sample workshop the suite expects.
           PROJECT_ROOTS: "",
+          // Same rationale: a real PLAUD_HOME exported in the shell would otherwise flip every
+          // worker onto the real machine instead of the bundled fixture note.
+          PLAUD_HOME: "",
         },
         stdio: "ignore",
       });

@@ -11,6 +11,7 @@ import path from "node:path";
 export interface Config {
   vaultDir?: string;
   projectRoots: string[];
+  plaudHome?: string;
 }
 
 function optional(value: string | undefined): string | undefined {
@@ -32,9 +33,11 @@ function rootsFrom(value: string | undefined): string[] {
 }
 
 export function configFrom(env: NodeJS.ProcessEnv): Config {
+  const plaudHome = optional(env.PLAUD_HOME);
   return {
     vaultDir: optional(env.VAULT_DIR),
     projectRoots: rootsFrom(env.PROJECT_ROOTS),
+    plaudHome: plaudHome === undefined ? undefined : expandTilde(plaudHome),
   };
 }
 
@@ -63,5 +66,6 @@ export function describeSources(config: Config): string[] {
   return [
     `Vault: ${config.vaultDir ?? "not configured"}`,
     `Projekte: ${projekte}`,
+    `Plaud: ${config.plaudHome ? "configured" : "not configured"}`,
   ];
 }
