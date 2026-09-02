@@ -115,6 +115,24 @@ export const IconAufgaben = ({ size = 18 }: IconProps) => (
   </svg>
 );
 
+/** An inbox tray: a box with the file it will receive already dropping in. */
+export const IconEingang = ({ size = 18 }: IconProps) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M4 4h16v16H4z" />
+    <path d="M4 13h5l1.5 2.5h3L15 13h5" />
+  </svg>
+);
+
 export const IconSun = (p: IconProps) => (
   <Stroke {...p}>
     <circle cx="12" cy="12" r="4" />

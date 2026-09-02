@@ -170,6 +170,7 @@ test("the nav lists every app and marks the one you are in", async ({
       "Vault",
       "Projekte",
       "Aufgaben",
+      "Eingang",
       "CRM",
       "Rolodex",
     ]);
