@@ -38,9 +38,15 @@ export default function LogView({
     // A 2s tick reads as a human-watchable tail, not a stream - fast enough to feel live, slow
     // enough not to hammer the log file while a job runs.
     const timer = setInterval(() => {
-      void poll().then((status) => {
-        if (status !== "running") clearInterval(timer);
-      });
+      void poll()
+        .then((status) => {
+          if (status !== "running") clearInterval(timer);
+        })
+        .catch(() => {
+          // A dead server will not come back mid-panel, and would otherwise tick forever with an
+          // unhandled rejection every 2s - closing and reopening the log re-polls from scratch.
+          clearInterval(timer);
+        });
     }, 2000);
 
     return () => {

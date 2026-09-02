@@ -294,6 +294,16 @@ runner) cancelled mid-run reaching `Abgebrochen` with its log intact, followed b
   a second watch folder, a file `plaud-sync` has not yet collected - fails `planPlaudProcess`'s
   existence check with 400, which is exactly what the disabled button with `"Erst einsammeln"` is
   warning about before the request is even sent.
+- **A server restart mid-job orphans the spawned process.** `failStaleRunning` flips the row to
+  `"failed"` at boot, but nothing sends the still-running child a signal - it keeps going,
+  unmonitored, while `isRunning`'s in-memory map comes back empty on every boot. The same kind,
+  even naming the same file, can then be started again beside the orphan. Possible later
+  hardening: record the child's pid on the job row so a boot-time sweep can send it a best-effort
+  SIGTERM before the new run starts.
+- **Nothing prunes `data/eingang-jobs/*.log` or the `jobs` table.** Every log file stays on disk
+  and every row stays in the database forever; `GET /jobs` only ever _displays_ the last 50. An
+  accepted limit on a personal machine, not a target for retention work until the folder's size
+  becomes an actual problem.
 
 ## Related documents
 

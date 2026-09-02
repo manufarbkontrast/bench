@@ -1,6 +1,6 @@
 /** Eingang API: the watched inbox, fenced jobs and the externally scheduled runs. Mounted at /api/eingang. */
 import { Router } from "express";
-import { readFileSync } from "node:fs";
+import { closeSync, fstatSync, openSync, readSync } from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
 import { getJob, listJobs, runningJobs, type JobRow } from "./db.js";
@@ -35,16 +35,27 @@ function tailLog(logPath: string): string {
   // the 201 (exactly what the UI does) can land in that window and find no file yet. An empty
   // tail is the correct answer for a job that has not logged anything yet; anything else (a
   // permissions error, a path that is a directory) still throws.
-  let buffer: Buffer;
+  let fd: number;
   try {
-    buffer = readFileSync(logPath);
+    fd = openSync(logPath, "r");
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return "";
     throw err;
   }
-  return buffer.length > LOG_TAIL_BYTES
-    ? buffer.subarray(buffer.length - LOG_TAIL_BYTES).toString("utf8")
-    : buffer.toString("utf8");
+  // Read only the trailing LOG_TAIL_BYTES by position rather than readFileSync-ing the whole
+  // file - the panel polls this route every 2s while a job runs, and a verbose job logging for
+  // 45 minutes would otherwise mean re-reading a multi-megabyte file on every tick just to keep
+  // the last 64 KB of it.
+  try {
+    const size = fstatSync(fd).size;
+    const start = Math.max(0, size - LOG_TAIL_BYTES);
+    const length = size - start;
+    const buffer = Buffer.alloc(length);
+    if (length > 0) readSync(fd, buffer, 0, length, start);
+    return buffer.toString("utf8");
+  } finally {
+    closeSync(fd);
+  }
 }
 
 /**

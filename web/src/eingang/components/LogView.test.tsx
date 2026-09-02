@@ -80,6 +80,35 @@ describe("LogView", () => {
     }
   });
 
+  it("stops polling once a poll rejects, rather than ticking forever against a dead server", async () => {
+    vi.useFakeTimers();
+    try {
+      const running = job({ status: "running" });
+      vi.mocked(api.job)
+        .mockResolvedValueOnce({ job: running, log: "first" })
+        .mockRejectedValueOnce(new Error("server gone"));
+
+      render(<LogView job={running} onClose={vi.fn()} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(api.job).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+      expect(api.job).toHaveBeenCalledTimes(2);
+
+      // Further ticks must not fire - the failed poll cleared the interval.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(6000);
+      });
+      expect(api.job).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("never polls a job that is already finished when opened", async () => {
     vi.useFakeTimers();
     try {

@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type express from "express";
@@ -227,6 +228,26 @@ describe("GET /api/eingang/jobs/:id", () => {
   it("answers 404 for an unknown id", async () => {
     const res = await request(app).get("/api/eingang/jobs/999999");
     expect(res.status).toBe(404);
+  });
+
+  it("caps a log bigger than 64 KB to exactly its last 64 KB, read by position rather than the whole file", async () => {
+    const logPath = path.join(scratch.dir, `big-log-${n}.log`);
+    const filler = "x".repeat(70 * 1024);
+    const marker = "TAIL-MARKER";
+    writeFileSync(logPath, filler + marker);
+    const id = insertJob(db, {
+      kind: "plaud-sync",
+      argsJson: "{}",
+      startedAt: Date.now(),
+      logPath,
+    });
+
+    const res = await request(app).get(`/api/eingang/jobs/${id}`);
+
+    expect(res.status).toBe(200);
+    const body = res.body as JobLogResponse;
+    expect(body.log).toHaveLength(64 * 1024);
+    expect(body.log.endsWith(marker)).toBe(true);
   });
 
   it("answers 200 with an empty log when the file has not been created yet", async () => {
