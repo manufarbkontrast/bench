@@ -12,6 +12,8 @@ export interface Config {
   vaultDir?: string;
   projectRoots: string[];
   plaudHome?: string;
+  inboxWatch: string[];
+  controllingDir?: string;
 }
 
 function optional(value: string | undefined): string | undefined {
@@ -34,10 +36,14 @@ function rootsFrom(value: string | undefined): string[] {
 
 export function configFrom(env: NodeJS.ProcessEnv): Config {
   const plaudHome = optional(env.PLAUD_HOME);
+  const controllingDir = optional(env.CONTROLLING_DIR);
   return {
     vaultDir: optional(env.VAULT_DIR),
     projectRoots: rootsFrom(env.PROJECT_ROOTS),
     plaudHome: plaudHome === undefined ? undefined : expandTilde(plaudHome),
+    inboxWatch: rootsFrom(env.INBOX_WATCH),
+    controllingDir:
+      controllingDir === undefined ? undefined : expandTilde(controllingDir),
   };
 }
 
@@ -63,9 +69,15 @@ export function describeSources(config: Config): string[] {
     config.projectRoots.length === 0
       ? "not configured"
       : `${config.projectRoots.length} roots`;
+  const eingang =
+    config.inboxWatch.length === 0
+      ? "not configured"
+      : `${config.inboxWatch.length} watch dirs`;
   return [
     `Vault: ${config.vaultDir ?? "not configured"}`,
     `Projekte: ${projekte}`,
     `Plaud: ${config.plaudHome ? "configured" : "not configured"}`,
+    `Eingang: ${eingang}`,
+    `Controlling: ${config.controllingDir ? "configured" : "not configured"}`,
   ];
 }

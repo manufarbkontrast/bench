@@ -70,6 +70,11 @@ export const test = base.extend<
           // Same rationale: a real PLAUD_HOME exported in the shell would otherwise flip every
           // worker onto the real machine instead of the bundled fixture note.
           PLAUD_HOME: "",
+          // Same rationale: real INBOX_WATCH / CONTROLLING_DIR exported in the shell would
+          // otherwise flip every worker onto the real machine instead of the bundled Eingang
+          // fixtures.
+          INBOX_WATCH: "",
+          CONTROLLING_DIR: "",
         },
         stdio: "ignore",
       });

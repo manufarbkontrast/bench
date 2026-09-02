@@ -14,16 +14,21 @@ afterEach(() => {
 describe("locateVault", () => {
   it("uses the configured directory when it exists", () => {
     dir = mkdtempSync(path.join(tmpdir(), "bench-vault-"));
-    expect(locateVault({ vaultDir: dir, projectRoots: [] }, "/sample")).toEqual(
-      {
-        dir,
-        source: "configured",
-      },
-    );
+    expect(
+      locateVault(
+        { vaultDir: dir, projectRoots: [], inboxWatch: [] },
+        "/sample",
+      ),
+    ).toEqual({
+      dir,
+      source: "configured",
+    });
   });
 
   it("falls back to the sample when nothing is configured", () => {
-    expect(locateVault({ projectRoots: [] }, "/sample")).toEqual({
+    expect(
+      locateVault({ projectRoots: [], inboxWatch: [] }, "/sample"),
+    ).toEqual({
       dir: "/sample",
       source: "sample",
     });
@@ -32,7 +37,10 @@ describe("locateVault", () => {
   it("falls back to the sample and names a configured path that does not exist", () => {
     const gone = path.join(tmpdir(), "bench-vault-does-not-exist");
     expect(
-      locateVault({ vaultDir: gone, projectRoots: [] }, "/sample"),
+      locateVault(
+        { vaultDir: gone, projectRoots: [], inboxWatch: [] },
+        "/sample",
+      ),
     ).toEqual({
       dir: "/sample",
       source: "sample",
