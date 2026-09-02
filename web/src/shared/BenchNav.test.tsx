@@ -23,6 +23,7 @@ describe("BenchNav", () => {
       ["Projekte", "/projekte/"],
       ["Aufgaben", "/aufgaben/"],
       ["Eingang", "/eingang/"],
+      ["Kontext", "/kontext/"],
       ["Zahlen", "/zahlen/"],
       ["CRM", "/crm/"],
       ["Rolodex", "/rolodex/"],

@@ -133,6 +133,17 @@ export const IconEingang = ({ size = 18 }: IconProps) => (
   </svg>
 );
 
+/** A document with a person: profile, rules and repo docs read through one glyph. */
+export const IconKontext = (p: IconProps) => (
+  <Stroke {...p}>
+    <circle cx="9" cy="8" r="3" />
+    <path d="M4 20c0-3 2.2-5 5-5s5 2 5 5" />
+    <path d="M16 4h5" />
+    <path d="M16 8h5" />
+    <path d="M16 12h5" />
+  </Stroke>
+);
+
 /** A bar chart with a baseline - the controlling reports' own subject. */
 export const IconZahlen = (p: IconProps) => (
   <Stroke {...p}>

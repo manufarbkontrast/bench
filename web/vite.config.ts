@@ -13,6 +13,7 @@ const APPS = [
   "projekte",
   "aufgaben",
   "eingang",
+  "kontext",
   "zahlen",
 ];
 
@@ -46,6 +47,7 @@ export default defineConfig({
         projekte: entry("projekte/index.html"),
         aufgaben: entry("aufgaben/index.html"),
         eingang: entry("eingang/index.html"),
+        kontext: entry("kontext/index.html"),
         zahlen: entry("zahlen/index.html"),
       },
     },

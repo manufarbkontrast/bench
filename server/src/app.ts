@@ -31,6 +31,7 @@ const APPS = [
   "projekte",
   "aufgaben",
   "eingang",
+  "kontext",
   "zahlen",
 ];
 

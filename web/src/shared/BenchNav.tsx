@@ -9,6 +9,7 @@ import {
   IconCrm,
   IconEingang,
   IconHome,
+  IconKontext,
   IconMoon,
   IconProjekte,
   IconRolodex,
@@ -25,6 +26,7 @@ type AppKey =
   | "projekte"
   | "aufgaben"
   | "eingang"
+  | "kontext"
   | "zahlen"
   | "crm"
   | "rolodex";
@@ -57,6 +59,12 @@ const APPS: {
     href: "/eingang/",
     label: "Eingang",
     Icon: IconEingang,
+  },
+  {
+    key: "kontext",
+    href: "/kontext/",
+    label: "Kontext",
+    Icon: IconKontext,
   },
   {
     key: "zahlen",
