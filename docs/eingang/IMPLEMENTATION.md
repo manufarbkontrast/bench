@@ -163,8 +163,9 @@ recursion - filtered and reconciled, newest first by `mtime`:
 - **The `quelle` scan is a deliberate small duplicate of Aufgaben's tolerant frontmatter reader**,
   not an import - `quelleOf` in `inbox.ts` scans each frontmatter line up to its first `": "`
   rather than parsing YAML, because a note's own `titel` can carry a colon a YAML parser would
-  reject (see `docs/aufgaben/IMPLEMENTATION.md`'s ledger section for the shared reasoning). Eingang
-  never imports from `server/src/aufgaben/`, the same per-app boundary every pair of apps follows.
+  reject (see `server/src/aufgaben/plaud.ts`'s `splitFrontmatter` docstring for the shared
+  reasoning). Eingang never imports from `server/src/aufgaben/`, the same per-app boundary every
+  pair of apps follows.
 - **The set of every note's `quelle` is built once per `listInbox` call**, in `noteQuellen`, not
   once per candidate file - this endpoint is polled, and re-reading every note for every inbox
   file would make the scan O(files × notes) instead of O(files + notes).
@@ -248,7 +249,7 @@ optional log view for whichever job's row was clicked, and the schedule panel.
 ## Tests
 
 **Unit** (`server/test/eingang/`) covers `locateEingang`'s sample/configured switch and the
-`CONTROLLING_DIR`-without-`INBOX_WATCH` case, `planJob`'s whole fence one check at a time, the
+`INBOX_WATCH`-without-`CONTROLLING_DIR` case, `planJob`'s whole fence one check at a time, the
 runner's spawn/internal/broken-stream/kill/timeout paths against the real fake-job fixture
 (`runner.test.ts`), the routes against an in-memory db and the sample fixture tree
 (`routes.test.ts`), the inbox reconciliation order (`inbox.test.ts`), and the plist scanner against
@@ -287,5 +288,6 @@ runner) cancelled mid-run reaching `Abgebrochen` with its log intact, followed b
 - [REQUIREMENTS.md](./REQUIREMENTS.md) - the original brief, kept for intent
 - [PROJECT.md](../PROJECT.md) - how the apps fit together
 - [PROCESS.md](../PROCESS.md) - how to make a change here
-- [aufgaben/IMPLEMENTATION.md](../aufgaben/IMPLEMENTATION.md) - the tolerant frontmatter scan
-  `quelleOf` deliberately duplicates
+- [aufgaben/IMPLEMENTATION.md](../aufgaben/IMPLEMENTATION.md) - the Plaud notes Eingang reconciles
+  against; the frontmatter scan `quelleOf` duplicates is reasoned about in
+  `server/src/aufgaben/plaud.ts`'s `splitFrontmatter` docstring, not in this doc
