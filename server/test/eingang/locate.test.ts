@@ -28,6 +28,22 @@ describe("locateEingang", () => {
     });
   });
 
+  it("reports a null controlling dir when watch dirs are configured but CONTROLLING_DIR is not, without touching the fixture", () => {
+    const real = path.join(scratch.dir, "real-no-controlling");
+    mkdirSync(real, { recursive: true });
+    const located = locateEingang(
+      { inboxWatch: [real], controllingDir: undefined },
+      path.join(scratch.dir, "fixture-d"),
+    );
+    expect(located).toEqual({
+      watchDirs: [real],
+      controllingDir: null,
+      launchAgentsDir: path.join(os.homedir(), "Library", "LaunchAgents"),
+      source: "configured",
+      missing: [],
+    });
+  });
+
   it("falls back to the sample fixtures when nothing is configured", () => {
     const fixtureDir = path.join(scratch.dir, "fixture-b");
     const located = locateEingang(
@@ -43,7 +59,7 @@ describe("locateEingang", () => {
     });
   });
 
-  it("falls the controlling dir back too when no watch dir is usable, even though it is itself configured", () => {
+  it("falls back whole to the sample world when no watch dir is usable, even with a configured controlling dir", () => {
     const missing = path.join(scratch.dir, "gone");
     const controlling = path.join(scratch.dir, "controlling-c");
     mkdirSync(controlling, { recursive: true });
