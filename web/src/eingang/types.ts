@@ -7,7 +7,44 @@ export interface InboxFile {
   status: "unverarbeitet" | "in_arbeit" | "notiz_vorhanden";
 }
 
-export type EingangJobKind = "plaud-sync" | "plaud-process";
+export type EingangJobKind =
+  | "plaud-sync"
+  | "plaud-process"
+  | "aufgaben-import"
+  | "controlling"
+  | "vault-reindex"
+  | "projekte-scan";
+
+export type JobStatus = "running" | "done" | "failed" | "killed" | "timeout";
+
+/** Matches server/src/eingang/db.ts's JobRow exactly - kind stays a bare string there since the
+    row can outlive a JobKind union the server might narrow later. */
+export interface JobRow {
+  id: number;
+  kind: string;
+  argsJson: string;
+  status: JobStatus;
+  startedAt: number;
+  finishedAt: number | null;
+  exitCode: number | null;
+  logPath: string;
+}
+
+export interface ScheduledRun {
+  label: string;
+  day: number | null;
+  hour: number | null;
+  minute: number | null;
+}
+
+/** The two kinds the runner runs in-process rather than as a spawned child
+    (server/src/eingang/jobs.ts JobPlan "internal") - killing one always answers 409 "internal
+    jobs cannot be cancelled", so the UI never offers a button that can only fail. */
+const INTERNAL_KINDS: readonly string[] = ["vault-reindex", "projekte-scan"];
+
+export function canCancel(kind: string): boolean {
+  return !INTERNAL_KINDS.includes(kind);
+}
 
 function dirBasename(dir: string): string {
   const parts = dir.split(/[/\\]/).filter((part) => part.length > 0);

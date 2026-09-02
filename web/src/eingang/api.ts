@@ -1,4 +1,4 @@
-import type { EingangJobKind, InboxFile } from "./types";
+import type { EingangJobKind, InboxFile, JobRow, ScheduledRun } from "./types";
 
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -45,8 +45,30 @@ interface StartJobReply {
   job: { id: number; status: string };
 }
 
+interface JobReply {
+  job: JobRow;
+}
+
+interface JobsReply {
+  jobs: JobRow[];
+}
+
+interface JobLogReply {
+  job: JobRow;
+  log: string;
+}
+
+interface ScheduleReply {
+  runs: ScheduledRun[];
+}
+
 export const api = {
   inbox: () => get<InboxReply>("/api/eingang/inbox"),
   startJob: (kind: EingangJobKind, args?: Record<string, unknown>) =>
     post<StartJobReply>("/api/eingang/jobs", args ? { kind, args } : { kind }),
+  jobs: () => get<JobsReply>("/api/eingang/jobs"),
+  job: (id: number) => get<JobLogReply>(`/api/eingang/jobs/${String(id)}`),
+  killJob: (id: number) =>
+    post<JobReply>(`/api/eingang/jobs/${String(id)}/kill`, {}),
+  schedule: () => get<ScheduleReply>("/api/eingang/schedule"),
 };
