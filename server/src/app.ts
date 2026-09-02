@@ -9,6 +9,7 @@ import {
   type AufgabenSources,
 } from "./aufgaben/routes.js";
 import { crmRouter } from "./crm/routes.js";
+import { eingangRouter, type EingangContext } from "./eingang/routes.js";
 import { listProjects } from "./projekte/db.js";
 import { projekteRouter, type ProjekteContext } from "./projekte/routes.js";
 import { rolodexRouter } from "./rolodex/routes/index.js";
@@ -29,6 +30,7 @@ export interface Dbs {
   vault: VaultContext;
   projekte: ProjekteContext;
   aufgaben: AufgabenSources;
+  eingang: EingangContext;
 }
 
 /**
@@ -66,6 +68,7 @@ export function createApp(dbs: Dbs): express.Express {
   app.use("/api/vault", vaultRouter(dbs.vault));
   app.use("/api/projekte", projekteRouter(dbs.projekte, dbs.vault.db));
   app.use("/api/aufgaben", aufgabenRouter(aufgabenContext(dbs), dbs.vault));
+  app.use("/api/eingang", eingangRouter(dbs.eingang));
 
   if (existsSync(webDist)) {
     app.use(express.static(webDist));

@@ -4,6 +4,8 @@ import type Database from "better-sqlite3";
 import type express from "express";
 import { createApp } from "../../src/app.js";
 import { openDb as openCrmDb } from "../../src/crm/db.js";
+import { openEingangDb } from "../../src/eingang/db.js";
+import type { EingangContext } from "../../src/eingang/routes.js";
 import { openProjekteDb } from "../../src/projekte/db.js";
 import type { GhRunner } from "../../src/projekte/gh.js";
 import type { ProjekteContext } from "../../src/projekte/routes.js";
@@ -12,6 +14,37 @@ import { openDb as openRolodexDb } from "../../src/rolodex/db/index.js";
 import { openDb as openVaultDb } from "../../src/vault/db.js";
 import type { VaultContext } from "../../src/vault/routes/index.js";
 import { emptyAufgaben } from "../aufgaben/app.js";
+
+// Not test/eingang/app.js's emptyEingang - that module imports emptyAufgaben and emptyProjekte
+// from this file and aufgaben/app.js, so importing back from it would cycle. Same small
+// duplicate aufgaben/app.js already carries for emptyProjekte.
+function emptyEingang(): EingangContext {
+  return {
+    db: openEingangDb(":memory:"),
+    located: {
+      watchDirs: [],
+      controllingDir: null,
+      launchAgentsDir: "/nonexistent",
+      source: "sample",
+      missing: [],
+    },
+    plaud: { dir: "/nonexistent", source: "sample" },
+    runner: {
+      start: () => {
+        throw new Error("emptyEingang's runner is never meant to start a job");
+      },
+      kill: () => "not_running",
+      isRunning: () => false,
+    },
+    paths: {
+      plaudHome: "/nonexistent",
+      vaultDir: "/nonexistent",
+      controllingDir: null,
+      skillsDir: "/nonexistent",
+      sample: true,
+    },
+  };
+}
 
 /** An empty in-memory scan for suites that only need the app to boot. */
 export function emptyProjekte(): ProjekteContext {
@@ -33,6 +66,7 @@ export function appWithProjekte(
     vault,
     projekte,
     aufgaben: emptyAufgaben(),
+    eingang: emptyEingang(),
   });
 }
 
