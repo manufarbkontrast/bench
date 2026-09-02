@@ -1,0 +1,204 @@
+/* Zahlen: the launcher's greys, orange as the one accent, dark first. */
+
+:root {
+  color-scheme: light;
+  /* The brand accent - stays the same value in both themes, unlike every other token here. */
+  --accent: #ff5c00;
+  --accent-ink: #b84200;
+  --accent-wash: rgba(255, 92, 0, 0.12);
+  --bg: #ffffff;
+  --bg-raised: #f2f4f6;
+  --bg-hover: rgba(28, 33, 40, 0.06);
+  --text: #1c2128;
+  --text-soft: #5b636e;
+  --text-faint: #868e99;
+  --border: #dfe3e8;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --accent-ink: #ff7a33;
+  --accent-wash: rgba(255, 92, 0, 0.16);
+  --bg: #14171c;
+  --bg-raised: #1c2128;
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --text: #e9edf2;
+  --text-soft: #9aa3ae;
+  --text-faint: #6f7884;
+  --border: #2b323b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Helvetica Neue", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent-ink);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* The nav strip takes 47px; the app fills what is left and the page itself scrolls. */
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+.zahlen {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 28px 32px 60px;
+}
+
+.zahlen-header {
+  margin-bottom: 20px;
+}
+
+.zahlen-header h1 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.01em;
+}
+
+.zahlen-section {
+  margin-bottom: 28px;
+}
+
+.zahlen-section h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.zahlen-empty {
+  margin: 0;
+  padding: 16px 0;
+  color: var(--text-soft);
+}
+
+.zahlen-run-line {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.zahlen-breakeven {
+  margin: 10px 0 0;
+  color: var(--text-soft);
+}
+
+.zahlen-kpi-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.zahlen-kpi-table th {
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.zahlen-kpi-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.zahlen-kpi-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.zahlen-archive-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zahlen-archive-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--text);
+}
+
+.zahlen-archive-btn:hover {
+  background: var(--bg-hover);
+}
+
+.zahlen-archive-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.zahlen-archive-btn[aria-pressed="true"] {
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+}
+
+.zahlen-bericht {
+  width: 100%;
+  height: 520px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.zahlen-md {
+  margin: 0 0 10px;
+  max-height: 360px;
+  overflow: auto;
+  padding: 12px;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.zahlen-downloads,
+.zahlen-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}

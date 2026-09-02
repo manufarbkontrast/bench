@@ -133,6 +133,16 @@ export const IconEingang = ({ size = 18 }: IconProps) => (
   </svg>
 );
 
+/** A bar chart with a baseline - the controlling reports' own subject. */
+export const IconZahlen = (p: IconProps) => (
+  <Stroke {...p}>
+    <path d="M4 20V10" />
+    <path d="M10 20V4" />
+    <path d="M16 20v-9" />
+    <path d="M3 20h18" />
+  </Stroke>
+);
+
 export const IconSun = (p: IconProps) => (
   <Stroke {...p}>
     <circle cx="12" cy="12" r="4" />
