@@ -22,6 +22,13 @@ export interface Project {
   lastCommitAt: number | null;
 }
 
+/** Mirrors the `status` field of eingang's InboxFile - duplicated rather than imported, since
+    this document never imports from a sibling app (see the file's own top comment), and the
+    panel needs nothing else from the reply. */
+export interface InboxFile {
+  status: "unverarbeitet" | "in_arbeit" | "notiz_vorhanden";
+}
+
 function ordinal(a: string, b: string): number {
   return Number(a > b) - Number(a < b);
 }
@@ -63,6 +70,11 @@ export function recentDone(tasks: Task[]): Task[] {
       return -ordinal(a.doneAt, b.doneAt);
     })
     .slice(0, 5);
+}
+
+/** Files still needing action - the Eingang panel's count. */
+export function unverarbeitetCount(files: InboxFile[]): number {
+  return files.filter((f) => f.status === "unverarbeitet").length;
 }
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;

@@ -48,6 +48,12 @@ const APPS: {
     ready: (p) => p.getByRole("button", { name: "Heute" }),
   },
   {
+    path: "/eingang/",
+    title: "Eingang",
+    tab: "Eingang",
+    ready: (p) => p.getByRole("heading", { name: "Neu und unverarbeitet" }),
+  },
+  {
     path: "/crm/",
     title: "Personal CRM",
     tab: "CRM",
@@ -141,7 +147,14 @@ test("the start page links into each app and the back button returns", async ({
   page,
 }) => {
   await page.goto("/");
-  for (const name of ["Vault", "Projekte", "Aufgaben", "CRM", "Rolodex"]) {
+  for (const name of [
+    "Vault",
+    "Projekte",
+    "Aufgaben",
+    "Eingang",
+    "CRM",
+    "Rolodex",
+  ]) {
     await appRow(page).getByRole("link", { name }).click();
     await expect(page).not.toHaveTitle("Bench");
     await page.goBack();

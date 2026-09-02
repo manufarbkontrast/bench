@@ -6,6 +6,7 @@ import BenchNav from "../shared/BenchNav";
 import {
   IconAufgaben,
   IconCrm,
+  IconEingang,
   IconProjekte,
   IconRolodex,
   IconVault,
@@ -17,7 +18,9 @@ import {
   movingProjects,
   overdueTasks,
   recentDone,
+  unverarbeitetCount,
   weekTasks,
+  type InboxFile,
   type Project,
   type Task,
 } from "./types";
@@ -32,6 +35,7 @@ const APPS: {
   { href: "/vault/", name: "Vault", Icon: IconVault },
   { href: "/projekte/", name: "Projekte", Icon: IconProjekte },
   { href: "/aufgaben/", name: "Aufgaben", Icon: IconAufgaben },
+  { href: "/eingang/", name: "Eingang", Icon: IconEingang },
   { href: "/crm/", name: "CRM", Icon: IconCrm },
   { href: "/rolodex/", name: "Rolodex", Icon: IconRolodex },
 ];
@@ -127,6 +131,23 @@ function SessionPanel({ section }: { section: Section | null }) {
   );
 }
 
+function EingangPanel({ files }: { files: InboxFile[] }) {
+  const count = unverarbeitetCount(files);
+  return (
+    <section className="home-panel">
+      <h2>Eingang</h2>
+      {count === 0 ? (
+        <p className="home-empty">Nichts Neues.</p>
+      ) : (
+        <p>{`${count} unverarbeitet`}</p>
+      )}
+      <a className="home-session-link" href="/eingang/">
+        Verarbeiten
+      </a>
+    </section>
+  );
+}
+
 function PlaceholderPanel({
   heading,
   text,
@@ -145,11 +166,13 @@ function PlaceholderPanel({
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [inboxFiles, setInboxFiles] = useState<InboxFile[]>([]);
   const [session, setSession] = useState<Section | null>(null);
 
   useEffect(() => {
     void api.tasks().then(setTasks);
     void api.projects().then(setProjects);
+    void api.inbox().then(setInboxFiles);
     void api
       .sessionNote()
       .then((note) => setSession(note ? firstSection(note.body) : null));
@@ -188,10 +211,7 @@ export default function App() {
             meta={(t) => `Fällig ${dateText(t.due)}`}
             empty="Diese Woche ist nichts fällig."
           />
-          <PlaceholderPanel
-            heading="Eingang"
-            text="Kommt mit der Eingang-App (Phase 4)."
-          />
+          <EingangPanel files={inboxFiles} />
           <ProjectPanel projects={movingProjects(projects, now)} />
           <SessionPanel section={session} />
           <PlaceholderPanel

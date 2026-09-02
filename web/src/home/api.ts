@@ -1,4 +1,4 @@
-import type { Project, Task } from "./types";
+import type { InboxFile, Project, Task } from "./types";
 
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -32,6 +32,8 @@ export const api = {
     get<{ tasks: Task[] }>("/api/aufgaben/tasks").then((r) => r.tasks),
   projects: () =>
     get<{ projects: Project[] }>("/api/projekte/list").then((r) => r.projects),
+  inbox: () =>
+    get<{ files: InboxFile[] }>("/api/eingang/inbox").then((r) => r.files),
   sessionNote: () =>
     getOrNull<SessionNote>(
       `/api/vault/note?${new URLSearchParams({ path: SESSION_NOTE_PATH })}`,

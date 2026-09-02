@@ -5,7 +5,15 @@
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
-const APPS = ["/", "/vault/", "/projekte/", "/aufgaben/", "/crm/", "/rolodex/"];
+const APPS = [
+  "/",
+  "/vault/",
+  "/projekte/",
+  "/aufgaben/",
+  "/eingang/",
+  "/crm/",
+  "/rolodex/",
+];
 
 const theme = (page: Page) =>
   page.evaluate(() => document.documentElement.dataset.theme);

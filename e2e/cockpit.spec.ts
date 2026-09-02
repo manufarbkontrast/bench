@@ -36,6 +36,15 @@ test("the Cockpit surfaces overdue tasks, the session note and moving projects",
     panel(page, "Überfällig").getByText("Prototyp bauen"),
   ).toBeVisible();
 
+  // The sample eingang fixture (server/src/eingang/fixture/inbox) has three files: the
+  // werkstattrunde transcript and the m4a recording are unprocessed, the Hafenrunde transcript
+  // reconciles to a note - see server/test/eingang/routes.test.ts for the same derivation.
+  const eingang = panel(page, "Eingang");
+  await expect(eingang.getByText("2 unverarbeitet")).toBeVisible();
+  await expect(
+    eingang.getByRole("link", { name: "Verarbeiten" }),
+  ).toHaveAttribute("href", "/eingang/");
+
   const session = panel(page, "Hier weitermachen");
   await expect(session.getByText(/Der Leuchtturm-Prototyp/)).toBeVisible();
 

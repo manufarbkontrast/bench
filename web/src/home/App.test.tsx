@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import App from "./App";
 import { api } from "./api";
-import type { Project, Task } from "./types";
+import type { InboxFile, Project, Task } from "./types";
 
 function task(overrides: Partial<Task> = {}): Task {
   return {
@@ -28,6 +28,15 @@ function project(overrides: Partial<Project> = {}): Project {
   };
 }
 
+// The sample fixture world server/src/eingang/fixture/inbox: the werkstattrunde transcript and
+// the m4a recording are unprocessed, the Hafenrunde transcript reconciles to a note - see
+// server/test/eingang/routes.test.ts for the same three files.
+const inboxFixture: InboxFile[] = [
+  { status: "unverarbeitet" },
+  { status: "unverarbeitet" },
+  { status: "notiz_vorhanden" },
+];
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function inWeek(days: number): string {
@@ -52,6 +61,7 @@ vi.mock("./api", () => ({
   api: {
     tasks: vi.fn(),
     projects: vi.fn(),
+    inbox: vi.fn(),
     sessionNote: vi.fn(),
   },
 }));
@@ -90,6 +100,7 @@ describe("Cockpit", () => {
         lastCommitAt: Date.now() - 30 * DAY_MS,
       }),
     ]);
+    vi.mocked(api.inbox).mockResolvedValue(inboxFixture);
     vi.mocked(api.sessionNote).mockResolvedValue({ body: sessionBody });
 
     render(<App />);
@@ -118,9 +129,10 @@ describe("Cockpit", () => {
     expect(within(woche).getByText("Kabel bestellen")).toBeInTheDocument();
 
     const eingang = panel("Eingang");
+    expect(within(eingang).getByText("2 unverarbeitet")).toBeInTheDocument();
     expect(
-      within(eingang).getByText("Kommt mit der Eingang-App (Phase 4)."),
-    ).toBeInTheDocument();
+      within(eingang).getByRole("link", { name: "Verarbeiten" }),
+    ).toHaveAttribute("href", "/eingang/");
 
     const bewegung = panel("Projekte in Bewegung");
     expect(within(bewegung).getByText("leuchtturm")).toBeInTheDocument();
@@ -161,6 +173,7 @@ describe("Cockpit", () => {
       ["Vault", "/vault/"],
       ["Projekte", "/projekte/"],
       ["Aufgaben", "/aufgaben/"],
+      ["Eingang", "/eingang/"],
       ["CRM", "/crm/"],
       ["Rolodex", "/rolodex/"],
     ]) {
@@ -171,6 +184,7 @@ describe("Cockpit", () => {
   it("shows every empty state when nothing is due, moving or done and no note exists", async () => {
     vi.mocked(api.tasks).mockResolvedValue([]);
     vi.mocked(api.projects).mockResolvedValue([]);
+    vi.mocked(api.inbox).mockResolvedValue([]);
     vi.mocked(api.sessionNote).mockResolvedValue(null);
 
     render(<App />);
@@ -184,5 +198,11 @@ describe("Cockpit", () => {
       screen.getByText("Keine Session-Notiz gefunden."),
     ).toBeInTheDocument();
     expect(screen.getByText("Noch nichts erledigt.")).toBeInTheDocument();
+
+    const eingang = panel("Eingang");
+    expect(within(eingang).getByText("Nichts Neues.")).toBeInTheDocument();
+    expect(
+      within(eingang).getByRole("link", { name: "Verarbeiten" }),
+    ).toHaveAttribute("href", "/eingang/");
   });
 });
