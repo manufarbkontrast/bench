@@ -15,12 +15,14 @@ export type JobPlan =
   | { kind: "internal"; name: "vault-reindex" | "projekte-scan" };
 
 /**
- * `controllingDir` is `string | null` because a configured Eingang can legitimately have
- * INBOX_WATCH set without CONTROLLING_DIR (see locate.ts) - planJob refuses the controlling kind
- * on null rather than silently borrowing the sample fixture.
+ * `plaudHome` and `controllingDir` are both `string | null` for the same reason: a configured
+ * Eingang can legitimately have INBOX_WATCH set without PLAUD_HOME, or without CONTROLLING_DIR
+ * (see locate.ts and index.ts's wiring) - planJob refuses the kinds that need one on null rather
+ * than silently borrowing the sample fixture, which stays tracked in the repo and must never be
+ * the target of a real command.
  */
 export interface JobPaths {
-  plaudHome: string;
+  plaudHome: string | null;
   vaultDir: string;
   controllingDir: string | null;
   skillsDir: string;
@@ -92,6 +94,7 @@ function planPlaudSync(
 ): JobPlan | { error: string } {
   const extra = rejectExtraArgs(args, "plaud-sync");
   if (extra) return extra;
+  if (ctx.plaudHome === null) return { error: "plaud is not configured" };
   if (ctx.sample) return fakeSpawn("plaud-sync", ctx.plaudHome);
   return {
     kind: "spawn",
@@ -109,6 +112,7 @@ function planPlaudProcess(
 ): JobPlan | { error: string } {
   const file = fileNameOf(args);
   if (file === null) return { error: "file must be a bare filename" };
+  if (ctx.plaudHome === null) return { error: "plaud is not configured" };
   const target = path.join(ctx.plaudHome, "inbox", file);
   if (!existsSync(target) || !statSync(target).isFile())
     return { error: `no such inbox file: ${file}` };
@@ -134,6 +138,7 @@ function planAufgabenImport(
 ): JobPlan | { error: string } {
   const file = fileNameOf(args);
   if (file === null) return { error: "file must be a bare filename" };
+  if (ctx.plaudHome === null) return { error: "plaud is not configured" };
   const target = path.join(ctx.plaudHome, "notizen", file);
   if (!existsSync(target) || !statSync(target).isFile())
     return { error: `no such notizen file: ${file}` };

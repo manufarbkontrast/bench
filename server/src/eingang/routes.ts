@@ -135,7 +135,10 @@ export function eingangRouter(ctx: EingangContext): Router {
       return;
     }
 
-    const env = { ...process.env, PLAUD_HOME: paths.plaudHome };
+    // planJob already refused any kind that needs plaudHome when it is null (see jobs.ts), so a
+    // plan only reaches here with a real plaudHome or with a kind that never reads it - either
+    // way, leaving PLAUD_HOME unset is correct rather than passing the literal string "null".
+    const env = { ...process.env, PLAUD_HOME: paths.plaudHome ?? undefined };
     const job = runner.start(
       jobKind,
       JSON.stringify(args),

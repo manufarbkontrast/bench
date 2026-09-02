@@ -18,8 +18,17 @@ function skipped(name: string): boolean {
   return name.startsWith(".") || name.startsWith("_");
 }
 
-function matches(name: string, ext: string): boolean {
-  return NAME_PATTERN.test(name) || AUDIO_EXTENSIONS.has(ext);
+/**
+ * A file matches by its own name, by its extension, or by the watch dir it sits directly in - a
+ * folder named e.g. "Besprechungs-Textfiles" already says every file inside it is inbox material,
+ * even when an individual file's own name gives no hint (a numbered export, an untitled scan).
+ */
+function matches(name: string, dirBasename: string, ext: string): boolean {
+  return (
+    NAME_PATTERN.test(name) ||
+    NAME_PATTERN.test(dirBasename) ||
+    AUDIO_EXTENSIONS.has(ext)
+  );
 }
 
 /**
@@ -115,11 +124,14 @@ export function listInbox(
   inFlight: Set<string>,
 ): InboxFile[] {
   const quellen = noteQuellen(plaud.notizenDir);
-  const files = watchDirs.flatMap((dir) =>
-    fileNames(dir)
+  const files = watchDirs.flatMap((dir) => {
+    const dirBasename = path.basename(dir);
+    return fileNames(dir)
       .filter((name) => !skipped(name))
-      .filter((name) => matches(name, path.extname(name).toLowerCase()))
-      .map((name) => inboxFile(dir, name, plaud.archivDir, quellen, inFlight)),
-  );
+      .filter((name) =>
+        matches(name, dirBasename, path.extname(name).toLowerCase()),
+      )
+      .map((name) => inboxFile(dir, name, plaud.archivDir, quellen, inFlight));
+  });
   return files.toSorted((a, b) => b.mtime - a.mtime);
 }

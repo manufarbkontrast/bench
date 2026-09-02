@@ -63,6 +63,23 @@ describe("InboxList", () => {
     expect(button).toHaveAttribute("title", "Erst einsammeln");
   });
 
+  it("disables Verarbeiten, with the Erst einsammeln hint, for a file the server lists via its watch dir's own name matching rather than the file's - isProcessable and the fence are unchanged by that listing rule, since the file still does not sit under a dir named inbox", () => {
+    render(
+      <InboxList
+        files={[
+          file({
+            dir: "/plaud/Besprechungs-Textfiles",
+            name: "agenda.pdf",
+          }),
+        ]}
+        onProcess={vi.fn()}
+      />,
+    );
+    const button = screen.getByRole("button", { name: /Verarbeiten/ });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", "Erst einsammeln");
+  });
+
   it("disables Verarbeiten for a file already in arbeit", () => {
     render(
       <InboxList files={[file({ status: "in_arbeit" })]} onProcess={vi.fn()} />,

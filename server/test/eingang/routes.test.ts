@@ -268,6 +268,57 @@ describe("POST /api/eingang/jobs/:id/kill", () => {
   }, 10_000);
 });
 
+describe("POST /api/eingang/jobs - a null plaudHome", () => {
+  it("400s plaud-sync, plaud-process and aufgaben-import, never reaching the runner", async () => {
+    const nullPlaudDb = openEingangDb(":memory:");
+    const nullPlaudLocated: LocatedEingang = locateEingang(
+      { inboxWatch: [], controllingDir: undefined },
+      EINGANG_FIXTURE,
+    );
+    const nullPlaudPaths: JobPaths = {
+      plaudHome: null,
+      vaultDir: EINGANG_FIXTURE,
+      controllingDir: nullPlaudLocated.controllingDir,
+      skillsDir: EINGANG_FIXTURE,
+      sample: false,
+    };
+    const nullPlaudRunner = createRunner(
+      nullPlaudDb,
+      path.join(scratch.dir, `jobs-null-plaud-${n}`),
+      { "vault-reindex": neverCalled, "projekte-scan": neverCalled },
+    );
+    const nullPlaudApp = appWithEingang({
+      db: nullPlaudDb,
+      located: nullPlaudLocated,
+      plaud: { dir: AUFGABEN_NOTIZEN, source: "sample" },
+      runner: nullPlaudRunner,
+      paths: nullPlaudPaths,
+    });
+
+    const bodies = [
+      { kind: "plaud-sync" },
+      { kind: "plaud-process", args: { file: "x.txt" } },
+      { kind: "aufgaben-import", args: { file: "x.md" } },
+    ];
+    for (const body of bodies) {
+      const res = await request(nullPlaudApp)
+        .post("/api/eingang/jobs")
+        .send(body);
+      expect(res.status).toBe(400);
+      expect((res.body as { error: string }).error).toBe(
+        "plaud is not configured",
+      );
+    }
+    expect(
+      (
+        nullPlaudDb.prepare("SELECT COUNT(*) AS c FROM jobs").get() as {
+          c: number;
+        }
+      ).c,
+    ).toBe(0);
+  });
+});
+
 describe("GET /api/eingang/schedule", () => {
   it("lists the two fixture launchd runs", async () => {
     const res = await request(app).get("/api/eingang/schedule");

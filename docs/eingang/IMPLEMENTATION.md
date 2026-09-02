@@ -21,14 +21,21 @@ in-process run, never the watched files or the source folders themselves.
 than one per source: `INBOX_WATCH` names one or more folders, and if none of them exist on disk,
 every part of Eingang - watch dirs, the controlling report folder, the launchd directory, and
 whether a job actually spawns a real command - falls back together to the bundled fixture tree
-under `server/src/eingang/fixture/`. There is no state that mixes a real watch folder with the
-fixture's controlling reports, or the reverse.
+under `server/src/eingang/fixture/`.
 
-The one exception, and it is deliberate: a configured `INBOX_WATCH` with no `CONTROLLING_DIR` is
-real, not sample - `controllingDir` is `null` in that case rather than silently borrowing the
-fixture's controlling folder. `planJob`'s `controlling` kind then refuses with 400 ("controlling
-is not configured") instead of running the fixture's script against a real vault and a real
-`skillsDir`.
+Two fields are the deliberate exceptions to that rule: a configured world never borrows the
+fixture for either, real-or-null instead.
+
+- A configured `INBOX_WATCH` with no `CONTROLLING_DIR` is real, not sample - `controllingDir` is
+  `null` in that case rather than silently borrowing the fixture's controlling folder. `planJob`'s
+  `controlling` kind then refuses with 400 ("controlling is not configured") instead of running
+  the fixture's script against a real vault and a real `skillsDir`.
+- A configured `INBOX_WATCH` with no `PLAUD_HOME` is the same shape: `index.ts`'s wiring gives
+  `JobPaths.plaudHome` the value `null` rather than the tracked fixture tree under
+  `server/src/eingang/fixture/`. `planJob`'s three plaud-facing kinds - `plaud-sync`,
+  `plaud-process`, `aufgaben-import` - each refuse with 400 ("plaud is not configured") before any
+  other check that would build a path from `plaudHome`, so a real watch folder can never end up
+  paired with the sample fixture as the target of a real `claude -p` or `plaud-sync.sh` run.
 
 ## The fence
 
@@ -148,9 +155,12 @@ does - can land in that window. `tailLog` catches only `ENOENT` for this; any ot
 `listInbox` (`inbox.ts`) lists every matching file directly inside each watch dir - no
 recursion - filtered and reconciled, newest first by `mtime`:
 
-- **Matched by name or extension.** `NAME_PATTERN` (`/transcript|transkript|besprechung/i`) or an
-  audio extension (`.m4a`, `.mp3`, `.wav`) - a file matching neither is not inbox material at all
-  and never appears.
+- **Matched by name, by the watch dir's own name, or by extension.** `NAME_PATTERN`
+  (`/transcript|transkript|besprechung/i`) tested against the file's own name, the same pattern
+  tested against `path.basename` of the watch dir it sits directly in, or an audio extension
+  (`.m4a`, `.mp3`, `.wav`) - a file matching none of the three is not inbox material at all and
+  never appears. The dir-name rule is what lists a file sitting in, say,
+  `~/Downloads/Besprechungs-Textfiles/`, even when the file's own name gives no hint.
 - **Skipped: dotfiles and underscore-prefixed names.** `skipped` drops anything starting with `.`
   or `_` - the Plaud inbox's own `_HIER-...` marker file is exactly what the underscore rule
   exists for.
@@ -210,9 +220,11 @@ Mounted at `/api/eingang` (`routes.ts`), six routes:
 | `POST /jobs/:id/kill` | `{ job }` (200) killed; 404 unknown id; 409 not running, or internal                                        |
 | `GET /schedule`       | `{ runs }` - the allowlisted launchd entries                                                                |
 
-`POST /jobs` builds the child's environment as `{ ...process.env, PLAUD_HOME: paths.plaudHome }` -
-the one variable a spawned skill script or `claude -p` invocation needs beyond what the parent
-process already carries.
+`POST /jobs` builds the child's environment as
+`{ ...process.env, PLAUD_HOME: paths.plaudHome ?? undefined }` - the one variable a spawned skill
+script or `claude -p` invocation needs beyond what the parent process already carries. The `?? undefined`
+only matters for a kind that never reads `plaudHome` in the first place - `planJob` already refused
+any of the three plaud-facing kinds with a null `plaudHome` before a plan reaches this line.
 
 ## The web app
 

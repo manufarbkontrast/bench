@@ -88,7 +88,7 @@ describe("planJob - the fence", () => {
     it("builds a claude invocation naming the absolute inbox path for a real file", () => {
       const ctx = world();
       writeFileSync(
-        path.join(ctx.plaudHome, "inbox", "real-transcript.txt"),
+        path.join(ctx.plaudHome!, "inbox", "real-transcript.txt"),
         "content",
       );
 
@@ -124,7 +124,7 @@ describe("planJob - the fence", () => {
 
     it("builds a claude invocation naming the absolute notizen path for a real file", () => {
       const ctx = world();
-      writeFileSync(path.join(ctx.plaudHome, "notizen", "note.md"), "content");
+      writeFileSync(path.join(ctx.plaudHome!, "notizen", "note.md"), "content");
 
       const plan = expectSpawn(
         planJob("aufgaben-import", { file: "note.md" }, ctx),
@@ -222,14 +222,48 @@ describe("planJob - the fence", () => {
     });
   });
 
+  describe("an unconfigured plaudHome", () => {
+    it("errors plaud-sync before building anything, even with no other problem", () => {
+      const ctx = world({ plaudHome: null });
+      const result = planJob("plaud-sync", {}, ctx);
+      expect(result).toEqual({ error: "plaud is not configured" });
+    });
+
+    it("errors plaud-process before the file even gets checked against the inbox", () => {
+      const ctx = world({ plaudHome: null });
+      const result = planJob(
+        "plaud-process",
+        { file: "does-not-matter.txt" },
+        ctx,
+      );
+      expect(result).toEqual({ error: "plaud is not configured" });
+    });
+
+    it("errors aufgaben-import before the file even gets checked against notizen", () => {
+      const ctx = world({ plaudHome: null });
+      const result = planJob(
+        "aufgaben-import",
+        { file: "does-not-matter.md" },
+        ctx,
+      );
+      expect(result).toEqual({ error: "plaud is not configured" });
+    });
+
+    it("still rejects a hostile file argument before the plaudHome check on plaud-process", () => {
+      const ctx = world({ plaudHome: null });
+      const result = planJob("plaud-process", { file: "../x" }, ctx);
+      expect(result).toEqual({ error: "file must be a bare filename" });
+    });
+  });
+
   describe("sample mode", () => {
     it("replaces every spawn kind's argv with the fake job invocation, leaving internal kinds untouched", () => {
       const ctx = world({ sample: true });
       writeFileSync(
-        path.join(ctx.plaudHome, "inbox", "sample-transcript.txt"),
+        path.join(ctx.plaudHome!, "inbox", "sample-transcript.txt"),
         "content",
       );
-      writeFileSync(path.join(ctx.plaudHome, "notizen", "sample.md"), "x");
+      writeFileSync(path.join(ctx.plaudHome!, "notizen", "sample.md"), "x");
 
       expect(planJob("plaud-sync", {}, ctx)).toEqual({
         kind: "spawn",

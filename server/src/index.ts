@@ -93,11 +93,14 @@ failStaleRunning(eingangDb);
 
 const eingangPaths: JobPaths = {
   // The sample world is one coherent fixture tree (see locateEingang's docstring): plaudHome
-  // falls back to the same fixture root that watchDirs and controllingDir already use, rather
-  // than to config.plaudHome, which a "configured" eingang need not have set.
+  // falls back to the same fixture root that watchDirs and controllingDir already use. The
+  // configured world never borrows it, the same ruling locateEingang already applies to
+  // controllingDir - a configured INBOX_WATCH with no PLAUD_HOME set gets plaudHome: null rather
+  // than silently pointing a real plaud-sync/plaud-process/aufgaben-import job at the fixture
+  // tree, which stays tracked in the repo.
   plaudHome:
     eingangLocation.source === "configured"
-      ? (config.plaudHome ?? eingangFixtureDir)
+      ? (config.plaudHome ?? null)
       : eingangFixtureDir,
   vaultDir: vault.dir,
   controllingDir: eingangLocation.controllingDir,

@@ -161,6 +161,30 @@ describe("listInbox", () => {
     ]);
   });
 
+  it("lists a non-matching file name when its own watch dir's basename matches NAME_PATTERN", () => {
+    const { notizenDir, archivDir } = world();
+    const watch = path.join(
+      scratch.dir,
+      `world-${n}-dir`,
+      "Besprechungs-Textfiles",
+    );
+    writeInboxFile(watch, "agenda.pdf");
+
+    const files = listInbox([watch], { notizenDir, archivDir }, new Set());
+
+    expect(files.map((file) => file.name)).toEqual(["agenda.pdf"]);
+  });
+
+  it("does not list the same non-matching file name when its watch dir's basename also does not match", () => {
+    const { notizenDir, archivDir } = world();
+    const watch = path.join(scratch.dir, `world-${n}-dir`, "stuff");
+    writeInboxFile(watch, "agenda.pdf");
+
+    const files = listInbox([watch], { notizenDir, archivDir }, new Set());
+
+    expect(files).toEqual([]);
+  });
+
   it("lists a same-named file from each of two watch dirs, both carrying the same reconciled status", () => {
     const { notizenDir, archivDir } = world();
     const watchA = path.join(scratch.dir, `world-${n}-a`);
