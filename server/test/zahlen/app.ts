@@ -4,7 +4,9 @@ import { createApp } from "../../src/app.js";
 import { openDb as openCrmDb } from "../../src/crm/db.js";
 import { openEingangDb } from "../../src/eingang/db.js";
 import type { EingangContext } from "../../src/eingang/routes.js";
+import type { KontextContext } from "../../src/kontext/routes.js";
 import { openDb as openRolodexDb } from "../../src/rolodex/db/index.js";
+import { openDb as openVaultDb } from "../../src/vault/db.js";
 import type { ZahlenContext } from "../../src/zahlen/routes.js";
 import { emptyAufgaben } from "../aufgaben/app.js";
 import { emptyProjekte } from "../projekte/app.js";
@@ -45,6 +47,16 @@ function emptyEingang(): EingangContext {
   };
 }
 
+// test/kontext/app.js exports no emptyKontext of its own, for the same reason this file exports
+// no emptyZahlen - so this is the small duplicate every other harness carries.
+function emptyKontext(): KontextContext {
+  return {
+    claudeDir: "/nonexistent",
+    vaultDb: openVaultDb(":memory:"),
+    projectPaths: () => [],
+  };
+}
+
 export function appWithZahlen(zahlen: ZahlenContext): express.Express {
   return createApp({
     crm: openCrmDb(":memory:"),
@@ -53,6 +65,7 @@ export function appWithZahlen(zahlen: ZahlenContext): express.Express {
     projekte: emptyProjekte(),
     aufgaben: emptyAufgaben(),
     eingang: emptyEingang(),
+    kontext: emptyKontext(),
     zahlen,
   });
 }

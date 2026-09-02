@@ -6,9 +6,11 @@ import type { AufgabenSources } from "../../src/aufgaben/routes.js";
 import { openDb as openCrmDb } from "../../src/crm/db.js";
 import { openEingangDb } from "../../src/eingang/db.js";
 import type { EingangContext } from "../../src/eingang/routes.js";
+import type { KontextContext } from "../../src/kontext/routes.js";
 import { openProjekteDb } from "../../src/projekte/db.js";
 import type { ProjekteContext } from "../../src/projekte/routes.js";
 import { openDb as openRolodexDb } from "../../src/rolodex/db/index.js";
+import { openDb as openVaultDb } from "../../src/vault/db.js";
 import type { VaultContext } from "../../src/vault/routes/index.js";
 import type { ZahlenContext } from "../../src/zahlen/routes.js";
 
@@ -70,6 +72,16 @@ function emptyZahlen(): ZahlenContext {
   return { dir: null, mycraftonUrl: null };
 }
 
+// test/kontext/app.js exports no emptyKontext of its own, for the same reason emptyZahlen above
+// is a private duplicate here - so this is the small duplicate every other harness carries.
+function emptyKontext(): KontextContext {
+  return {
+    claudeDir: "/nonexistent",
+    vaultDb: openVaultDb(":memory:"),
+    projectPaths: () => [],
+  };
+}
+
 export function appWithAufgaben(
   aufgaben: AufgabenSources,
   vault: VaultContext,
@@ -82,6 +94,7 @@ export function appWithAufgaben(
     projekte,
     aufgaben,
     eingang: emptyEingang(),
+    kontext: emptyKontext(),
     zahlen: emptyZahlen(),
   });
 }

@@ -6,6 +6,7 @@ import { createApp } from "../../src/app.js";
 import { openDb as openCrmDb } from "../../src/crm/db.js";
 import { openEingangDb } from "../../src/eingang/db.js";
 import type { EingangContext } from "../../src/eingang/routes.js";
+import type { KontextContext } from "../../src/kontext/routes.js";
 import { openProjekteDb } from "../../src/projekte/db.js";
 import type { GhRunner } from "../../src/projekte/gh.js";
 import type { ProjekteContext } from "../../src/projekte/routes.js";
@@ -63,6 +64,16 @@ function emptyZahlen(): ZahlenContext {
   return { dir: null, mycraftonUrl: null };
 }
 
+// test/kontext/app.js exports no emptyKontext of its own, for the same reason emptyZahlen above
+// is a private duplicate here - so this is the small duplicate every other harness carries.
+function emptyKontext(): KontextContext {
+  return {
+    claudeDir: "/nonexistent",
+    vaultDb: openVaultDb(":memory:"),
+    projectPaths: () => [],
+  };
+}
+
 export function appWithProjekte(
   projekte: ProjekteContext,
   vault: VaultContext,
@@ -74,6 +85,7 @@ export function appWithProjekte(
     projekte,
     aufgaben: emptyAufgaben(),
     eingang: emptyEingang(),
+    kontext: emptyKontext(),
     zahlen: emptyZahlen(),
   });
 }

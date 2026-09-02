@@ -14,6 +14,9 @@ import type { JobPaths } from "./eingang/jobs.js";
 import { locateEingang } from "./eingang/locate.js";
 import type { EingangContext } from "./eingang/routes.js";
 import { createRunner } from "./eingang/runner.js";
+import { locateKontext } from "./kontext/locate.js";
+import type { KontextContext } from "./kontext/routes.js";
+import { listSkills } from "./kontext/skills.js";
 import { listProjects, openProjekteDb } from "./projekte/db.js";
 import { realGh } from "./projekte/gh.js";
 import { locateProjects } from "./projekte/locate.js";
@@ -141,6 +144,16 @@ const eingang: EingangContext = {
   paths: eingangPaths,
 };
 
+const kontext: KontextContext = {
+  claudeDir: locateKontext(process.env).claudeDir,
+  vaultDb,
+  projectPaths: () =>
+    listProjects(projekteDb).map((project) => ({
+      name: project.name,
+      path: project.path,
+    })),
+};
+
 const zahlen: ZahlenContext = {
   dir: eingangLocation.controllingDir,
   mycraftonUrl: config.mycraftonUrl ?? null,
@@ -153,6 +166,7 @@ createApp({
   projekte,
   aufgaben,
   eingang,
+  kontext,
   zahlen,
 }).listen(port, () => {
   console.log(`Bench running at http://localhost:${port}`);
@@ -196,6 +210,7 @@ createApp({
   console.log(
     `  Eingang: ${eingangLocation.watchDirs.length} watch dirs (${eingangLocation.source}), ${eingangJobCount} jobs recorded`,
   );
+  console.log(`  Kontext: ${listSkills(kontext.claudeDir).count} skills`);
   console.log(
     zahlen.dir === null
       ? "  Zahlen: not configured"
