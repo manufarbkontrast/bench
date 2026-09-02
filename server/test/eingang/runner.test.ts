@@ -1,7 +1,8 @@
-import { readFileSync } from "node:fs";
+import { createWriteStream, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { PassThrough } from "node:stream";
 import { fileURLToPath } from "node:url";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { getJob, openEingangDb, type JobRow } from "../../src/eingang/db.js";
 import {
   JOB_TIMEOUTS_MS,
@@ -13,6 +14,16 @@ import {
   type RunnerInternals,
 } from "../../src/eingang/runner.js";
 import { scratchDir } from "./tmp.js";
+
+// Only createWriteStream is overridden, and only for the one test that needs a stream it can
+// break on demand - every other call goes straight through to the real implementation, so the
+// rest of the suite still writes real log files. vi.mock is hoisted above these imports, so the
+// createWriteStream imported below is already the mock.
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return { ...actual, createWriteStream: vi.fn(actual.createWriteStream) };
+});
+const mockedCreateWriteStream = vi.mocked(createWriteStream);
 
 const FAKE_JOB_PATH = fileURLToPath(
   new URL("../../src/eingang/fixture/fake-job.mjs", import.meta.url),
@@ -76,6 +87,23 @@ async function waitForTerminal(
   }
 }
 
+/** Polls the log file instead of a fixed sleep, so the kill test only waits as long as the
+    fixture actually takes to print its first line. */
+async function waitForLogToContain(
+  logPath: string,
+  text: string,
+  timeoutMs = 5000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (existsSync(logPath) && readFileSync(logPath, "utf8").includes(text))
+      return;
+    if (Date.now() > deadline)
+      throw new Error(`log ${logPath} never contained ${JSON.stringify(text)}`);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}
+
 describe("createRunner - spawned jobs", () => {
   it("a completed run finishes done with exit 0 and the log capturing its output", async () => {
     const { db, runner } = newRunner();
@@ -116,6 +144,31 @@ describe("createRunner - spawned jobs", () => {
     expect(finished.exitCode).toBe(2);
   }, 10_000);
 
+  it("a spawn failure (missing binary) fails the job instead of crashing the server", async () => {
+    const { db, runner } = newRunner();
+    const plan: JobPlan = {
+      kind: "spawn",
+      argv: ["/no/such/bench-eingang-runner-test-binary", "plaud-sync"],
+      cwd: scratch.dir,
+    };
+
+    const started = runner.start(
+      "plaud-sync",
+      "{}",
+      plan,
+      { ...process.env },
+      JOB_TIMEOUTS_MS["plaud-sync"],
+    );
+    // Reaching this line for every other test in the file is itself evidence the process is
+    // still alive - an unhandled "error" event on the child would have crashed the whole
+    // vitest worker rather than let this (or any later) test run.
+    const finished = await waitForTerminal(db, started.id);
+
+    expect(finished.status).toBe("failed");
+    const log = readFileSync(finished.logPath, "utf8");
+    expect(log).toContain("error:");
+  }, 10_000);
+
   it("kill() on a hanging job marks it killed and preserves the log up to the kill", async () => {
     const { db, runner } = newRunner();
     const { plan, env } = fakePlan("plaud-sync", "hang");
@@ -127,10 +180,9 @@ describe("createRunner - spawned jobs", () => {
       env,
       JOB_TIMEOUTS_MS["plaud-sync"],
     );
-    // Give the process a moment to print its start line before it is killed.
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await waitForLogToContain(started.logPath, "fake-job start plaud-sync");
 
-    expect(runner.kill(started.id)).toBe(true);
+    expect(runner.kill(started.id)).toBe("killed");
 
     const finished = await waitForTerminal(db, started.id);
     expect(finished.status).toBe("killed");
@@ -139,9 +191,9 @@ describe("createRunner - spawned jobs", () => {
     expect(log).toContain("fake-job start plaud-sync");
   }, 10_000);
 
-  it("kill() on a job that is not running returns false", () => {
+  it("kill() on a job that is not running returns not_running", () => {
     const { runner } = newRunner();
-    expect(runner.kill(999_999)).toBe(false);
+    expect(runner.kill(999_999)).toBe("not_running");
   });
 
   it("a 1s timeout on a hanging job fires and marks it timeout", async () => {
@@ -215,5 +267,61 @@ describe("createRunner - internal jobs", () => {
     expect(finished.status).toBe("failed");
     const log = readFileSync(finished.logPath, "utf8");
     expect(log).toContain("boom");
+  });
+
+  it("kill() on a running internal job returns 'internal' and does not stop it", async () => {
+    let resolveJob: (() => void) | undefined;
+    const { db, runner } = newRunner({
+      "vault-reindex": () =>
+        new Promise<void>((resolve) => {
+          resolveJob = resolve;
+        }),
+    });
+
+    const started = runner.start(
+      "vault-reindex",
+      "{}",
+      { kind: "internal", name: "vault-reindex" },
+      {},
+      JOB_TIMEOUTS_MS["vault-reindex"],
+    );
+
+    expect(runner.kill(started.id)).toBe("internal");
+    expect(runner.isRunning("vault-reindex")).toBe(true);
+
+    resolveJob?.();
+    const finished = await waitForTerminal(db, started.id);
+    expect(finished.status).toBe("done");
+  });
+});
+
+describe("createRunner - a broken log stream", () => {
+  // A full disk (ENOSPC) or a permissions problem destroys the write stream mid-job on a real
+  // machine, which is hard to force portably in a test. This stubs createWriteStream for one call
+  // to hand the runner a stream it can break on demand, which is the same shape of failure the
+  // real "error" event carries - only the source is faked, not the runner's reaction to it.
+  it("is caught, not thrown, and the job still resolves failed", async () => {
+    const { db, runner } = newRunner({
+      "vault-reindex": () => new Promise<void>(() => undefined),
+    });
+
+    let stream: PassThrough | undefined;
+    mockedCreateWriteStream.mockImplementationOnce(() => {
+      stream = new PassThrough();
+      return stream as unknown as ReturnType<typeof createWriteStream>;
+    });
+
+    const started = runner.start(
+      "vault-reindex",
+      "{}",
+      { kind: "internal", name: "vault-reindex" },
+      {},
+      JOB_TIMEOUTS_MS["vault-reindex"],
+    );
+
+    stream?.destroy(new Error("ENOSPC: no space left on device"));
+
+    const finished = await waitForTerminal(db, started.id);
+    expect(finished.status).toBe("failed");
   });
 });

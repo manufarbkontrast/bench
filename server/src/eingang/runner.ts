@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { createWriteStream, mkdirSync } from "node:fs";
+import { createWriteStream, mkdirSync, type WriteStream } from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
 import {
@@ -18,6 +18,14 @@ export interface RunnerInternals {
   "projekte-scan": InternalJobFn;
 }
 
+/**
+ * `killed` - a SIGTERM was actually sent. `not_running` - the id is absent or already finished.
+ * `internal` - the record exists but has no child process: internal jobs cannot be cancelled,
+ * only relabelled if they time out (see runInternal). The route layer maps `internal` to its own
+ * 409 rather than the runner deciding what an unkillable job means for an HTTP caller.
+ */
+type KillOutcome = "killed" | "not_running" | "internal";
+
 export interface Runner {
   start(
     kind: JobKind,
@@ -26,7 +34,7 @@ export interface Runner {
     env: NodeJS.ProcessEnv,
     timeoutMs: number,
   ): JobRow;
-  kill(id: number): boolean;
+  kill(id: number): KillOutcome;
   isRunning(kind: JobKind): boolean;
 }
 
@@ -81,6 +89,42 @@ function escalateKill(child: ChildProcess, record: InFlightJob): void {
   record.timers.push(killTimer);
 }
 
+type Settle = (
+  status: Exclude<JobStatus, "running">,
+  exitCode: number | null,
+) => void;
+
+/**
+ * Shared between runSpawn and runInternal: whichever finishes a job first wins, since both a
+ * spawn/promise outcome and a broken log stream can each try to settle the same job. `viaLog`
+ * flushes the log before finishing - the normal path, used once the stream is known to still be
+ * healthy. `immediate` skips the stream - for when the stream itself is what just failed, so
+ * writing to it or waiting on it can no longer be trusted.
+ */
+function createLogSettler(
+  record: InFlightJob,
+  out: WriteStream,
+  onSettle: Settle,
+): { viaLog: Settle; immediate: Settle } {
+  let settled = false;
+  return {
+    viaLog(status, exitCode) {
+      if (settled) return;
+      settled = true;
+      clearTimers(record);
+      out.end(() => {
+        onSettle(status, exitCode);
+      });
+    },
+    immediate(status, exitCode) {
+      if (settled) return;
+      settled = true;
+      clearTimers(record);
+      onSettle(status, exitCode);
+    },
+  };
+}
+
 export function createRunner(
   db: Database.Database,
   jobsDir: string,
@@ -115,6 +159,10 @@ export function createRunner(
   }): void {
     const { id, plan, env, logPath, timeoutMs, record } = spawnJob;
     const out = createWriteStream(logPath);
+    const settle = createLogSettler(record, out, (status, exitCode) =>
+      finish(id, status, exitCode),
+    );
+
     const [command, ...args] = plan.argv;
     const child = spawn(command, args, {
       cwd: plan.cwd,
@@ -125,19 +173,33 @@ export function createRunner(
     child.stdout.pipe(out, { end: false });
     child.stderr.pipe(out, { end: false });
 
+    // A full disk or a permissions problem breaks the log file itself, throwing through the same
+    // unhandled-"error" path a spawn failure would. The stream is already broken, so this settles
+    // directly rather than through out.end(), and kills the child best-effort since nothing else
+    // will observe it afterward.
+    out.on("error", () => {
+      child.kill("SIGTERM");
+      settle.immediate("failed", null);
+    });
+
     const timeoutTimer = setTimeout(() => {
       markEndReason(record, "timedOut");
       escalateKill(child, record);
     }, timeoutMs);
     record.timers.push(timeoutTimer);
 
+    // A missing binary (ENOENT) or any other spawn failure emits "error", not "close" - without a
+    // handler here it throws and takes the whole process down, and even caught, close would never
+    // fire, leaving the row stuck "running" with its timers still armed.
+    child.on("error", (err) => {
+      out.write(`error: ${err.message}\n`);
+      settle.viaLog("failed", null);
+    });
+
     // "close", not "exit" - close fires only once stdout/stderr have finished draining into the
     // log file, so every line the process wrote is already there by the time status resolves.
     child.on("close", (code) => {
-      clearTimers(record);
-      out.end(() => {
-        finish(id, statusForExit(record.why, code), code);
-      });
+      settle.viaLog(statusForExit(record.why, code), code);
     });
   }
 
@@ -149,9 +211,19 @@ export function createRunner(
     record: InFlightJob,
   ): void {
     const out = createWriteStream(logPath);
+    const settle = createLogSettler(record, out, (status, exitCode) =>
+      finish(id, status, exitCode),
+    );
     const log = (line: string): void => {
       out.write(`${new Date().toISOString()} ${line}\n`);
     };
+
+    // Same reasoning as the spawn path: a broken log file must not crash the server. There is no
+    // child process to kill here, so this only ends the row - the internal function keeps running
+    // in the background, but its own eventual settle becomes a no-op via the settler's guard.
+    out.on("error", () => {
+      settle.immediate("failed", null);
+    });
 
     // There is no process to signal here, so a timeout cannot cut an internal job short - it can
     // only relabel the eventual outcome once the function does settle.
@@ -162,17 +234,11 @@ export function createRunner(
 
     void internals[name](log)
       .then(() => {
-        clearTimers(record);
-        out.end(() => {
-          finish(id, record.why === "timedOut" ? "timeout" : "done", 0);
-        });
+        settle.viaLog(record.why === "timedOut" ? "timeout" : "done", 0);
       })
       .catch((error: unknown) => {
-        clearTimers(record);
         log(`error: ${error instanceof Error ? error.message : String(error)}`);
-        out.end(() => {
-          finish(id, record.why === "timedOut" ? "timeout" : "failed", null);
-        });
+        settle.viaLog(record.why === "timedOut" ? "timeout" : "failed", null);
       });
   }
 
@@ -198,12 +264,13 @@ export function createRunner(
     return getJob(db, id)!;
   }
 
-  function kill(id: number): boolean {
+  function kill(id: number): KillOutcome {
     const record = inFlight.get(id);
-    if (!record?.child) return false;
+    if (!record) return "not_running";
+    if (!record.child) return "internal";
     markEndReason(record, "killRequested");
     escalateKill(record.child, record);
-    return true;
+    return "killed";
   }
 
   function isRunning(kind: JobKind): boolean {
