@@ -22,7 +22,7 @@ With `agent-browser`: `agent-browser --session bench open http://localhost:8101/
 `snapshot -i` to list interactive elements. Two traps worth knowing - `fill @ref ""` does **not**
 clear a field (reload instead), and refs go stale after navigation, so re-snapshot before clicking.
 
-**Check both themes.** The toggle sits on the right of the nav strip and applies to all five apps.
+**Check both themes.** The toggle sits on the right of the nav strip and applies to all six apps.
 The specs assert that each app's background actually changes and that the choice survives a
 reload; whether the result is _legible_ - chart axes, chips on tinted backgrounds - is a judgement
 only you can make.
@@ -124,6 +124,39 @@ rather than realistic breadth:
   no-op rather than a race against a request landing in the gap between the two. It has not
   misbehaved in practice; it has also not been proven not to.
 
+## Eingang
+
+Covered by specs against the built sample fixture (`e2e/eingang/{inbox,jobs}.spec.ts`): the three
+fixture inbox files reconciled to their status with the audio file correctly unbuttoned, an
+internal job (`vault-reindex`) reaching `Fertig` without a reload and its log showing the real
+reindex line, and a spawned job (`plaud-sync`, over the fake runner) cancelled mid-run reaching
+`Abgebrochen` with its log intact, followed by the double-start 409. The unit suite
+(`server/test/eingang/`) covers the whole write fence one check at a time, against hostile
+arguments, and the runner's spawn/internal/broken-stream/kill/timeout paths against the real
+fake-job fixture.
+
+Left to judgement, because a real `claude -p` invocation, a real skill script and a real machine's
+`~/Library/LaunchAgents` have no place in an automated suite:
+
+- **The real `claude -p` jobs.** `plaud-process` and `aufgaben-import` only ever run
+  `fixture/fake-job.mjs` under sample data and in every test - the real prompt, `--allowedTools`
+  list and `--add-dir` argument `planPlaudProcess`/`planAufgabenImport` build are never handed to
+  the actual `claude` CLI by the suite. Whether the real run stays inside the folder it was told to
+  write under is enforced by the fence before the process starts, not observed after the fact.
+- **The real skill scripts.** `plaud-sync.sh` and `geplanter_lauf.sh` are named by `jobs.ts` but
+  never executed by a test - the fake job stands in for both. A change to either script's own
+  behaviour (its exit code on a real failure, what it writes to stdout) is invisible here.
+- **Launchd parsing against real plists.** `schedule.test.ts` and `jobs.spec.ts` both read only the
+  bundled fixture plists (or hand-written ones built for one case each), never a real
+  `~/Library/LaunchAgents` directory. A plist using the `StartCalendarInterval` **array** form
+  (several run times in one job), or scheduled by `StartInterval` instead of a calendar, has only
+  been reasoned about, never fed through `listScheduledRuns` and read by eye.
+- **The SIGKILL escalation.** `runner.test.ts`'s kill test proves `kill()` sends SIGTERM and the job
+  settles `killed` - but `fake-job.mjs`'s hang mode installs no signal handler, so Node's own
+  default SIGTERM action (terminate) ends it well inside the 5-second `KILL_ESCALATION_MS` window.
+  The escalation timer firing and actually sending SIGKILL to a child that ignores SIGTERM has
+  never been exercised, only reasoned about from the code.
+
 ## CRM
 
 Covered by specs: CRUD for organizations, contacts and deals, search, status filter, keyboard drag
@@ -157,13 +190,13 @@ on the pipeline, delete confirmation, deep links. Left to judgement:
 - The Cockpit, then into each app and back. Because the apps are separate documents, back is a
   full page load, not a router transition, and moving between apps through the nav strip is a
   navigation rather than a transition.
-- **The nav strip should look identical in all six documents (the Cockpit and five apps)** - same
+- **The nav strip should look identical in all seven documents (the Cockpit and six apps)** - same
   height, same dark, same orange line - including Vault in dark mode. The suite asserts the
   links and the current tab; it cannot see that the strip has picked up a host app's font,
   letter-spacing or palette. That is exactly what would go wrong.
 - Each app should keep its own look below the strip: CRM light, Vault light/dark, Projekte
-  light/dark, Aufgaben light/dark, Rolodex light/dark. Any styling bleeding between them means the
-  multi-page split has been broken.
+  light/dark, Aufgaben light/dark, Eingang light/dark, Rolodex light/dark. Any styling bleeding
+  between them means the multi-page split has been broken.
 - Refresh on a deep link in **both** dev and prod.
 - After a chrome change, run `node e2e/tools/chrome-shots.mjs` against `npm start` and look at
   all eight images. The suite asserts labels and the current tab; whether orange on the dark strip

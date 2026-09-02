@@ -1,7 +1,8 @@
 # Bench - agent instructions
 
-Five local-first apps (CRM, Rolodex, Vault, Projekte, Aufgaben) behind one Express server. One npm workspace
-root with two workspaces: `web/` (one Vite project, an HTML entry point per app) and `server/`.
+Six local-first apps (CRM, Rolodex, Vault, Projekte, Aufgaben, Eingang) behind one Express server.
+One npm workspace root with two workspaces: `web/` (one Vite project, an HTML entry point per app)
+and `server/`.
 TypeScript throughout, data in local SQLite files under `data/`, Playwright specs in `e2e/`. All
 commands run from the root.
 

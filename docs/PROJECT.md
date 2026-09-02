@@ -1,7 +1,7 @@
 # Bench - project overview
 
-Five local-first apps behind **one frontend server and one backend server**: three merged from
-four separate repos into one project, two built for Bench OS. Everything runs on your own
+Six local-first apps behind **one frontend server and one backend server**: three merged from
+four separate repos into one project, three built for Bench OS. Everything runs on your own
 machine: no login, no cloud, no external services, no secrets. Data lives in local SQLite files.
 
 This fork is becoming **Bench OS**: a window onto one person's Obsidian vault, Plaud notes, local
@@ -9,18 +9,20 @@ repositories and controlling reports. The plan is in [changes/bench-os/](./chang
 `SPEC.md` for what, `PLAN.md` for the phases. Groove was removed in Phase 0; the apps below are
 what remain of the original four, and the new ones arrive one phase at a time.
 
-| App          | Path        | What it is                                                                                                                                                                         | Backend                                     |
-| ------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| **Vault**    | `/vault`    | A window onto an Obsidian vault, writable only through Aufgaben's guarded task toggle and create: folder tree, rendered notes with wikilinks and backlinks, tags, full-text search | `data/vault.sqlite`                         |
-| **Projekte** | `/projekte` | Read-only inventory of git checkouts and coupled working folders: branch, dirty/ahead/behind, duplicates, brand and status from the vault, issues and PRs via `gh`                 | `data/projekte.sqlite`                      |
-| **Aufgaben** | `/aufgaben` | One board over the vault's tasks (toggle and create), Plaud work items awaiting import, and GitHub issues read-only                                                                | `data/aufgaben.sqlite` (import ledger only) |
-| **CRM**      | `/crm`      | Personal sales CRM: organizations, contacts, deals, drag-and-drop pipeline, activities, dashboard                                                                                  | `data/crm.sqlite`                           |
-| **Rolodex**  | `/rolodex`  | Personal CRM for your own people: check-in cadences, circles, birthdays, a timeline of every conversation, CSV and vCard import                                                    | `data/rolodex.sqlite`                       |
+| App          | Path        | What it is                                                                                                                                                                                                  | Backend                                     |
+| ------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| **Vault**    | `/vault`    | A window onto an Obsidian vault, writable only through Aufgaben's guarded task toggle and create: folder tree, rendered notes with wikilinks and backlinks, tags, full-text search                          | `data/vault.sqlite`                         |
+| **Projekte** | `/projekte` | Read-only inventory of git checkouts and coupled working folders: branch, dirty/ahead/behind, duplicates, brand and status from the vault, issues and PRs via `gh`                                          | `data/projekte.sqlite`                      |
+| **Aufgaben** | `/aufgaben` | One board over the vault's tasks (toggle and create), Plaud work items awaiting import, and GitHub issues read-only                                                                                         | `data/aufgaben.sqlite` (import ledger only) |
+| **Eingang**  | `/eingang`  | What arrived and is not yet processed: watched folders reconciled against the Plaud archive, fenced jobs against the local skills with a live log and a kill switch, scheduled launchd runs shown read-only | `data/eingang.sqlite` (job log only)        |
+| **CRM**      | `/crm`      | Personal sales CRM: organizations, contacts, deals, drag-and-drop pipeline, activities, dashboard                                                                                                           | `data/crm.sqlite`                           |
+| **Rolodex**  | `/rolodex`  | Personal CRM for your own people: check-in cadences, circles, birthdays, a timeline of every conversation, CSV and vCard import                                                                             | `data/rolodex.sqlite`                       |
 
-The Cockpit at `/` replaces the old card-grid launcher: seven panels onto tasks, moving
-repositories and the vault's own session note, plus a plain link into each app. Every page carries
-the same navigation strip: the Bench mark, then Start, Vault, Projekte, Aufgaben, CRM and Rolodex,
-each with the icon that identifies it inside its own app too, and one theme toggle on the right.
+The Cockpit at `/` replaces the old card-grid launcher: seven panels onto tasks, the watched
+inbox, moving repositories and the vault's own session note, plus a plain link into each app.
+Every page carries the same navigation strip: the Bench mark, then Start, Vault, Projekte,
+Aufgaben, Eingang, CRM and Rolodex, each with the icon that identifies it inside its own app too,
+and one theme toggle on the right.
 
 ## Detailed app documentation
 
@@ -33,6 +35,7 @@ app you are working in before changing its behaviour.
 | Vault    | [vault/IMPLEMENTATION.md](./vault/IMPLEMENTATION.md)       | [vault/REQUIREMENTS.md](./vault/REQUIREMENTS.md)       |      |
 | Projekte | [projekte/IMPLEMENTATION.md](./projekte/IMPLEMENTATION.md) | [projekte/REQUIREMENTS.md](./projekte/REQUIREMENTS.md) |      |
 | Aufgaben | [aufgaben/IMPLEMENTATION.md](./aufgaben/IMPLEMENTATION.md) | [aufgaben/REQUIREMENTS.md](./aufgaben/REQUIREMENTS.md) |      |
+| Eingang  | [eingang/IMPLEMENTATION.md](./eingang/IMPLEMENTATION.md)   | [eingang/REQUIREMENTS.md](./eingang/REQUIREMENTS.md)   |      |
 | CRM      | [crm/IMPLEMENTATION.md](./crm/IMPLEMENTATION.md)           | [crm/REQUIREMENTS.md](./crm/REQUIREMENTS.md)           |      |
 | Rolodex  | [rolodex/IMPLEMENTATION.md](./rolodex/IMPLEMENTATION.md)   | [rolodex/REQUIREMENTS.md](./rolodex/REQUIREMENTS.md)   |      |
 
@@ -52,17 +55,21 @@ web/                ONE Vite project, multi-page (MPA)
   vault/index.html    -> src/vault/main.tsx
   projekte/index.html -> src/projekte/main.tsx
   aufgaben/index.html -> src/aufgaben/main.tsx
-  src/shared/         the navigation strip and the theme - the only code all six documents share
+  eingang/index.html  -> src/eingang/main.tsx
+  src/shared/         the navigation strip and the theme - the only code all seven documents share
 server/             ONE Express app
-  src/index.ts        opens the five DBs, listens on :8100
+  src/index.ts        opens the six DBs, listens on :8100
   src/app.ts          mounts routers, serves web/dist with per-prefix SPA fallback
   src/crm/            crm routes + db + seed
   src/rolodex/        rolodex routes + db + seed
   src/vault/          vault routes + db + indexer, and the one write path (write.ts)
   src/projekte/       projekte routes + db + scan pipeline
   src/aufgaben/       aufgaben routes + import ledger db, reads vault.sqlite
-  test/{crm,rolodex,vault,projekte,aufgaben}/   vitest suites
-data/                 crm.sqlite, rolodex.sqlite, vault.sqlite, projekte.sqlite, aufgaben.sqlite (gitignored, seeded/scanned on first run)
+  src/eingang/        eingang routes + jobs db + runner; index.ts wires its two internal job
+                      kinds to the vault and projekte modules' own indexing code, in-process
+  test/{crm,rolodex,vault,projekte,aufgaben,eingang}/   vitest suites
+data/                 crm.sqlite, rolodex.sqlite, vault.sqlite, projekte.sqlite, aufgaben.sqlite,
+                      eingang.sqlite, eingang-jobs/*.log (gitignored, seeded/scanned on first run)
 .env                  this machine's vault path (gitignored); .env.example lists the keys as they arrive
 server/src/config.ts  loads .env and describes the sources at startup
 docs/                 this documentation; docs/<app>/ per app
@@ -117,7 +124,7 @@ These are settled. Changing one is a project-level decision, not an implementati
   browser that revalidates one gets **304 with an empty body** - which the client then parses as
   JSON and fails on, with a message that names neither the request nor the status. Nothing is
   saved by caching a list that changes whenever you touch it, on a machine talking to itself.
-- **Five SQLite files, one process.** The schemas are unrelated - do not merge them. Each is
+- **Six SQLite files, one process.** The schemas are unrelated - do not merge them. Each is
   opened separately and seeded if empty. They run in WAL mode, so recent writes live in the `-wal` sidecar
   rather than the main file: copy or move the whole set together, or checkpoint first
   (`sqlite3 f.sqlite "PRAGMA wal_checkpoint(TRUNCATE);"`). Deleting a `-wal` as a stray artifact
@@ -128,9 +135,9 @@ These are settled. Changing one is a project-level decision, not an implementati
   refresh on `/crm/contacts` serves the Cockpit. Both carry the same `APPS` list, and they have
   disagreed before - check both when you touch routing.
 - **One shared module: `web/src/shared/`.** The navigation strip and the theme are the only code
-  the six documents have in common, and the `no-restricted-imports` rule allows it because that
+  the seven documents have in common, and the `no-restricted-imports` rule allows it because that
   rule is a denylist of the sibling apps, not an allowlist. **Its CSS has to be self-contained.**
-  It loads into six stylesheets that collide on `.brand` and `:root`, each app redefines its own
+  It loads into seven stylesheets that collide on `.brand` and `:root`, each app redefines its own
   palette under `[data-theme]` - so every class in `nav.css` is `bench-nav`-prefixed and every
   value is a literal, never a variable. The strip looks the same over all of them, which is the
   point: it is chrome above the app, not part of it.
@@ -141,9 +148,10 @@ These are settled. Changing one is a project-level decision, not an implementati
   defines its palette twice - once on `:root`, once under `[data-theme="dark"]` - and sets
   `color-scheme` so native controls follow.
 - **Colour means state, not identity.** In the strip and on the Cockpit, **orange `#ff5c00`** marks
-  the app you are in and nothing else; the apps are told apart by their glyph. That is what keeps a
-  fifth app from needing a fifth brand colour. Inside an app, its own accents are its own business.
-- **One dependency set per workspace.** All three UIs live in `web/`, so they share one set of
+  the app you are in and nothing else; the apps are told apart by their glyph. That is what keeps
+  each new app from needing a brand colour of its own. Inside an app, its own accents are its own
+  business.
+- **One dependency set per workspace.** Every app's UI lives in `web/`, so they share one set of
   versions: TypeScript 6, Vite 8, vitest 4, react-router 8, React 19.
 - **TypeScript 6.0.3, pinned exactly, everywhere.** Root and both workspaces, one hoisted copy.
   6.0.3 is the last release carrying the JS compiler API that type-aware linting needs, so one
@@ -177,6 +185,13 @@ the rules above.
   else writes to a source.
 - **Local CLIs are fair game.** `git`, `gh` and `claude` run as processes on this machine, the way
   Bench already runs `gitleaks`. No cloud call is made directly and no token is held.
+- **A job runs on click, through a fence, never on its own schedule.** `eingang` starts a skill
+  script or a `claude -p` run only when a person clicks a button, and only after `planJob`
+  (`server/src/eingang/jobs.ts`) has checked the job's kind against a closed catalog and any file
+  argument against a bare basename that already exists in the one folder that kind may touch -
+  every check runs before any command is built, so a rejected request never reaches a shell. Bench
+  itself schedules nothing; `eingang` only displays the launchd entries a person already set up
+  outside it (SPEC.md principle 6).
 - **`aufgaben` and `projekte` read the vault index.** A task is a line in a vault note, and a
   project's brand and status come from the vault note that couples to it, so both apps read
   `vault.sqlite` through `server/src/vault/` - the exception to "one database per app", and a
@@ -202,7 +217,7 @@ Then the navigation: an icon in `web/src/shared/AppIcons.tsx`, an entry in the `
 `<BenchNav active="<name>" />` above the app's own shell. No colour to pick - the strip's only
 accent is orange, for wherever you are. Two things to get right in the app's own stylesheet: a
 `[data-theme="dark"]` palette and `color-scheme`, and the height chain - the app's root element has
-to leave room for a 47px strip; see how each of the three does it.
+to leave room for a 47px strip; see how the existing apps do it.
 
 ## Design
 

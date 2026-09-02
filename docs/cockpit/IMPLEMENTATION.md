@@ -8,17 +8,17 @@ database and no write path of its own.
 - Tests: `web/src/home/**/*.test.{ts,tsx}`, `e2e/cockpit.spec.ts`, plus the shared seams in
   `e2e/smoke.spec.ts` and `e2e/theme.spec.ts`
 
-## Three sibling reads, no database
+## Four sibling reads, no database
 
-`api.ts` makes exactly three requests - `GET /api/aufgaben/tasks`, `GET /api/projekte/list`,
-`GET /api/vault/note?path=00_Index/Session_Context.md` (the last through `getOrNull`, since a
-vault without that note is expected, not an error, and resolves to `null` on a 404 rather than
-throwing). Each panel filters and sorts its own slice of one response; nothing is shared across
-panels, and nothing is cached beyond the component's own state. `types.ts` deliberately redeclares
-narrow local shapes for `Task` and `Project` rather than importing them from `aufgaben` or
-`projekte` - the comment at the top of the file names this directly: the Cockpit stays free of any
-import from a sibling app, the same rule every other pair of apps already follows, so these few
-fields are duplicated here instead.
+`api.ts` makes exactly four requests - `GET /api/aufgaben/tasks`, `GET /api/projekte/list`,
+`GET /api/eingang/inbox`, `GET /api/vault/note?path=00_Index/Session_Context.md` (the last through
+`getOrNull`, since a vault without that note is expected, not an error, and resolves to `null` on a
+404 rather than throwing). Each panel filters and sorts its own slice of one response; nothing is
+shared across panels, and nothing is cached beyond the component's own state. `types.ts`
+deliberately redeclares narrow local shapes for `Task`, `Project` and `InboxFile` rather than
+importing them from `aufgaben`, `projekte` or `eingang` - the comment at the top of the file names
+this directly: the Cockpit stays free of any import from a sibling app, the same rule every other
+pair of apps already follows, so these few fields are duplicated here instead.
 
 **`web/src/home` deliberately duplicates the small formatters too**, rather than importing them.
 `format.ts`'s `dateText` and `deltaText` are near-identical to `web/src/aufgaben/format.ts`'s
@@ -36,10 +36,11 @@ apps behind them use.
 - **Überfällig** / **Diese Woche** (`overdueTasks`, `weekTasks` in `types.ts`) - open tasks with a
   due date before today, and due today through six days out, both earliest-first; each row links
   to `/aufgaben/` and shows `Fällig <date>`.
-- **Eingang** and **Zahlen** are `PlaceholderPanel`s with a fixed line naming the phase that fills
-  them - `Kommt mit der Eingang-App (Phase 4).` and `Kommt mit der Zahlen-App (Phase 5).` The panel
-  exists now, honestly labelled, so the page's final shape is settled before the apps behind those
-  two panels exist.
+- **Eingang** (`EingangPanel`, `unverarbeitetCount` in `types.ts`) is live: it counts the watched
+  files whose `status` is `unverarbeitet` from `GET /api/eingang/inbox`, shows `Nichts Neues.` at
+  zero or `"<n> unverarbeitet"` otherwise, and always links to `/eingang/` labelled `Verarbeiten` -
+  the same exclusion-free count Eingang's own inbox list shows, since the Cockpit applies no filter
+  of its own beyond the status check.
 - **Projekte in Bewegung** (`movingProjects`) - rows from Projekte's own scan where `dirty > 0`,
   `ahead > 0`, `behind > 0`, or the last commit landed within the past seven days, sorted by most
   recently committed; each row's meta text is the same `<n> geändert · <n> voraus · <n> zurück` /
@@ -48,6 +49,9 @@ apps behind them use.
   `## ` heading becomes the panel's subline, the paragraph-split text under it renders as-is, and a
   plain link opens the note in Vault. A missing note, or one with no `## ` heading at all, renders
   `Keine Session-Notiz gefunden.` rather than an empty panel.
+- **Zahlen** is still a `PlaceholderPanel` with a fixed line naming the phase that fills it -
+  `Kommt mit der Zahlen-App (Phase 5).` The panel exists now, honestly labelled, so the page's final
+  shape is settled before the app behind it exists.
 - **Zuletzt erledigt** (`recentDone`) - the last five completed tasks by `doneAt` descending, a
   task with no `doneAt` sorted last.
 
@@ -58,14 +62,17 @@ not re-apply or know about that filter itself.
 
 ## Tests
 
-**Unit** (`web/src/home/App.test.tsx`, `session.test.ts`) mocks the three fetches and asserts all
-seven headings render in order, that fixture rows land in the right panel, and that `firstSection`
-picks the first `## ` heading and stops at the next one or end of body.
+**Unit** (`web/src/home/App.test.tsx`, `session.test.ts`) mocks the four fetches and asserts all
+seven headings render in order, that fixture rows land in the right panel - including the Eingang
+panel's count and its `Nichts Neues.` empty state - and that `firstSection` picks the first `## `
+heading and stops at the next one or end of body.
 
 **End to end** (`e2e/cockpit.spec.ts`) loads `/` against the built sample data and asserts all
-seven headings, an overdue task under `Überfällig`, the session note's text under `Hier
-weitermachen` with a working link into Vault, and a sample project under `Projekte in Bewegung` -
-the last with a generous 20-second wait, because a fresh worker's first `GET /api/projekte/list`
+seven headings, an overdue task under `Überfällig`, the Eingang panel's count against the sample
+fixture's own two unprocessed files with its link into `/eingang/`, the session note's text under
+`Hier weitermachen` with a working link into Vault, and a sample project under `Projekte in
+Bewegung` - the last with a generous 20-second wait, because a fresh worker's first
+`GET /api/projekte/list`
 can trigger the same lazy scan of the sample workshop that `/projekte/`'s own first visit does,
 which shells out to `git` several times before any row exists.
 

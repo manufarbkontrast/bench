@@ -1,16 +1,17 @@
 # Bench
 
-Five local-first apps behind one server, growing into a personal workbench - see
+Six local-first apps behind one server, growing into a personal workbench - see
 `docs/changes/bench-os/`. No login, no cloud - everything runs on your machine and your data lives
-in local SQLite files. Light and dark, one toggle for all five.
+in local SQLite files. Light and dark, one toggle for all six.
 
-|              |             |                                                                                                                     |
-| ------------ | ----------- | ------------------------------------------------------------------------------------------------------------------- |
-| **Vault**    | `/vault`    | A window onto an Obsidian vault: folder tree, rendered notes, wikilinks, backlinks, full-text search.               |
-| **Projekte** | `/projekte` | A read-only inventory of git checkouts and working folders: git state, duplicates, vault coupling, issues and PRs.  |
-| **Aufgaben** | `/aufgaben` | A board over the vault's own tasks, Plaud work items awaiting import, and GitHub issues read-only.                  |
-| **CRM**      | `/crm`      | Personal sales CRM: organizations, contacts, deals, a drag-and-drop pipeline, activities and a dashboard.           |
-| **Rolodex**  | `/rolodex`  | Personal CRM for the people in your life: who to contact, circles, birthdays, and a timeline of every conversation. |
+|              |             |                                                                                                                                                                   |
+| ------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Vault**    | `/vault`    | A window onto an Obsidian vault: folder tree, rendered notes, wikilinks, backlinks, full-text search.                                                             |
+| **Projekte** | `/projekte` | A read-only inventory of git checkouts and working folders: git state, duplicates, vault coupling, issues and PRs.                                                |
+| **Aufgaben** | `/aufgaben` | A board over the vault's own tasks, Plaud work items awaiting import, and GitHub issues read-only.                                                                |
+| **Eingang**  | `/eingang`  | What arrived and is not yet processed: watched folders, fenced jobs against the local skills with a live log and a kill switch, scheduled launchd runs read-only. |
+| **CRM**      | `/crm`      | Personal sales CRM: organizations, contacts, deals, a drag-and-drop pipeline, activities and a dashboard.                                                         |
+| **Rolodex**  | `/rolodex`  | Personal CRM for the people in your life: who to contact, circles, birthdays, and a timeline of every conversation.                                               |
 
 This README is the full walkthrough: install it, run the checks, make a change, open a pull
 request. Work through it in order.
@@ -112,7 +113,7 @@ before anything appears**, which is normal, not a hang. Then open:
 **http://localhost:8100**
 
 The first run creates the SQLite databases under `data/`, seeded with sample data. Click through
-all five apps and the theme toggle to confirm it works.
+all six apps and the theme toggle to confirm it works.
 
 Stop the server with `Ctrl+C`.
 
@@ -186,7 +187,7 @@ past** - anything it reports is yours.
 npm run e2e
 ```
 
-Playwright drives a real Chromium through the Cockpit, the five apps and the shared theme
+Playwright drives a real Chromium through the Cockpit, the six apps and the shared theme
 toggle. It takes about a minute.
 
 What it does under the hood, which explains the wait and the ports:
