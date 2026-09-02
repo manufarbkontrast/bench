@@ -1,0 +1,6 @@
+{
+  "mcpServers": {
+    "beispiel-a": { "url": "https://secret.example.com/token?x=1" },
+    "beispiel-b": {}
+  }
+}

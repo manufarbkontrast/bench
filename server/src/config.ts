@@ -14,6 +14,7 @@ export interface Config {
   plaudHome?: string;
   inboxWatch: string[];
   controllingDir?: string;
+  mycraftonUrl?: string;
 }
 
 function optional(value: string | undefined): string | undefined {
@@ -24,6 +25,10 @@ export function expandTilde(p: string): string {
   return p === "~" || p.startsWith("~/")
     ? path.join(os.homedir(), p.slice(1))
     : p;
+}
+
+function stripTrailingSlash(value: string): string {
+  return value.endsWith("/") ? value.slice(0, -1) : value;
 }
 
 function rootsFrom(value: string | undefined): string[] {
@@ -37,6 +42,7 @@ function rootsFrom(value: string | undefined): string[] {
 export function configFrom(env: NodeJS.ProcessEnv): Config {
   const plaudHome = optional(env.PLAUD_HOME);
   const controllingDir = optional(env.CONTROLLING_DIR);
+  const mycraftonUrl = optional(env.MYCRAFTON_URL);
   return {
     vaultDir: optional(env.VAULT_DIR),
     projectRoots: rootsFrom(env.PROJECT_ROOTS),
@@ -44,6 +50,8 @@ export function configFrom(env: NodeJS.ProcessEnv): Config {
     inboxWatch: rootsFrom(env.INBOX_WATCH),
     controllingDir:
       controllingDir === undefined ? undefined : expandTilde(controllingDir),
+    mycraftonUrl:
+      mycraftonUrl === undefined ? undefined : stripTrailingSlash(mycraftonUrl),
   };
 }
 
@@ -79,5 +87,6 @@ export function describeSources(config: Config): string[] {
     `Plaud: ${config.plaudHome ? "configured" : "not configured"}`,
     `Eingang: ${eingang}`,
     `Controlling: ${config.controllingDir ? "configured" : "not configured"}`,
+    `myCrafton: ${config.mycraftonUrl ? "configured" : "not configured"}`,
   ];
 }

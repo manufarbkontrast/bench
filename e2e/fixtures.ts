@@ -12,6 +12,16 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workerDataDir = (index: number) => path.join("e2e", ".tmp", `w${index}`);
 const workerVault = (index: number) =>
   path.join(root, workerDataDir(index), "vault");
+// Read in place, unlike the vault: nothing ever writes to the Kontext claude-home fixture, so
+// every worker can point straight at the committed copy without one of its own.
+const kontextClaudeDir = path.join(
+  root,
+  "server",
+  "src",
+  "kontext",
+  "fixture",
+  "claude",
+);
 
 /** Poll the API until the server answers, so tests never race the boot. */
 async function waitForServer(url: string, timeoutMs = 60_000) {
@@ -75,6 +85,13 @@ export const test = base.extend<
           // fixtures.
           INBOX_WATCH: "",
           CONTROLLING_DIR: "",
+          // Points every worker at the committed Kontext fixture rather than a developer's real
+          // ~/.claude, which locateKontext would otherwise read directly.
+          BENCH_CLAUDE_DIR: kontextClaudeDir,
+          // Same rationale as PLAUD_HOME above: a real MYCRAFTON_URL exported in the shell would
+          // otherwise flip every worker onto a live host instead of leaving the deep-links panel
+          // "not configured".
+          MYCRAFTON_URL: "",
         },
         stdio: "ignore",
       });

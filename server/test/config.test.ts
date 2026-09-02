@@ -24,6 +24,7 @@ afterEach(() => {
   delete process.env.PLAUD_HOME;
   delete process.env.INBOX_WATCH;
   delete process.env.CONTROLLING_DIR;
+  delete process.env.MYCRAFTON_URL;
   if (root) rmSync(root, { recursive: true, force: true });
   root = undefined;
 });
@@ -77,6 +78,20 @@ describe("configFrom", () => {
       configFrom({ CONTROLLING_DIR: "~/Controlling" }).controllingDir,
     ).toBe(path.join(os.homedir(), "Controlling"));
   });
+
+  it("treats a missing or blank MYCRAFTON_URL as unset", () => {
+    expect(configFrom({}).mycraftonUrl).toBeUndefined();
+    expect(configFrom({ MYCRAFTON_URL: "   " }).mycraftonUrl).toBeUndefined();
+  });
+
+  it("strips a trailing slash from the myCrafton url", () => {
+    expect(
+      configFrom({ MYCRAFTON_URL: "https://host.example.com/" }).mycraftonUrl,
+    ).toBe("https://host.example.com");
+    expect(
+      configFrom({ MYCRAFTON_URL: "https://host.example.com" }).mycraftonUrl,
+    ).toBe("https://host.example.com");
+  });
 });
 
 describe("expandTilde", () => {
@@ -120,6 +135,7 @@ describe("describeSources", () => {
       "Plaud: not configured",
       "Eingang: not configured",
       "Controlling: not configured",
+      "myCrafton: not configured",
     ]);
     expect(describeSources(configFrom({}))).toEqual([
       "Vault: not configured",
@@ -127,6 +143,7 @@ describe("describeSources", () => {
       "Plaud: not configured",
       "Eingang: not configured",
       "Controlling: not configured",
+      "myCrafton: not configured",
     ]);
   });
 
@@ -139,6 +156,7 @@ describe("describeSources", () => {
       "Plaud: not configured",
       "Eingang: not configured",
       "Controlling: not configured",
+      "myCrafton: not configured",
     ]);
   });
 
@@ -149,6 +167,7 @@ describe("describeSources", () => {
       "Plaud: configured",
       "Eingang: not configured",
       "Controlling: not configured",
+      "myCrafton: not configured",
     ]);
   });
 
@@ -159,6 +178,7 @@ describe("describeSources", () => {
       "Plaud: not configured",
       "Eingang: 2 watch dirs",
       "Controlling: not configured",
+      "myCrafton: not configured",
     ]);
   });
 
@@ -171,6 +191,22 @@ describe("describeSources", () => {
       "Plaud: not configured",
       "Eingang: not configured",
       "Controlling: configured",
+      "myCrafton: not configured",
+    ]);
+  });
+
+  it("says myCrafton is configured without ever printing the machine url", () => {
+    expect(
+      describeSources(
+        configFrom({ MYCRAFTON_URL: "https://host.example.com/" }),
+      ),
+    ).toEqual([
+      "Vault: not configured",
+      "Projekte: not configured",
+      "Plaud: not configured",
+      "Eingang: not configured",
+      "Controlling: not configured",
+      "myCrafton: configured",
     ]);
   });
 });

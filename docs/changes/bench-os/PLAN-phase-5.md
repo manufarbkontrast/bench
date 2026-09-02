@@ -52,7 +52,7 @@ the Eingang app's shape.
   invented figures, `example.com`).
 - German UI strings exactly as written; identifiers/comments/commits English. Conventional
   Commits, one line, then a blank line and EXACTLY these two trailers on every commit:
-  `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>` and
+  `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>` <!-- allow-secret: Anthropic's own no-reply address, required verbatim in every commit trailer --> and
   `Claude-Session: https://claude.ai/code/session_01MoJadrroWuuNdrBRnWAPCF`. Never push
   without being asked. Branch `bench-os-phase-5`, cut from `bench-os-phase-4` at c4c3b46.
 

@@ -18,6 +18,7 @@ export default defineConfig({
         "src/vault/fixture/**",
         "src/aufgaben/fixture/**",
         "src/eingang/fixture/**",
+        "src/kontext/fixture/**",
       ],
       thresholds: { statements: 80 },
     },
