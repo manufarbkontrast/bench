@@ -160,6 +160,29 @@ describe("listInbox", () => {
       "a-transcript.txt",
     ]);
   });
+
+  it("lists a same-named file from each of two watch dirs, both carrying the same reconciled status", () => {
+    const { notizenDir, archivDir } = world();
+    const watchA = path.join(scratch.dir, `world-${n}-a`);
+    const watchB = path.join(scratch.dir, `world-${n}-b`);
+    writeInboxFile(watchA, "shared-transcript.txt");
+    writeInboxFile(watchB, "shared-transcript.txt");
+
+    const files = listInbox(
+      [watchA, watchB],
+      { notizenDir, archivDir },
+      new Set(),
+    );
+
+    expect(files).toHaveLength(2);
+    expect(files.map((file) => file.dir)).toEqual(
+      expect.arrayContaining([watchA, watchB]),
+    );
+    expect(files.every((file) => file.name === "shared-transcript.txt")).toBe(
+      true,
+    );
+    expect(files.every((file) => file.status === "unverarbeitet")).toBe(true);
+  });
 });
 
 describe("quelleOf", () => {

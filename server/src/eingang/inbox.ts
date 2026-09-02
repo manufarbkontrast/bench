@@ -53,15 +53,20 @@ function fileNames(dir: string): string[] {
   return entries.filter((entry) => entry.isFile()).map((entry) => entry.name);
 }
 
-/** The text of every `.md` file directly inside `notizenDir`; [] when it does not exist. */
-function noteTexts(notizenDir: string): string[] {
-  return fileNames(notizenDir)
-    .filter((name) => name.endsWith(".md"))
-    .map((name) => readFileSync(path.join(notizenDir, name), "utf8"));
-}
-
-function hasMatchingNote(notizenDir: string, name: string): boolean {
-  return noteTexts(notizenDir).some((text) => quelleOf(text) === name);
+/**
+ * Every `quelle` a note in `notizenDir` names, computed once per `listInbox` call rather than
+ * per candidate file - `listInbox` is the polled listing endpoint, and re-reading every note for
+ * every inbox file makes the scan O(files x notes) instead of O(files + notes).
+ */
+function noteQuellen(notizenDir: string): Set<string> {
+  const quellen = new Set<string>();
+  for (const name of fileNames(notizenDir)) {
+    if (!name.endsWith(".md")) continue;
+    const text = readFileSync(path.join(notizenDir, name), "utf8");
+    const quelle = quelleOf(text);
+    if (quelle !== null) quellen.add(quelle);
+  }
+  return quellen;
 }
 
 /**
@@ -70,11 +75,12 @@ function hasMatchingNote(notizenDir: string, name: string): boolean {
  */
 function statusOf(
   name: string,
-  plaud: { notizenDir: string; archivDir: string },
+  archivDir: string,
+  quellen: Set<string>,
   inFlight: Set<string>,
 ): InboxFile["status"] {
-  if (existsSync(path.join(plaud.archivDir, name))) return "notiz_vorhanden";
-  if (hasMatchingNote(plaud.notizenDir, name)) return "notiz_vorhanden";
+  if (existsSync(path.join(archivDir, name))) return "notiz_vorhanden";
+  if (quellen.has(name)) return "notiz_vorhanden";
   if (inFlight.has(name)) return "in_arbeit";
   return "unverarbeitet";
 }
@@ -82,7 +88,8 @@ function statusOf(
 function inboxFile(
   dir: string,
   name: string,
-  plaud: { notizenDir: string; archivDir: string },
+  archivDir: string,
+  quellen: Set<string>,
   inFlight: Set<string>,
 ): InboxFile {
   const ext = path.extname(name).toLowerCase();
@@ -93,7 +100,7 @@ function inboxFile(
     size: stat.size,
     mtime: Math.round(stat.mtimeMs),
     kind: AUDIO_EXTENSIONS.has(ext) ? "audio" : "text",
-    status: statusOf(name, plaud, inFlight),
+    status: statusOf(name, archivDir, quellen, inFlight),
   };
 }
 
@@ -107,11 +114,12 @@ export function listInbox(
   plaud: { notizenDir: string; archivDir: string },
   inFlight: Set<string>,
 ): InboxFile[] {
+  const quellen = noteQuellen(plaud.notizenDir);
   const files = watchDirs.flatMap((dir) =>
     fileNames(dir)
       .filter((name) => !skipped(name))
       .filter((name) => matches(name, path.extname(name).toLowerCase()))
-      .map((name) => inboxFile(dir, name, plaud, inFlight)),
+      .map((name) => inboxFile(dir, name, plaud.archivDir, quellen, inFlight)),
   );
   return files.toSorted((a, b) => b.mtime - a.mtime);
 }
