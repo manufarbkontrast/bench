@@ -7,6 +7,7 @@ import type { EingangContext } from "../../src/eingang/routes.js";
 import { openDb as openRolodexDb } from "../../src/rolodex/db/index.js";
 import { openDb as openVaultDb } from "../../src/vault/db.js";
 import type { VaultContext } from "../../src/vault/routes/index.js";
+import type { ZahlenContext } from "../../src/zahlen/routes.js";
 import { emptyAufgaben } from "../aufgaben/app.js";
 import { emptyProjekte } from "../projekte/app.js";
 import { FIXTURE_DIR } from "./fixture.js";
@@ -47,6 +48,12 @@ function emptyEingang(): EingangContext {
   };
 }
 
+// test/zahlen/app.js exports no emptyZahlen of its own, for the same reason emptyEingang above
+// is a private duplicate here - so this is the small duplicate every other harness carries.
+function emptyZahlen(): ZahlenContext {
+  return { dir: null, mycraftonUrl: null };
+}
+
 export function appWithVault(vault: VaultContext): express.Express {
   return createApp({
     crm: openCrmDb(":memory:"),
@@ -55,5 +62,6 @@ export function appWithVault(vault: VaultContext): express.Express {
     projekte: emptyProjekte(),
     aufgaben: emptyAufgaben(),
     eingang: emptyEingang(),
+    zahlen: emptyZahlen(),
   });
 }

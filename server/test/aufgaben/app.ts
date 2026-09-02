@@ -10,6 +10,7 @@ import { openProjekteDb } from "../../src/projekte/db.js";
 import type { ProjekteContext } from "../../src/projekte/routes.js";
 import { openDb as openRolodexDb } from "../../src/rolodex/db/index.js";
 import type { VaultContext } from "../../src/vault/routes/index.js";
+import type { ZahlenContext } from "../../src/zahlen/routes.js";
 
 /** An in-memory ledger with no configured Plaud home, for suites that only need the app to boot. */
 export function emptyAufgaben(): AufgabenSources {
@@ -62,6 +63,13 @@ function emptyEingang(): EingangContext {
   };
 }
 
+// test/zahlen/app.js exports no emptyZahlen of its own - that suite's whole point is exercising
+// the fence and the parser against the real controlling fixture - so this is the small duplicate
+// every other harness carries instead.
+function emptyZahlen(): ZahlenContext {
+  return { dir: null, mycraftonUrl: null };
+}
+
 export function appWithAufgaben(
   aufgaben: AufgabenSources,
   vault: VaultContext,
@@ -74,5 +82,6 @@ export function appWithAufgaben(
     projekte,
     aufgaben,
     eingang: emptyEingang(),
+    zahlen: emptyZahlen(),
   });
 }

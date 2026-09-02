@@ -25,6 +25,8 @@ import { openDb as openVaultDb } from "./vault/db.js";
 import { indexAll } from "./vault/index/indexer.js";
 import { locateVault } from "./vault/locate.js";
 import { watchVault } from "./vault/watch.js";
+import { listRuns } from "./zahlen/runs.js";
+import type { ZahlenContext } from "./zahlen/routes.js";
 import { createApp } from "./app.js";
 
 const root = path.resolve(
@@ -139,6 +141,11 @@ const eingang: EingangContext = {
   paths: eingangPaths,
 };
 
+const zahlen: ZahlenContext = {
+  dir: eingangLocation.controllingDir,
+  mycraftonUrl: config.mycraftonUrl ?? null,
+};
+
 createApp({
   crm,
   rolodex,
@@ -146,6 +153,7 @@ createApp({
   projekte,
   aufgaben,
   eingang,
+  zahlen,
 }).listen(port, () => {
   console.log(`Bench running at http://localhost:${port}`);
   for (const line of describeSources(config)) console.log(`  ${line}`);
@@ -187,5 +195,10 @@ createApp({
   ).c;
   console.log(
     `  Eingang: ${eingangLocation.watchDirs.length} watch dirs (${eingangLocation.source}), ${eingangJobCount} jobs recorded`,
+  );
+  console.log(
+    zahlen.dir === null
+      ? "  Zahlen: not configured"
+      : `  Zahlen: ${listRuns(zahlen.dir).length} runs`,
   );
 });

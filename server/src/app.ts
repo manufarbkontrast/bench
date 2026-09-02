@@ -15,6 +15,7 @@ import { projekteRouter, type ProjekteContext } from "./projekte/routes.js";
 import { rolodexRouter } from "./rolodex/routes/index.js";
 import type { Repo } from "./rolodex/db/index.js";
 import { vaultRouter, type VaultContext } from "./vault/routes/index.js";
+import { zahlenRouter, type ZahlenContext } from "./zahlen/routes.js";
 
 const webDist = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -31,6 +32,7 @@ export interface Dbs {
   projekte: ProjekteContext;
   aufgaben: AufgabenSources;
   eingang: EingangContext;
+  zahlen: ZahlenContext;
 }
 
 /**
@@ -69,6 +71,7 @@ export function createApp(dbs: Dbs): express.Express {
   app.use("/api/projekte", projekteRouter(dbs.projekte, dbs.vault.db));
   app.use("/api/aufgaben", aufgabenRouter(aufgabenContext(dbs), dbs.vault));
   app.use("/api/eingang", eingangRouter(dbs.eingang));
+  app.use("/api/zahlen", zahlenRouter(dbs.zahlen));
 
   if (existsSync(webDist)) {
     app.use(express.static(webDist));

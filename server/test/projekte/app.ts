@@ -13,6 +13,7 @@ import { buildSampleProjects } from "../../src/projekte/sample.js";
 import { openDb as openRolodexDb } from "../../src/rolodex/db/index.js";
 import { openDb as openVaultDb } from "../../src/vault/db.js";
 import type { VaultContext } from "../../src/vault/routes/index.js";
+import type { ZahlenContext } from "../../src/zahlen/routes.js";
 import { emptyAufgaben } from "../aufgaben/app.js";
 
 // Not test/eingang/app.js's emptyEingang - that module imports emptyAufgaben and emptyProjekte
@@ -56,6 +57,12 @@ export function emptyProjekte(): ProjekteContext {
   };
 }
 
+// test/zahlen/app.js exports no emptyZahlen of its own, for the same reason emptyEingang above
+// is a private duplicate here - so this is the small duplicate every other harness carries.
+function emptyZahlen(): ZahlenContext {
+  return { dir: null, mycraftonUrl: null };
+}
+
 export function appWithProjekte(
   projekte: ProjekteContext,
   vault: VaultContext,
@@ -67,6 +74,7 @@ export function appWithProjekte(
     projekte,
     aufgaben: emptyAufgaben(),
     eingang: emptyEingang(),
+    zahlen: emptyZahlen(),
   });
 }
 

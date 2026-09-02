@@ -1,18 +1,22 @@
-/** The whole Express app around one Rolodex repo; the other apps get throwaway in-memory ones. */
+/** The whole Express app around one Zahlen context; the other apps get throwaway in-memory ones. */
 import type express from "express";
 import { createApp } from "../../src/app.js";
 import { openDb as openCrmDb } from "../../src/crm/db.js";
 import { openEingangDb } from "../../src/eingang/db.js";
 import type { EingangContext } from "../../src/eingang/routes.js";
-import type { Repo } from "../../src/rolodex/db/index.js";
+import { openDb as openRolodexDb } from "../../src/rolodex/db/index.js";
 import type { ZahlenContext } from "../../src/zahlen/routes.js";
 import { emptyAufgaben } from "../aufgaben/app.js";
 import { emptyProjekte } from "../projekte/app.js";
 import { emptyVault } from "../vault/app.js";
 
-// Not test/eingang/app.js's emptyEingang - that module imports emptyVault, emptyProjekte and
-// emptyAufgaben, all reachable from this file, so importing back from it would cycle. Same small
-// duplicate the other three harnesses already carry.
+// No emptyZahlen() here, unlike the other five harnesses: this suite's whole point is exercising
+// the fence and the parser against the real controlling fixture, so every test builds its own
+// context (see routes.test.ts) rather than reaching for a throwaway one.
+//
+// Not test/eingang/app.js's own duplicate - that module imports emptyAufgaben, emptyProjekte and
+// emptyVault, all reachable from this file, so importing back from it would cycle. Same small
+// duplicate the other four harnesses already carry.
 function emptyEingang(): EingangContext {
   return {
     db: openEingangDb(":memory:"),
@@ -41,20 +45,14 @@ function emptyEingang(): EingangContext {
   };
 }
 
-// test/zahlen/app.js exports no emptyZahlen of its own, for the same reason emptyEingang above
-// is a private duplicate here - so this is the small duplicate every other harness carries.
-function emptyZahlen(): ZahlenContext {
-  return { dir: null, mycraftonUrl: null };
-}
-
-export function appWithRolodex(rolodex: Repo): express.Express {
+export function appWithZahlen(zahlen: ZahlenContext): express.Express {
   return createApp({
     crm: openCrmDb(":memory:"),
-    rolodex,
+    rolodex: openRolodexDb(":memory:"),
     vault: emptyVault(),
     projekte: emptyProjekte(),
     aufgaben: emptyAufgaben(),
     eingang: emptyEingang(),
-    zahlen: emptyZahlen(),
+    zahlen,
   });
 }
