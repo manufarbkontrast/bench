@@ -87,7 +87,11 @@ export default function App() {
         />
 
         {selectedJob && (
-          <LogView job={selectedJob} onClose={() => setSelectedJob(null)} />
+          <LogView
+            key={selectedJob.id}
+            job={selectedJob}
+            onClose={() => setSelectedJob(null)}
+          />
         )}
 
         <SchedulePanel runs={runs} />

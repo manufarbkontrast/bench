@@ -17,6 +17,25 @@ export type EingangJobKind =
 
 export type JobStatus = "running" | "done" | "failed" | "killed" | "timeout";
 
+const EINGANG_JOB_KINDS: readonly EingangJobKind[] = [
+  "plaud-sync",
+  "plaud-process",
+  "aufgaben-import",
+  "controlling",
+  "vault-reindex",
+  "projekte-scan",
+];
+
+/** Narrows a job row's bare `kind` string to the known union - a job started before a kind was
+    retired, or one this build genuinely does not know, still has to render something, so this
+    stays a runtime check rather than a type assertion. Keep in step with EingangJobKind by hand,
+    the same way server/src/eingang/jobs.ts's JOB_KINDS tracks JobKind: format.ts's
+    Record<EingangJobKind, ...> label map is what actually forces a compile error when a new
+    member is added without one. */
+export function isEingangJobKind(kind: string): kind is EingangJobKind {
+  return (EINGANG_JOB_KINDS as readonly string[]).includes(kind);
+}
+
 /** Matches server/src/eingang/db.ts's JobRow exactly - kind stays a bare string there since the
     row can outlive a JobKind union the server might narrow later. */
 export interface JobRow {

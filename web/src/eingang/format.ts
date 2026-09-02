@@ -1,6 +1,13 @@
 /** German summaries for an inbox file: size in KB/MB and the medium date - Aufgaben's format.ts
     duplicated deliberately rather than imported, per PROJECT.md's per-app boundary. */
-import type { InboxFile, JobRow, JobStatus, ScheduledRun } from "./types";
+import { isEingangJobKind } from "./types";
+import type {
+  EingangJobKind,
+  InboxFile,
+  JobRow,
+  JobStatus,
+  ScheduledRun,
+} from "./types";
 
 const KB = 1024;
 const MB = KB * 1024;
@@ -40,27 +47,30 @@ function jobArgs(job: Pick<JobRow, "argsJson">): JobArgs {
   return JSON.parse(job.argsJson) as JobArgs;
 }
 
+/** One labeler per known kind, keyed by the EingangJobKind union itself - Record forces every
+    member to have an entry, so adding a kind to the union without adding its label here is a
+    compile error (TS2739 "missing property"), not a silent fallback to the raw slug. This is
+    what jobKindLabel's default branch used to be: a switch with `default: return job.kind`
+    compiles for a new, unlabeled kind too, since this tsconfig does not set noImplicitReturns -
+    the missing-key check on this object literal is what actually catches it. */
+const KNOWN_KIND_LABEL: Record<EingangJobKind, (args: JobArgs) => string> = {
+  "plaud-sync": () => "Einsammeln",
+  // The runner never starts these two kinds without a file arg (jobs.ts planPlaudProcess /
+  // planAufgabenImport), so the union member TypeScript cannot narrow away is one this string
+  // always carries.
+  "plaud-process": (args) => `Verarbeiten: ${args.file!}`,
+  "aufgaben-import": (args) => `Aufgaben-Import: ${args.file!}`,
+  controlling: (args) => `Controlling (${args.modus!})`,
+  "vault-reindex": () => "Vault-Reindex",
+  "projekte-scan": () => "Projekte-Scan",
+};
+
 /** The job's row in the Jobs table and the LogView header both read this - one place for what a
-    kind plus its args means to a person. */
+    kind plus its args means to a person. A kind this build does not recognise (retired, or from
+    a future server) renders as its own raw slug rather than throwing. */
 export function jobKindLabel(job: Pick<JobRow, "kind" | "argsJson">): string {
-  switch (job.kind) {
-    case "plaud-sync":
-      return "Einsammeln";
-    case "plaud-process":
-      // The runner never starts this kind without a file arg (jobs.ts planPlaudProcess), so the
-      // union member TypeScript cannot narrow away is one this string always carries.
-      return `Verarbeiten: ${jobArgs(job).file!}`;
-    case "aufgaben-import":
-      return `Aufgaben-Import: ${jobArgs(job).file!}`;
-    case "controlling":
-      return `Controlling (${jobArgs(job).modus!})`;
-    case "vault-reindex":
-      return "Vault-Reindex";
-    case "projekte-scan":
-      return "Projekte-Scan";
-    default:
-      return job.kind;
-  }
+  if (!isEingangJobKind(job.kind)) return job.kind;
+  return KNOWN_KIND_LABEL[job.kind](jobArgs(job));
 }
 
 const STATUS_LABEL: Record<JobStatus, string> = {

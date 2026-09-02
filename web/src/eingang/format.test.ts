@@ -107,6 +107,12 @@ describe("jobKindLabel", () => {
   it("labels projekte-scan", () => {
     expect(jobKindLabel(job({ kind: "projekte-scan" }))).toBe("Projekte-Scan");
   });
+
+  it("falls back to the raw kind for a string outside EingangJobKind", () => {
+    expect(jobKindLabel(job({ kind: "some-retired-kind" }))).toBe(
+      "some-retired-kind",
+    );
+  });
 });
 
 describe("jobStatusLabel", () => {
