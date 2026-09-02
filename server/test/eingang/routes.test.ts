@@ -3,7 +3,12 @@ import { fileURLToPath } from "node:url";
 import type express from "express";
 import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { getJob, openEingangDb, type JobRow } from "../../src/eingang/db.js";
+import {
+  getJob,
+  insertJob,
+  openEingangDb,
+  type JobRow,
+} from "../../src/eingang/db.js";
 import type { JobPaths } from "../../src/eingang/jobs.js";
 import {
   locateEingang,
@@ -222,6 +227,24 @@ describe("GET /api/eingang/jobs/:id", () => {
   it("answers 404 for an unknown id", async () => {
     const res = await request(app).get("/api/eingang/jobs/999999");
     expect(res.status).toBe(404);
+  });
+
+  it("answers 200 with an empty log when the file has not been created yet", async () => {
+    // Bypasses the runner on purpose: start() returns before createWriteStream's open()
+    // completes, and this reproduces that exact window without waiting on a race.
+    const id = insertJob(db, {
+      kind: "plaud-sync",
+      argsJson: "{}",
+      startedAt: Date.now(),
+      logPath: path.join(scratch.dir, `not-yet-written-${n}.log`),
+    });
+
+    const res = await request(app).get(`/api/eingang/jobs/${id}`);
+
+    expect(res.status).toBe(200);
+    const body = res.body as JobLogResponse;
+    expect(body.job.id).toBe(id);
+    expect(body.log).toBe("");
   });
 });
 

@@ -30,7 +30,18 @@ const JOB_LIST_LIMIT = 50;
 const LOG_TAIL_BYTES = 64 * 1024;
 
 function tailLog(logPath: string): string {
-  const buffer = readFileSync(logPath);
+  // runner.start() returns synchronously once the job row is inserted, but the log file's
+  // createWriteStream open() completes asynchronously - a client polling this route right after
+  // the 201 (exactly what the UI does) can land in that window and find no file yet. An empty
+  // tail is the correct answer for a job that has not logged anything yet; anything else (a
+  // permissions error, a path that is a directory) still throws.
+  let buffer: Buffer;
+  try {
+    buffer = readFileSync(logPath);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return "";
+    throw err;
+  }
   return buffer.length > LOG_TAIL_BYTES
     ? buffer.subarray(buffer.length - LOG_TAIL_BYTES).toString("utf8")
     : buffer.toString("utf8");
