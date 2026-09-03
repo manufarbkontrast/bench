@@ -38,7 +38,7 @@ Unit tests run **with coverage** inside `check`, so the 80% threshold is a gate 
 report.
 
 `jscpd` stays outside it: duplication findings are advisory rather than pass/fail, so they should
-not gate a green run. It reports 2.2% across the tree.
+not gate a green run. It reports 4.38% across the tree.
 
 `knip` needs `knip.json` to be told the multi-page entry points, or it reports every web source file
 as unused.
@@ -227,8 +227,11 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 
 **Do not lower the bar to make a red run green.**
 
-**Thresholds stay on `statements` only.** Branches are at 81% on web but 72% on the server, so a
-branches threshold at 80 would fail there. Revisit by raising the server's branch coverage first.
+**Thresholds stay on `statements` only.** That decision is a settled project-level control and
+this pass does not change it. Branches now read 84.6% on the server and 81.5% on web - both above
+80%, where the server used to sit at 72% and would have failed a shared branches gate. The revisit
+condition this paragraph named, raising the server's branch coverage first, has been met, so adding
+a branches threshold is now an available project-level call rather than a blocked one.
 
 **Seed files are covered by asserting on the seeded database, not by exclusion.**
 `server/test/rolodex/seed.test.ts` runs `seedIfEmpty` and checks the shape of what comes out -
