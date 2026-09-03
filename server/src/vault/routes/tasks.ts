@@ -111,6 +111,10 @@ export function tasksRouter({ db, dir }: VaultContext): Router {
     }
     const result = toggleTask(dir, db, relPath, line, raw);
     if (!result.ok) {
+      if (result.escapesVault) {
+        res.status(400).json({ error: "path must stay inside the vault" });
+        return;
+      }
       res.status(409).json({ error: "conflict" });
       return;
     }

@@ -98,6 +98,7 @@ let dir: string;
 let app: express.Express;
 let aufgaben: AufgabenSources;
 let vaultDb: Database.Database;
+let outside: string;
 
 beforeEach(() => {
   dir = copyFixture();
@@ -109,10 +110,12 @@ beforeEach(() => {
     gh: "off",
   };
   app = appWithAufgaben(aufgaben, { db: vaultDb, dir, name: "fixture" });
+  outside = mkdtempSync(path.join(tmpdir(), "bench-aufgaben-outside-"));
 });
 
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
+  rmSync(outside, { recursive: true, force: true });
 });
 
 describe("GET /api/aufgaben/tasks", () => {
@@ -287,10 +290,7 @@ describe("POST /api/aufgaben/import", () => {
     // The vault's own watcher can index a symlinked note under its vault-relative path (see
     // write.test.ts's realpath-containment cases) - fake that outcome here so knownTarget's gate
     // lets the request through to appendTask, the surface that must actually refuse it.
-    const outsideDir = mkdtempSync(
-      path.join(tmpdir(), "bench-aufgaben-outside-"),
-    );
-    const outsideFile = path.join(outsideDir, "Outside.md");
+    const outsideFile = path.join(outside, "Outside.md");
     writeFileSync(outsideFile, "## Aufgaben\n");
     const relPath = "90_Archive/Escape.md";
     symlinkSync(outsideFile, path.join(dir, relPath));
@@ -317,8 +317,6 @@ describe("POST /api/aufgaben/import", () => {
         .get() as { c: number }
     ).c;
     expect(ledgerCount).toBe(0);
-
-    rmSync(outsideDir, { recursive: true, force: true });
   });
 });
 

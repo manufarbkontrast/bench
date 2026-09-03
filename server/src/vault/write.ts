@@ -70,6 +70,12 @@ function lineAt(lines: string[], n: number): string | null {
  * it is local-first and user-planted, but the two write surfaces below must refuse it rather than
  * write through it. `file` need not exist yet - appendTask can create one - so this walks up to
  * the nearest existing ancestor before resolving, the same way a shell would.
+ *
+ * A dangling symlink (target missing) cannot be resolved by that same walk either, so this
+ * approves it once its containing folder is - what actually keeps such a write contained is
+ * `atomicWrite`'s `rename` landing on the link's own directory entry rather than a target it
+ * cannot reach, and `readFileSync`'s ENOENT wherever a missing target is not otherwise tolerated,
+ * not this function.
  */
 function resolvesInsideVault(vaultDir: string, file: string): boolean {
   const vaultReal = realpathSync(vaultDir);

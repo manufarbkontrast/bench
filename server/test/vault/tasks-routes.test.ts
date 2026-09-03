@@ -1,7 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
+import type Database from "better-sqlite3";
 import type express from "express";
 import { openDb } from "../../src/vault/db.js";
 import { indexAll } from "../../src/vault/index/indexer.js";
@@ -12,17 +21,21 @@ import { copyFixture } from "./fixture.js";
 const LEUCHTTURM = "30_Projekte/Leuchtturm/Leuchtturm.md";
 
 let dir: string;
+let db: Database.Database;
 let app: express.Express;
+let outside: string;
 
 beforeEach(() => {
   dir = copyFixture();
-  const db = openDb(":memory:");
+  db = openDb(":memory:");
   indexAll(db, dir);
   app = appWithVault({ db, dir, name: "fixture" });
+  outside = mkdtempSync(path.join(tmpdir(), "bench-tasks-routes-outside-"));
 });
 
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
+  rmSync(outside, { recursive: true, force: true });
 });
 
 describe("PATCH /api/vault/tasks", () => {
@@ -49,6 +62,29 @@ describe("PATCH /api/vault/tasks", () => {
 
     expect(res.status).toBe(409);
     expect(res.body).toEqual({ error: "conflict" });
+  });
+
+  it("answers 400, not 409, when the target is a symlink that escapes the vault", async () => {
+    // The live watcher can index a symlinked path under a normal-looking vault-relative name
+    // (see write.test.ts's "realpath containment" cases) - fake that here, the same way
+    // aufgaben/routes.test.ts does, so knownNote's gate lets the request reach toggleTask. A 409
+    // here would tell the user their note changed and a reload would fix it; neither is true, and
+    // no reload can ever make this checkbox toggle.
+    const outsideFile = path.join(outside, "Outside.md");
+    writeFileSync(outsideFile, "- [ ] Draussen\n");
+    const relPath = "90_Archive/Escape.md";
+    symlinkSync(outsideFile, path.join(dir, relPath));
+    db.prepare(
+      "INSERT INTO notes (path, title, folder, frontmatter, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    ).run(relPath, "Escape", "90_Archive", "{}", "- [ ] Draussen", 0, 0);
+
+    const res = await request(app)
+      .patch("/api/vault/tasks")
+      .send({ path: relPath, line: 1, raw: "- [ ] Draussen" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "path must stay inside the vault" });
+    expect(readFileSync(outsideFile, "utf8")).toBe("- [ ] Draussen\n");
   });
 
   it("answers 404 for a path that is not an indexed note", async () => {

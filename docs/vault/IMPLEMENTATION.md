@@ -176,15 +176,19 @@ check on a value that could go either way can.
   outside the vault.
 - **`toggleTask` and `appendTask` (`write.ts`) refuse to write through a symlink that resolves
   outside the vault**, once every symlink on the way - the note itself or a folder above it - is
-  followed to its real path. A lexically vault-relative path can still escape this way, and the
-  route-level checks that gate both functions (`insideVault` in `routes/tasks.ts`, `knownTarget` in
-  `aufgaben/routes.ts`) do not catch it, because a symlink the watcher already indexed (see above)
-  reads as a perfectly normal known note. `toggleTask` answers this the same way it answers a stale
-  `raw` - `{ ok: false, current: null, escapesVault: true }`, the existing 409 in `routes/tasks.ts`
-  - and `appendTask` gained an `ok` discriminant it never needed before, since it could not
-    previously fail; both of its callers (task creation and the Plaud import write path) now check it
-    and answer 400 rather than writing outside the vault. See `write.test.ts`'s "realpath containment"
-    cases for exactly what does and does not get refused.
+  followed to its real path (a dangling symlink is the one gap: see the function's own docstring
+  for what actually contains that case instead). A lexically vault-relative path can still escape
+  this way, and the route-level checks that gate both functions (`insideVault` in
+  `routes/tasks.ts`, `knownTarget` in `aufgaben/routes.ts`) do not catch it, because a symlink the
+  watcher already indexed (see above) reads as a perfectly normal known note. `toggleTask` signals
+  this with `{ ok: false, current: null, escapesVault: true }`, and `routes/tasks.ts`'s PATCH
+  route reads that flag to answer 400 "path must stay inside the vault" rather than the 409 it
+  still answers for a genuine stale `raw` - the two are not the same failure and do not get the
+  same status. `appendTask` gained an `ok` discriminant it never needed before, since it could not
+  previously fail; both of its callers (task creation and the Plaud import write path) check it
+  and answer the same 400 rather than writing outside the vault. See `write.test.ts`'s "realpath
+  containment" cases, and the matching route-level cases in `tasks-routes.test.ts` and
+  `aufgaben/routes.test.ts`, for exactly what does and does not get refused.
 
 ## Related documents
 

@@ -85,14 +85,24 @@ describe("watchVault", () => {
     expect(notes()).toBe(13);
   });
 
-  it("indexes a note with malformed frontmatter instead of leaving the event unhandled", async () => {
+  it("indexes a note with malformed frontmatter instead of leaving the event unhandled, and it is findable by body text", async () => {
     const added = nextChange();
     writeFileSync(
       path.join(dir, "60_Knowledge", "Kaputt.md"),
-      "---\ntitle: [unterminated\nfoo: bar\n---\n\nKaputte Frontmatter.\n",
+      "---\ntitle: [unterminated\nfoo: bar\n---\n\nKaputte Frontmatter mit findmekaputttoken.\n",
     );
     await added;
     expect(notes()).toBe(14);
+    // The fallback in splitNote keeps the whole file as body rather than dropping it from the
+    // index - proving it appears in the notes table is not the same as proving FTS can find it,
+    // since notes_fts is a second table indexNote writes to independently.
+    expect(
+      db
+        .prepare(
+          "SELECT path FROM notes_fts WHERE notes_fts MATCH 'findmekaputttoken'",
+        )
+        .all(),
+    ).toEqual([{ path: "60_Knowledge/Kaputt.md" }]);
   });
 
   it("ignores files that are not notes", async () => {
