@@ -3,6 +3,10 @@
   --amber: #ecad0a;
   --amber-deep: #b98200;
   --amber-soft: #fdf3d7;
+  /* --amber itself does not move between themes (see the dark block below), so its own
+     high-contrast text and hover shade do not need to either. */
+  --amber-fg: #453303;
+  --amber-hover: #f0b827;
   --blue: #209dd7;
   --blue-deep: #16719e;
   --blue-soft: #e3f2fb;
@@ -33,6 +37,12 @@
   --panel-line: rgba(255, 255, 255, 0.09);
   --panel-overdue: #ffb3ab;
   --panel-due: #ffd76e;
+  --panel-chip-bg: rgba(255, 255, 255, 0.12);
+  --panel-chip-fg: #d9d9e0;
+
+  /* White text on a solid colour fill - a button or a badge - reads the same regardless of
+     theme, the same reasoning as --panel-fg above. */
+  --fill-fg: #ffffff;
 
   /* Solid dark in light mode, solid light in dark mode: the primary button and the active nav
      item are the two places that invert against the page rather than tint with it. */
@@ -45,6 +55,8 @@
   --shadow: 0 1px 2px rgba(24, 24, 32, 0.05), 0 4px 14px rgba(24, 24, 32, 0.06);
   --shadow-lift:
     0 2px 4px rgba(24, 24, 32, 0.08), 0 10px 28px rgba(24, 24, 32, 0.12);
+  /* A resting card's shadow, lighter than --shadow so hover still reads as a lift. */
+  --shadow-rest: 0 1px 2px rgba(24, 24, 32, 0.04);
   --font:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, sans-serif;
@@ -83,6 +95,7 @@
   --invert-fg: #14171c;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.35);
   --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.5), 0 10px 28px rgba(0, 0, 0, 0.45);
+  --shadow-rest: 0 1px 2px rgba(0, 0, 0, 0.32);
 }
 
 * {
@@ -290,7 +303,7 @@ body {
 .btn-blue {
   background: var(--blue);
   border-color: var(--blue);
-  color: #fff;
+  color: var(--fill-fg);
 }
 .btn-blue:hover {
   background: var(--blue-deep);
@@ -300,11 +313,11 @@ body {
 .btn-amber {
   background: var(--amber);
   border-color: var(--amber);
-  color: #453303;
+  color: var(--amber-fg);
 }
 .btn-amber:hover {
-  background: #f0b827;
-  border-color: #f0b827;
+  background: var(--amber-hover);
+  border-color: var(--amber-hover);
 }
 
 .btn-danger-ghost {
@@ -399,7 +412,7 @@ body {
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  color: #fff;
+  color: var(--fill-fg);
   overflow: hidden;
   user-select: none;
   background-size: cover;
@@ -922,7 +935,7 @@ tr:hover .cell-actions {
   gap: 10px;
   align-items: center;
   cursor: grab;
-  box-shadow: 0 1px 2px rgba(24, 24, 32, 0.04);
+  box-shadow: var(--shadow-rest);
 }
 .person-card:hover {
   border-color: var(--border-strong);
@@ -1388,7 +1401,7 @@ tr:hover .cell-actions {
 .reminder-check.done {
   background: var(--green);
   border-color: var(--green);
-  color: #fff;
+  color: var(--fill-fg);
 }
 .reminder-done-text {
   text-decoration: line-through;
@@ -1422,7 +1435,7 @@ tr:hover .cell-actions {
 
 .gift-surface {
   background: var(--amber-soft);
-  border: 1px solid #f0dca8;
+  border: 1px solid var(--amber-deep);
   border-radius: 10px;
   padding: 12px 16px;
   margin: 12px 20px;
@@ -1502,7 +1515,7 @@ tr:hover .cell-actions {
 }
 .step-dot.on {
   background: var(--blue);
-  color: #fff;
+  color: var(--fill-fg);
 }
 
 /* ---------- misc ---------- */
@@ -1699,7 +1712,7 @@ a {
 .btn-danger {
   background: var(--red);
   border-color: var(--red);
-  color: #ffffff;
+  color: var(--fill-fg);
 }
 .btn-danger:hover {
   background: var(--red);
@@ -1744,9 +1757,9 @@ a {
 }
 
 .hero-chip {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--panel-chip-bg);
   border-color: transparent;
-  color: #d9d9e0;
+  color: var(--panel-chip-fg);
 }
 
 .hero-more {
