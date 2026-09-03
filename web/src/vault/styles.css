@@ -4,6 +4,9 @@
   color-scheme: light;
   /* The brand accent - stays the same value in both themes, unlike every other token here. */
   --accent: #ff5c00;
+  /* Same reasoning: a modal's backdrop scrim needs to read dark regardless of the page's own
+     theme, so it stays put too. */
+  --overlay-scrim: rgba(0, 0, 0, 0.4);
   --accent-ink: #b84200;
   --accent-wash: rgba(255, 92, 0, 0.12);
   --bg: #ffffff;
@@ -402,7 +405,7 @@ button {
   justify-content: center;
   align-items: flex-start;
   padding-top: 12vh;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--overlay-scrim);
   z-index: 10;
 }
 

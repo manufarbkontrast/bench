@@ -43,6 +43,10 @@
   /* White text on a solid colour fill - a button or a badge - reads the same regardless of
      theme, the same reasoning as --panel-fg above. */
   --fill-fg: #ffffff;
+  /* A modal's backdrop scrim needs to read dark regardless of the page's own theme, so it stays
+     put too - the same reasoning as --fill-fg, applied to what would otherwise be a literal with
+     no variable behind it at all. */
+  --overlay-scrim: rgba(20, 20, 26, 0.45);
 
   /* Solid dark in light mode, solid light in dark mode: the primary button and the active nav
      item are the two places that invert against the page rather than tint with it. */
@@ -727,7 +731,7 @@ tr:hover .cell-actions {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(20, 20, 26, 0.45);
+  background: var(--overlay-scrim);
   display: flex;
   align-items: flex-start;
   justify-content: center;

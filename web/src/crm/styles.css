@@ -28,6 +28,10 @@
   /* --blue itself does not move between themes (see the dark block below), so its hover shade
      does not need to either. */
   --blue-hover: #1b86b8;
+  /* A scrim needs to read dark regardless of the page's own theme, so it stays --ink's light
+     value at both - the same "stays put" pattern as --on-dark above, applied to a colour that
+     would otherwise be a literal with no variable at all. */
+  --overlay-scrim: rgba(28, 33, 40, 0.5);
   --tint-blue: var(--tint-blue);
   --tint-blue-fg: var(--tint-blue-fg);
   --tint-amber: var(--tint-amber);
@@ -447,7 +451,7 @@ tbody tr.clickable:hover {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(28, 33, 40, 0.5);
+  background: var(--overlay-scrim);
   display: flex;
   align-items: flex-start;
   justify-content: center;
