@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { createWriteStream, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { PassThrough } from "node:stream";
@@ -28,6 +29,9 @@ const mockedCreateWriteStream = vi.mocked(createWriteStream);
 const FAKE_JOB_PATH = fileURLToPath(
   new URL("../../src/eingang/fixture/fake-job.mjs", import.meta.url),
 );
+const HANG_HARD_PATH = fileURLToPath(
+  new URL("../../src/eingang/fixture/hang-hard.mjs", import.meta.url),
+);
 
 const scratch = scratchDir("bench-eingang-runner-");
 afterAll(scratch.cleanup);
@@ -37,14 +41,22 @@ const neverCalled: RunnerInternals["vault-reindex"] = () =>
 
 let n = 0;
 /** A fresh jobs dir and an in-memory db per test, so job ids never collide across tests. */
-function newRunner(overrides: Partial<RunnerInternals> = {}) {
+function newRunner(
+  overrides: Partial<RunnerInternals> = {},
+  killEscalationMs?: number,
+) {
   n += 1;
   const jobsDir = path.join(scratch.dir, `jobs-${n}`);
   const db = openEingangDb(":memory:");
-  const runner = createRunner(db, jobsDir, {
-    "vault-reindex": overrides["vault-reindex"] ?? neverCalled,
-    "projekte-scan": overrides["projekte-scan"] ?? neverCalled,
-  });
+  const runner = createRunner(
+    db,
+    jobsDir,
+    {
+      "vault-reindex": overrides["vault-reindex"] ?? neverCalled,
+      "projekte-scan": overrides["projekte-scan"] ?? neverCalled,
+    },
+    killEscalationMs,
+  );
   return { db, jobsDir, runner };
 }
 
@@ -293,6 +305,44 @@ describe("createRunner - internal jobs", () => {
     const finished = await waitForTerminal(db, started.id);
     expect(finished.status).toBe("done");
   });
+});
+
+describe("createRunner - SIGKILL escalation", () => {
+  // Proves the fixture itself is not vacuous: if hang-hard.mjs did honour SIGTERM, test (b) below
+  // would pass even with escalateKill's SIGKILL never wired up, and the delivery would go
+  // unproven.
+  it("hang-hard.mjs really does ignore SIGTERM", async () => {
+    const child = spawn(process.execPath, [HANG_HARD_PATH]);
+    child.kill("SIGTERM");
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(child.exitCode).toBeNull();
+    child.kill("SIGKILL");
+  });
+
+  it("kill() escalates to SIGKILL after the grace period, on a child that ignores SIGTERM", async () => {
+    const { db, runner } = newRunner({}, 200);
+    const plan: JobPlan = {
+      kind: "spawn",
+      argv: [process.execPath, HANG_HARD_PATH],
+      cwd: scratch.dir,
+    };
+
+    const started = runner.start(
+      "plaud-sync",
+      "{}",
+      plan,
+      { ...process.env },
+      JOB_TIMEOUTS_MS["plaud-sync"],
+    );
+    await waitForLogToContain(started.logPath, "hang-hard: alive");
+
+    expect(runner.kill(started.id)).toBe("killed");
+
+    // A SIGTERM-ignoring child can only leave "running" once the grace period elapses and
+    // escalateKill's SIGKILL actually lands - this is what proves delivery, not just the call.
+    const finished = await waitForTerminal(db, started.id, 5000);
+    expect(finished.status).toBe("killed");
+  }, 10_000);
 });
 
 describe("createRunner - a broken log stream", () => {

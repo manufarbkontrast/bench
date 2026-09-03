@@ -81,11 +81,15 @@ function clearTimers(record: InFlightJob): void {
   record.timers = [];
 }
 
-function escalateKill(child: ChildProcess, record: InFlightJob): void {
+function escalateKill(
+  child: ChildProcess,
+  record: InFlightJob,
+  killEscalationMs: number,
+): void {
   child.kill("SIGTERM");
   const killTimer = setTimeout(() => {
     child.kill("SIGKILL");
-  }, KILL_ESCALATION_MS);
+  }, killEscalationMs);
   record.timers.push(killTimer);
 }
 
@@ -129,6 +133,7 @@ export function createRunner(
   db: Database.Database,
   jobsDir: string,
   internals: RunnerInternals,
+  killEscalationMs = KILL_ESCALATION_MS,
 ): Runner {
   mkdirSync(jobsDir, { recursive: true });
 
@@ -184,7 +189,7 @@ export function createRunner(
 
     const timeoutTimer = setTimeout(() => {
       markEndReason(record, "timedOut");
-      escalateKill(child, record);
+      escalateKill(child, record, killEscalationMs);
     }, timeoutMs);
     record.timers.push(timeoutTimer);
 
@@ -269,7 +274,7 @@ export function createRunner(
     if (!record) return "not_running";
     if (!record.child) return "internal";
     markEndReason(record, "killRequested");
-    escalateKill(record.child, record);
+    escalateKill(record.child, record, killEscalationMs);
     return "killed";
   }
 
