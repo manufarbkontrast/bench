@@ -1,5 +1,5 @@
 /**
- * Local, narrow shapes for what the Cockpit reads from three siblings' APIs, and the small
+ * Local, narrow shapes for what the Cockpit reads from four siblings' APIs, and the small
  * filters each panel needs. Deliberately not imported from vault, aufgaben or projekte - this
  * document stays free of any import from a sibling app, so these are kept here instead.
  */

@@ -70,9 +70,10 @@ about them - read it before concluding that a component is untestable.
 ### End-to-end tests - `npm run e2e`
 
 Playwright, in `e2e/`. Layout: `smoke.spec.ts` (the seams between the apps), `cockpit.spec.ts` (the
-Cockpit's own seam across four sibling APIs), then `aufgaben/`, `crm/`, `eingang/`, `projekte/`,
-`rolodex/`, `vault/`, `theme.spec.ts`. `e2e/tools/chrome-shots.mjs` is not part of the suite - it drives a
-running app and captures every screen in both themes, for reviewing a visual change in one pass.
+Cockpit's own seam across five sibling APIs), then `aufgaben/`, `crm/`, `eingang/`, `kontext/`,
+`projekte/`, `rolodex/`, `vault/`, `zahlen/`, `theme.spec.ts`. `e2e/tools/chrome-shots.mjs` is not
+part of the suite - it drives a running app and captures every screen in both themes, for
+reviewing a visual change in one pass.
 
 Rules that keep this suite reliable:
 

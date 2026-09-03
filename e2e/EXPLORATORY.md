@@ -22,7 +22,7 @@ With `agent-browser`: `agent-browser --session bench open http://localhost:8101/
 `snapshot -i` to list interactive elements. Two traps worth knowing - `fill @ref ""` does **not**
 clear a field (reload instead), and refs go stale after navigation, so re-snapshot before clicking.
 
-**Check both themes.** The toggle sits on the right of the nav strip and applies to all six apps.
+**Check both themes.** The toggle sits on the right of the nav strip and applies to all eight apps.
 The specs assert that each app's background actually changes and that the choice survives a
 reload; whether the result is _legible_ - chart axes, chips on tinted backgrounds - is a judgement
 only you can make.
@@ -157,6 +157,61 @@ Left to judgement, because a real `claude -p` invocation, a real skill script an
   The escalation timer firing and actually sending SIGKILL to a child that ignores SIGTERM has
   never been exercised, only reasoned about from the code.
 
+## Kontext
+
+Covered by specs against the committed `claude-home` fixture (`e2e/kontext/kontext.spec.ts`):
+Profil, Regeln and Stand render the fixture vault notes and the one Claude-side rule file; Skills
+counts the fixture's two folders and a search narrows the list without moving the counter off
+`2 Skills`; MCP lists the two fixture server names and the page never contains the poisoned URL's
+own host, `secret.example.com`.
+
+Left to judgment, because a real `~/.claude` and a real, populated MCP config have no place in an
+automated suite built on a synthetic fixture:
+
+- **Real `~/.claude` scale.** The fixture's Skills tab counts two folders; `server/src/kontext/
+skills.ts`'s own code comment puts a real machine at roughly 500. Whether the scan, the cache
+  and the client-side search still feel instant at that size, and whether the real folder count
+  matches `ls ~/.claude/skills | wc -l` against the UI's own counter, is only exercised by hand
+  against the real machine.
+- **The gitleaks page dump is live-only.** The no-secret design (server names only, out of MCP
+  config) is proven two ways already against the fixture - `readers.test.ts`'s unit assertion and
+  `kontext.spec.ts`'s page-text assertion, both against the one poisoned URL committed there.
+  Running `gitleaks detect --no-git` over every tab's actual rendered text, against a real
+  `~/.claude`, real registered repositories and the real vault, is real-machine work only (the
+  phase's own final gate task); the automated suite cannot reproduce a real secret leaking from
+  real data it was never given.
+- **Real projects and repos.** The fixture registers one invented project (`-tmp-beispiel`) with
+  one memory note; the Memory and Repos tabs against the real, multi-project
+  `~/.claude/projects` and the real checkouts under `PROJECT_ROOTS` - how many sections render,
+  and whether a stale or moved project's silent omission (see
+  [docs/kontext/IMPLEMENTATION.md](../docs/kontext/IMPLEMENTATION.md)'s "Things that will bite")
+  is ever actually hit - is only seen by hand.
+
+## Zahlen
+
+Covered by specs against the extended Eingang controlling fixture (`e2e/zahlen/zahlen.spec.ts`):
+the last run's `stichtag`, its `Umsatz gesamt` KPI row and the Bericht iframe; the archive listing
+both fixture runs and swapping every panel to the older one's own figures, including the
+missing-report case.
+
+Left to judgment, because a real myCrafton host and a real archive size have no place in an
+automated suite:
+
+- **Real myCrafton resolution.** `MYCRAFTON_URL` is `""` for every e2e worker (`e2e/fixtures.ts`),
+  so the deep-links panel always renders `Nicht konfiguriert.` in the suite, and the four links'
+  actual targets are never requested. With a real base configured, whether each of the four paths
+  answers a non-5xx response is checked by hand with `curl -sI` (the phase's own final gate
+  task) - the suite has no live host to check it against.
+- **A real archive's size and shape.** The fixture carries exactly two run folders, one of them
+  missing `bericht.html`/`rohdaten.json` on purpose. A real `CONTROLLING_DIR` accumulating months
+  of runs - how the archive list reads at that length, whether every run's `zusammenfassung.md`
+  still parses cleanly - is only exercised against the real machine.
+- **`bestellungen` always reading the last run while browsing the archive** (see
+  [docs/zahlen/IMPLEMENTATION.md](../docs/zahlen/IMPLEMENTATION.md)'s "Things that will bite") is
+  provable from the code and the fixture alone, but whether it reads as confusing in practice - the
+  order count not moving while every other figure on the page does - is a judgment only a person
+  looking at the real archive can make.
+
 ## CRM
 
 Covered by specs: CRUD for organizations, contacts and deals, search, status filter, keyboard drag
@@ -190,13 +245,14 @@ on the pipeline, delete confirmation, deep links. Left to judgement:
 - The Cockpit, then into each app and back. Because the apps are separate documents, back is a
   full page load, not a router transition, and moving between apps through the nav strip is a
   navigation rather than a transition.
-- **The nav strip should look identical in all seven documents (the Cockpit and six apps)** - same
+- **The nav strip should look identical in all nine documents (the Cockpit and eight apps)** - same
   height, same dark, same orange line - including Vault in dark mode. The suite asserts the
   links and the current tab; it cannot see that the strip has picked up a host app's font,
   letter-spacing or palette. That is exactly what would go wrong.
 - Each app should keep its own look below the strip: CRM light, Vault light/dark, Projekte
-  light/dark, Aufgaben light/dark, Eingang light/dark, Rolodex light/dark. Any styling bleeding
-  between them means the multi-page split has been broken.
+  light/dark, Aufgaben light/dark, Eingang light/dark, Kontext light/dark, Zahlen light/dark,
+  Rolodex light/dark. Any styling bleeding between them means the multi-page split has been
+  broken.
 - Refresh on a deep link in **both** dev and prod.
 - After a chrome change, run `node e2e/tools/chrome-shots.mjs` against `npm start` and look at
   all eight images. The suite asserts labels and the current tab; whether orange on the dark strip
