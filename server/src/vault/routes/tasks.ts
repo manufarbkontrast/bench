@@ -133,6 +133,10 @@ export function tasksRouter({ db, dir }: VaultContext): Router {
       return;
     }
     const result = appendTask(dir, db, relPath, buildTaskLine(fields));
+    if (!result.ok) {
+      res.status(400).json({ error: "path must stay inside the vault" });
+      return;
+    }
     res.status(201).json({ path: relPath, line: result.line, raw: result.raw });
   });
 

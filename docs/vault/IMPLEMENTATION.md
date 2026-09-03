@@ -37,6 +37,13 @@ old rows, then insert the new ones for `notes`, `notes_fts`, `links`, `tags`, `t
   date like `2026-08-01` into a JS `Date`, which does not survive `JSON.stringify` as a date -
   `splitNote` normalises every `Date` value back to an ISO string first, so a date frontmatter field
   round-trips through the `frontmatter` JSON column as the string it should be.
+- **Malformed frontmatter falls back to an all-body note rather than throwing.** An unclosed `---`
+  fence or invalid YAML inside a closed one - both things a note mid-edit in Obsidian can genuinely
+  be caught in - would otherwise propagate out of `splitNote` through `indexNote`: uncaught, that
+  aborted the whole `indexAll` transaction (every note, not just the broken one) and, from the
+  watcher, became an uncaught exception on the `add`/`change` event. `splitNote` now catches the
+  parse and treats the whole file as body, frontmatter `{}`, so the note still indexes and appears
+  in search - with no tags and no frontmatter fields until the YAML is fixed.
 - **Links go in unresolved.** `writeLinks` inserts every link with `to_path` null; `resolveLinks`
   fills it in afterwards, once every note in the vault is known, because a link can name a note
   that is indexed later in the same pass, or not at all.
@@ -154,6 +161,30 @@ check on a value that could go either way can.
 - **The real vault's `.superpowers` and `.claude` folders are skipped for free** - `scan.ts`'s dot
   rule excludes any path segment starting with `.`, which was written for `.obsidian` but also
   keeps an AI coding agent's own working folders out of the index without a special case for them.
+- **A symlink inside the vault is invisible to a fresh index, but not to the watcher.**
+  `scan.ts`'s `listNotes` walks `readdirSync`'s `Dirent` entries, and a symlink's dirent type is
+  neither file nor directory, so `indexAll` (boot, and the `vault-reindex` job) never sees a
+  symlinked note or a symlinked folder full of notes - not an error, just silently absent. The live
+  watcher disagrees: chokidar follows symlinks by default, so adding one while the watcher is
+  running does get indexed, under the vault-relative path the symlink sits at - a file symlink to
+  another vault note re-indexes that note's content a second time under the new path, and a
+  directory symlink to somewhere outside the vault pulls every `.md` file under it into the index as
+  if it lived there. Neither crashes anything, but the two disagree: a note only ever seen through a
+  live-watched symlink does not survive the next full reindex, because `indexAll`'s "present" list
+  comes from `listNotes`, which never counted it as present in the first place. This is read/list
+  behaviour, deliberately left as-is - only the write surface below refuses to follow a symlink
+  outside the vault.
+- **`toggleTask` and `appendTask` (`write.ts`) refuse to write through a symlink that resolves
+  outside the vault**, once every symlink on the way - the note itself or a folder above it - is
+  followed to its real path. A lexically vault-relative path can still escape this way, and the
+  route-level checks that gate both functions (`insideVault` in `routes/tasks.ts`, `knownTarget` in
+  `aufgaben/routes.ts`) do not catch it, because a symlink the watcher already indexed (see above)
+  reads as a perfectly normal known note. `toggleTask` answers this the same way it answers a stale
+  `raw` - `{ ok: false, current: null, escapesVault: true }`, the existing 409 in `routes/tasks.ts`
+  - and `appendTask` gained an `ok` discriminant it never needed before, since it could not
+    previously fail; both of its callers (task creation and the Plaud import write path) now check it
+    and answer 400 rather than writing outside the vault. See `write.test.ts`'s "realpath containment"
+    cases for exactly what does and does not get refused.
 
 ## Related documents
 

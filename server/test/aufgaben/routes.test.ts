@@ -1,6 +1,14 @@
-import { readFileSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import type Database from "better-sqlite3";
 import type express from "express";
 import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -89,10 +97,11 @@ function projectRow(overrides: Partial<ProjectRow>): ProjectRow {
 let dir: string;
 let app: express.Express;
 let aufgaben: AufgabenSources;
+let vaultDb: Database.Database;
 
 beforeEach(() => {
   dir = copyFixture();
-  const vaultDb = openVaultDb(":memory:");
+  vaultDb = openVaultDb(":memory:");
   indexAll(vaultDb, dir);
   aufgaben = {
     ledger: openAufgabenDb(":memory:"),
@@ -272,6 +281,44 @@ describe("POST /api/aufgaben/import", () => {
     expect(body.raw).not.toContain("📅");
     const text = readFileSync(path.join(dir, LEUCHTTURM), "utf8");
     expect(text).toContain(body.raw);
+  });
+
+  it("answers 400 and never records the import when targetPath escapes the vault through a symlink", async () => {
+    // The vault's own watcher can index a symlinked note under its vault-relative path (see
+    // write.test.ts's realpath-containment cases) - fake that outcome here so knownTarget's gate
+    // lets the request through to appendTask, the surface that must actually refuse it.
+    const outsideDir = mkdtempSync(
+      path.join(tmpdir(), "bench-aufgaben-outside-"),
+    );
+    const outsideFile = path.join(outsideDir, "Outside.md");
+    writeFileSync(outsideFile, "## Aufgaben\n");
+    const relPath = "90_Archive/Escape.md";
+    symlinkSync(outsideFile, path.join(dir, relPath));
+    vaultDb
+      .prepare(
+        "INSERT INTO notes (path, title, folder, frontmatter, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(relPath, "Escape", "90_Archive", "{}", "", 0, 0);
+
+    const plaudRes = await request(app).get("/api/aufgaben/plaud");
+    const rowHash = (plaudRes.body as PlaudResponse).notes[0].items[0].rowHash;
+
+    const res = await request(app).post("/api/aufgaben/import").send({
+      file: PLAUD_FILE,
+      rowHash,
+      targetPath: relPath,
+    });
+
+    expect(res.status).toBe(400);
+    expect(readFileSync(outsideFile, "utf8")).toBe("## Aufgaben\n");
+    const ledgerCount = (
+      aufgaben.ledger
+        .prepare("SELECT COUNT(*) AS c FROM task_imports")
+        .get() as { c: number }
+    ).c;
+    expect(ledgerCount).toBe(0);
+
+    rmSync(outsideDir, { recursive: true, force: true });
   });
 });
 

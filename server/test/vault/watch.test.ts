@@ -85,6 +85,16 @@ describe("watchVault", () => {
     expect(notes()).toBe(13);
   });
 
+  it("indexes a note with malformed frontmatter instead of leaving the event unhandled", async () => {
+    const added = nextChange();
+    writeFileSync(
+      path.join(dir, "60_Knowledge", "Kaputt.md"),
+      "---\ntitle: [unterminated\nfoo: bar\n---\n\nKaputte Frontmatter.\n",
+    );
+    await added;
+    expect(notes()).toBe(14);
+  });
+
   it("ignores files that are not notes", async () => {
     writeFileSync(path.join(dir, ".obsidian", "workspace.json"), "{}");
     writeFileSync(path.join(dir, "assets", "neu.svg"), "<svg/>");

@@ -21,6 +21,16 @@ describe("splitNote", () => {
       body: "# Only body\n",
     });
   });
+
+  it("falls back to the whole file as body when the YAML inside a closed block is malformed", () => {
+    const text = "---\ntitle: [unterminated\nfoo: bar\n---\n\nBody text.\n";
+    expect(splitNote(text)).toEqual({ frontmatter: {}, body: text });
+  });
+
+  it("falls back to the whole file as body when the frontmatter fence never closes", () => {
+    const text = "---\ntitle: Unclosed\nBody right after, no closing fence.\n";
+    expect(splitNote(text)).toEqual({ frontmatter: {}, body: text });
+  });
 });
 
 describe("titleOf", () => {

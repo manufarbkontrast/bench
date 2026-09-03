@@ -12,9 +12,18 @@ export interface SplitNote {
  * gray-matter's YAML engine resolves a bare date like `2026-08-01` to a JS `Date`, not the
  * string the note author wrote - normalise it back to ISO so it round-trips through the
  * frontmatter JSON column unchanged instead of carrying a `Date` instance.
+ *
+ * An unclosed `---` fence or invalid YAML inside a closed one throws in gray-matter - both are
+ * things a note mid-edit in Obsidian can genuinely be caught in, not a coding error, so the note
+ * still gets indexed as pure body rather than dropping out of the vault entirely.
  */
 export function splitNote(text: string): SplitNote {
-  const parsed = matter(text);
+  let parsed;
+  try {
+    parsed = matter(text);
+  } catch {
+    return { frontmatter: {}, body: text };
+  }
   const frontmatter = Object.fromEntries(
     Object.entries(parsed.data as Record<string, unknown>).map(
       ([key, value]) => [

@@ -1,4 +1,10 @@
-import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
 import { splitNote } from "./index/frontmatter.js";
@@ -57,6 +63,26 @@ function lineAt(lines: string[], n: number): string | null {
   return n >= 1 && n <= lines.length ? lines[n - 1] : null;
 }
 
+/**
+ * Whether `file` resolves inside `vaultDir` once every symlink on the way is followed. A
+ * vault-relative path can still land outside the vault if a folder in it - or the note itself -
+ * is a symlink pointing elsewhere: decision 4 lets listing and reading follow such a link, since
+ * it is local-first and user-planted, but the two write surfaces below must refuse it rather than
+ * write through it. `file` need not exist yet - appendTask can create one - so this walks up to
+ * the nearest existing ancestor before resolving, the same way a shell would.
+ */
+function resolvesInsideVault(vaultDir: string, file: string): boolean {
+  const vaultReal = realpathSync(vaultDir);
+  let existing = file;
+  const tail: string[] = [];
+  while (!existsSync(existing)) {
+    tail.unshift(path.basename(existing));
+    existing = path.dirname(existing);
+  }
+  const real = path.join(realpathSync(existing), ...tail);
+  return real === vaultReal || real.startsWith(vaultReal + path.sep);
+}
+
 function atomicWrite(file: string, content: string): void {
   const tmp = path.join(
     path.dirname(file),
@@ -68,7 +94,7 @@ function atomicWrite(file: string, content: string): void {
 
 export type WriteResult =
   | { ok: true; line: number; raw: string }
-  | { ok: false; current: string | null };
+  | { ok: false; current: string | null; escapesVault?: true };
 
 /**
  * Toggle the task at `line` (body-relative, as stored in the tasks table) if its current text on
@@ -89,6 +115,8 @@ export function toggleTask(
   today: string = todayISO(),
 ): WriteResult {
   const file = path.join(vaultDir, relPath);
+  if (!resolvesInsideVault(vaultDir, file))
+    return { ok: false, current: null, escapesVault: true };
   const text = readFileSync(file, "utf8");
   const lines = text.split("\n");
   const fileLine = bodyOffset(text) + line;
@@ -149,22 +177,27 @@ function initialText(file: string, targetPath: string): string {
   return readFileSync(file, "utf8");
 }
 
+export type AppendResult =
+  { ok: true; line: number; raw: string } | { ok: false };
+
 /**
  * Append one task line to a note, creating `TASK_INBOX` from its template first when that is the
  * target and it does not exist yet. `targetPath` must already be resolved and validated by the
- * caller - see the dot-segment guard in routes/files.ts.
+ * caller - see the dot-segment guard in routes/files.ts - except for staying inside the vault
+ * once symlinks resolve, which is this function's own job under decision 4.
  */
 export function appendTask(
   vaultDir: string,
   db: Database.Database,
   targetPath: string,
   taskLine: string,
-): { line: number; raw: string } {
+): AppendResult {
   const file = path.join(vaultDir, targetPath);
+  if (!resolvesInsideVault(vaultDir, file)) return { ok: false };
   const text = initialText(file, targetPath);
   const { newText, line } = insertUnderHeading(text, taskLine);
   atomicWrite(file, newText);
   indexNote(db, vaultDir, targetPath);
   resolveLinks(db);
-  return { line, raw: taskLine };
+  return { ok: true, line, raw: taskLine };
 }

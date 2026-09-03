@@ -184,6 +184,10 @@ export function aufgabenRouter(
       targetPath,
       buildTaskLine(item, file),
     );
+    if (!result.ok) {
+      res.status(400).json({ error: "targetPath must stay inside the vault" });
+      return;
+    }
     recordImport(ledger, {
       sourceFile: file,
       rowHash,

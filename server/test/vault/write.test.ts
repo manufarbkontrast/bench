@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import type Database from "better-sqlite3";
 import { openDb, type TaskRow } from "../../src/vault/db.js";
@@ -17,15 +26,18 @@ const LEUCHTTURM = "30_Projekte/Leuchtturm/Leuchtturm.md";
 
 let dir: string;
 let db: Database.Database;
+let outside: string;
 
 beforeEach(() => {
   dir = copyFixture();
   db = openDb(":memory:");
   indexAll(db, dir);
+  outside = mkdtempSync(path.join(tmpdir(), "bench-outside-"));
 });
 
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
+  rmSync(outside, { recursive: true, force: true });
 });
 
 describe("todayISO", () => {
@@ -115,7 +127,7 @@ describe("appendTask", () => {
   it("lands the task after the Aufgaben section's last non-empty line", () => {
     const result = appendTask(dir, db, LEUCHTTURM, "- [ ] Neue Aufgabe");
 
-    expect(result).toEqual({ line: 19, raw: "- [ ] Neue Aufgabe" });
+    expect(result).toEqual({ ok: true, line: 19, raw: "- [ ] Neue Aufgabe" });
     const lines = readFileSync(path.join(dir, LEUCHTTURM), "utf8").split("\n");
     expect(lines[18]).toBe("- [ ] Neue Aufgabe");
     expect(lines[19]).toBe("");
@@ -133,7 +145,11 @@ describe("appendTask", () => {
       "# Scratch\n\nNo tasks yet.\n\n## Aufgaben\n- [ ] Erste Aufgabe",
     );
     const lines = text.split("\n");
-    expect(result.line).toBe(lines.length);
+    expect(result).toEqual({
+      ok: true,
+      line: lines.length,
+      raw: "- [ ] Erste Aufgabe",
+    });
     expect(lines[lines.length - 1]).toBe("- [ ] Erste Aufgabe");
   });
 
@@ -145,10 +161,109 @@ describe("appendTask", () => {
       "---\ntags: [inbox, tasks]\n---\n\n# Task_Inbox\n\n## Aufgaben\n- [ ] Aus dem Inbox-Test\n",
     );
     const lines = text.split("\n");
-    expect(lines[result.line - 1]).toBe("- [ ] Aus dem Inbox-Test");
+    const expectedLine = lines.indexOf("- [ ] Aus dem Inbox-Test") + 1;
+    expect(result).toEqual({
+      ok: true,
+      line: expectedLine,
+      raw: "- [ ] Aus dem Inbox-Test",
+    });
     const indexed = db
       .prepare("SELECT COUNT(*) AS c FROM notes WHERE path = ?")
       .get(TASK_INBOX) as { c: number };
     expect(indexed.c).toBe(1);
+  });
+});
+
+// Decision 4: listing and reading may follow a user-planted symlink, but the two write surfaces
+// must refuse one that resolves outside the vault - so a note that merely looks vault-relative
+// cannot be used to write onto the rest of the disk.
+describe("realpath containment", () => {
+  it("toggleTask refuses a note file that is a symlink to outside the vault", () => {
+    const outsideFile = path.join(outside, "Outside.md");
+    writeFileSync(outsideFile, "- [ ] Draussen\n");
+    const relPath = "90_Archive/Escape.md";
+    const linkPath = path.join(dir, relPath);
+    symlinkSync(outsideFile, linkPath);
+
+    const result = toggleTask(dir, db, relPath, 1, "- [ ] Draussen");
+
+    expect(result).toEqual({ ok: false, current: null, escapesVault: true });
+    expect(readFileSync(outsideFile, "utf8")).toBe("- [ ] Draussen\n");
+    // atomicWrite's rename lands on the symlink itself rather than its target, so an unrefused
+    // write would not touch the outside file - it would silently replace the vault's symlink
+    // with a plain file instead. That loss is what this checks for.
+    expect(lstatSync(linkPath).isSymbolicLink()).toBe(true);
+  });
+
+  it("toggleTask refuses a note reached through a folder symlinked to outside the vault", () => {
+    const outsideFolder = path.join(outside, "Ordner");
+    mkdirSync(outsideFolder);
+    const outsideFile = path.join(outsideFolder, "Note.md");
+    writeFileSync(outsideFile, "- [ ] Draussen\n");
+    symlinkSync(outsideFolder, path.join(dir, "90_Archive", "Linked"));
+
+    const result = toggleTask(
+      dir,
+      db,
+      "90_Archive/Linked/Note.md",
+      1,
+      "- [ ] Draussen",
+    );
+
+    expect(result).toEqual({ ok: false, current: null, escapesVault: true });
+    expect(readFileSync(outsideFile, "utf8")).toBe("- [ ] Draussen\n");
+  });
+
+  it("does not refuse a symlink whose realpath stays inside the vault", () => {
+    symlinkSync(
+      path.join(dir, LEUCHTTURM),
+      path.join(dir, "90_Archive", "InVaultLink.md"),
+    );
+    const before = db
+      .prepare("SELECT raw FROM tasks WHERE path = ? AND line = ?")
+      .get(LEUCHTTURM, 8) as TaskRow;
+
+    const result = toggleTask(
+      dir,
+      db,
+      "90_Archive/InVaultLink.md",
+      8,
+      before.raw,
+      "2026-09-01",
+    );
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("appendTask refuses a target that is a symlink to outside the vault", () => {
+    const outsideFile = path.join(outside, "Outside.md");
+    writeFileSync(outsideFile, "## Aufgaben\n");
+    const relPath = "90_Archive/Escape.md";
+    const linkPath = path.join(dir, relPath);
+    symlinkSync(outsideFile, linkPath);
+
+    const result = appendTask(dir, db, relPath, "- [ ] Neu");
+
+    expect(result).toEqual({ ok: false });
+    expect(readFileSync(outsideFile, "utf8")).toBe("## Aufgaben\n");
+    expect(lstatSync(linkPath).isSymbolicLink()).toBe(true);
+  });
+
+  it("appendTask refuses a target reached through a folder symlinked to outside the vault", () => {
+    const outsideFolder = path.join(outside, "Ordner");
+    mkdirSync(outsideFolder);
+    const outsideFile = path.join(outsideFolder, "Note.md");
+    writeFileSync(outsideFile, "## Aufgaben\n");
+    symlinkSync(outsideFolder, path.join(dir, "90_Archive", "Linked"));
+
+    const result = appendTask(
+      dir,
+      db,
+      "90_Archive/Linked/Note.md",
+      "- [ ] Neu",
+    );
+
+    expect(result).toEqual({ ok: false });
+    expect(readFileSync(outsideFile, "utf8")).toBe("## Aufgaben\n");
   });
 });
