@@ -1,4 +1,4 @@
-import { existsSync, statSync } from "node:fs";
+import { existsSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -79,6 +79,22 @@ function fileNameOf(args: Record<string, unknown>): string | null {
   return file;
 }
 
+/**
+ * Whether `target`'s realpath resolves inside `folder`'s realpath - decision 4's containment for
+ * a job's file argument, the same boundary vault/write.ts's resolvesInsideVault draws for a vault
+ * write, kept as a same-module helper here rather than a cross-app import since eingang and vault
+ * stay separate per PROJECT.md's per-app boundary. `fileNameOf` only lets through a bare basename
+ * with no "/" - which still names something outside `folder` once it is a symlink, and that is
+ * exactly what this catches. Unlike the vault guard, `target` here has already been proven to
+ * exist by the existsSync/statSync check next to every call site, so there is no dangling-path
+ * case to walk around: realpathSync resolves both sides outright.
+ */
+function resolvesInsideFolder(folder: string, target: string): boolean {
+  const folderReal = realpathSync(folder);
+  const targetReal = realpathSync(target);
+  return targetReal.startsWith(folderReal + path.sep);
+}
+
 function rejectExtraArgs(
   args: Record<string, unknown>,
   kind: string,
@@ -113,9 +129,12 @@ function planPlaudProcess(
   const file = fileNameOf(args);
   if (file === null) return { error: "file must be a bare filename" };
   if (ctx.plaudHome === null) return { error: "plaud is not configured" };
-  const target = path.join(ctx.plaudHome, "inbox", file);
+  const inbox = path.join(ctx.plaudHome, "inbox");
+  const target = path.join(inbox, file);
   if (!existsSync(target) || !statSync(target).isFile())
     return { error: `no such inbox file: ${file}` };
+  if (!resolvesInsideFolder(inbox, target))
+    return { error: `file escapes the inbox folder: ${file}` };
   if (ctx.sample) return fakeSpawn("plaud-process", ctx.plaudHome);
   return {
     kind: "spawn",
@@ -139,9 +158,12 @@ function planAufgabenImport(
   const file = fileNameOf(args);
   if (file === null) return { error: "file must be a bare filename" };
   if (ctx.plaudHome === null) return { error: "plaud is not configured" };
-  const target = path.join(ctx.plaudHome, "notizen", file);
+  const notizen = path.join(ctx.plaudHome, "notizen");
+  const target = path.join(notizen, file);
   if (!existsSync(target) || !statSync(target).isFile())
     return { error: `no such notizen file: ${file}` };
+  if (!resolvesInsideFolder(notizen, target))
+    return { error: `file escapes the notizen folder: ${file}` };
   if (ctx.sample) return fakeSpawn("aufgaben-import", ctx.vaultDir);
   return {
     kind: "spawn",

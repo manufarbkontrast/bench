@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
@@ -107,6 +107,20 @@ describe("planJob - the fence", () => {
       ]);
       expect(plan.cwd).toBe(ctx.plaudHome);
     });
+
+    // Decision 4: planJob's file argument must resolve inside its folder's realpath. A bare
+    // basename with no "/" still names something outside the inbox once it is a symlink -
+    // fileNameOf's shape check cannot see through that, only realpath containment can.
+    it("rejects a symlink whose realpath escapes the inbox folder", () => {
+      const ctx = world();
+      const outside = path.join(scratch.dir, "outside-secret.txt");
+      writeFileSync(outside, "secret");
+      symlinkSync(outside, path.join(ctx.plaudHome!, "inbox", "escape.txt"));
+
+      const result = planJob("plaud-process", { file: "escape.txt" }, ctx);
+
+      expect(result).toEqual({ error: expect.any(String) as string });
+    });
   });
 
   describe("aufgaben-import", () => {
@@ -142,6 +156,17 @@ describe("planJob - the fence", () => {
         ctx.vaultDir,
       ]);
       expect(plan.cwd).toBe(ctx.vaultDir);
+    });
+
+    it("rejects a symlink whose realpath escapes the notizen folder", () => {
+      const ctx = world();
+      const outside = path.join(scratch.dir, "outside-note.md");
+      writeFileSync(outside, "secret");
+      symlinkSync(outside, path.join(ctx.plaudHome!, "notizen", "escape.md"));
+
+      const result = planJob("aufgaben-import", { file: "escape.md" }, ctx);
+
+      expect(result).toEqual({ error: expect.any(String) as string });
     });
   });
 

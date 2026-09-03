@@ -100,7 +100,11 @@ describe("readGitState", () => {
       stdio: "ignore",
     });
     const state = await readGitState(empty);
+    expect(state.branch).toBe("main");
     expect(state.lastCommitAt).toBeNull();
+    expect(state.lastCommitSubject).toBeNull();
     expect(state.dirty).toBe(0);
+    expect(state.ahead).toBeNull();
+    expect(state.behind).toBeNull();
   });
 });
