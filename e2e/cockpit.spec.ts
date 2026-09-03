@@ -48,6 +48,20 @@ test("the Cockpit surfaces overdue tasks, the session note and moving projects",
   const session = panel(page, "Hier weitermachen");
   await expect(session.getByText(/Der Leuchtturm-Prototyp/)).toBeVisible();
 
+  // The sample world's controlling dir is the eingang fixture (server/src/eingang/fixture/
+  // controlling - see locateEingang), whose letzter-lauf.json names 2026-08-15-zwischenstand as
+  // the last run. That folder's zusammenfassung.md carries the KPI table
+  // `| Umsatz gesamt | 51.200 € | 54.300 € | +6,1 % |` and one break-even bullet for "Sommeraktion
+  // Nord" - so the panel's Umsatz-gesamt line reads its Aktuell cell, and the break-even line
+  // counts that one bullet rather than reading "keine".
+  const zahlen = panel(page, "Zahlen");
+  await expect(zahlen.getByText("Zwischenstand vom 15.08.2026")).toBeVisible();
+  await expect(zahlen.getByText("Umsatz gesamt: 54.300 €")).toBeVisible();
+  await expect(zahlen.getByText("Kampagnen unter Break-even: 1")).toBeVisible();
+  await expect(
+    zahlen.getByRole("link", { name: "Zur Zahlen-App" }),
+  ).toHaveAttribute("href", "/zahlen/");
+
   // Generous: a fresh worker's first read of /api/projekte/list can trigger the same lazy scan
   // of the sample workshop as /projekte/'s own first visit, which shells out to git several
   // times before any row exists - see smoke.spec.ts and projekte/scan.spec.ts for the same 20s

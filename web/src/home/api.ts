@@ -1,4 +1,4 @@
-import type { InboxFile, Project, Task } from "./types";
+import type { InboxFile, Project, Task, ZahlenReply } from "./types";
 
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -38,4 +38,5 @@ export const api = {
     getOrNull<SessionNote>(
       `/api/vault/note?${new URLSearchParams({ path: SESSION_NOTE_PATH })}`,
     ),
+  zahlenLast: () => get<ZahlenReply>("/api/zahlen/last"),
 };

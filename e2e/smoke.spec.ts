@@ -54,6 +54,18 @@ const APPS: {
     ready: (p) => p.getByRole("heading", { name: "Neu und unverarbeitet" }),
   },
   {
+    path: "/kontext/",
+    title: "Kontext",
+    tab: "Kontext",
+    ready: (p) => p.getByRole("button", { name: "Profil" }),
+  },
+  {
+    path: "/zahlen/",
+    title: "Zahlen",
+    tab: "Zahlen",
+    ready: (p) => p.getByRole("heading", { name: "Letzter Lauf" }),
+  },
+  {
     path: "/crm/",
     title: "Personal CRM",
     tab: "CRM",

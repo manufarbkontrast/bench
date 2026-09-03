@@ -1,5 +1,5 @@
 /** Cockpit: one page onto what needs attention across the vault, the repositories and the
-    tasks, replacing the old card-grid launcher. Reads three sibling APIs directly - each panel
+    tasks, replacing the old card-grid launcher. Reads five sibling APIs directly - each panel
     is one fetch's worth of rows, filtered and sorted here rather than in a shared module. */
 import { useEffect, useState } from "react";
 import BenchNav from "../shared/BenchNav";
@@ -7,12 +7,14 @@ import {
   IconAufgaben,
   IconCrm,
   IconEingang,
+  IconKontext,
   IconProjekte,
   IconRolodex,
   IconVault,
+  IconZahlen,
 } from "../shared/AppIcons";
 import { api } from "./api";
-import { dateText, deltaText } from "./format";
+import { breakEvenText, dateText, deltaText, runLineText } from "./format";
 import { firstSection, type Section } from "./session";
 import {
   movingProjects,
@@ -20,9 +22,11 @@ import {
   recentDone,
   unverarbeitetCount,
   weekTasks,
+  zahlenKpis,
   type InboxFile,
   type Project,
   type Task,
+  type ZahlenReply,
 } from "./types";
 
 const SESSION_NOTE_HREF = "/vault/n/00_Index/Session_Context.md";
@@ -36,6 +40,8 @@ const APPS: {
   { href: "/projekte/", name: "Projekte", Icon: IconProjekte },
   { href: "/aufgaben/", name: "Aufgaben", Icon: IconAufgaben },
   { href: "/eingang/", name: "Eingang", Icon: IconEingang },
+  { href: "/kontext/", name: "Kontext", Icon: IconKontext },
+  { href: "/zahlen/", name: "Zahlen", Icon: IconZahlen },
   { href: "/crm/", name: "CRM", Icon: IconCrm },
   { href: "/rolodex/", name: "Rolodex", Icon: IconRolodex },
 ];
@@ -148,17 +154,24 @@ function EingangPanel({ files }: { files: InboxFile[] }) {
   );
 }
 
-function PlaceholderPanel({
-  heading,
-  text,
-}: {
-  heading: string;
-  text: string;
-}) {
+function ZahlenPanel({ reply }: { reply: ZahlenReply }) {
   return (
     <section className="home-panel">
-      <h2>{heading}</h2>
-      <p className="home-placeholder">{text}</p>
+      <h2>Zahlen</h2>
+      {reply.run === null ? (
+        <p className="home-empty">Noch kein Lauf.</p>
+      ) : (
+        <>
+          <p>{runLineText(reply.run)}</p>
+          {zahlenKpis(reply.kpis).map((row) => (
+            <p key={row.kennzahl}>{`${row.kennzahl}: ${row.aktuell}`}</p>
+          ))}
+          <p>{breakEvenText(reply.breakEven)}</p>
+        </>
+      )}
+      <a className="home-session-link" href="/zahlen/">
+        Zur Zahlen-App
+      </a>
     </section>
   );
 }
@@ -168,6 +181,7 @@ export default function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [inboxFiles, setInboxFiles] = useState<InboxFile[]>([]);
   const [session, setSession] = useState<Section | null>(null);
+  const [zahlen, setZahlen] = useState<ZahlenReply>({ run: null });
 
   useEffect(() => {
     void api.tasks().then(setTasks);
@@ -176,6 +190,7 @@ export default function App() {
     void api
       .sessionNote()
       .then((note) => setSession(note ? firstSection(note.body) : null));
+    void api.zahlenLast().then(setZahlen);
   }, []);
 
   const today = todayISO();
@@ -214,10 +229,7 @@ export default function App() {
           <EingangPanel files={inboxFiles} />
           <ProjectPanel projects={movingProjects(projects, now)} />
           <SessionPanel section={session} />
-          <PlaceholderPanel
-            heading="Zahlen"
-            text="Kommt mit der Zahlen-App (Phase 5)."
-          />
+          <ZahlenPanel reply={zahlen} />
           <TaskPanel
             heading="Zuletzt erledigt"
             tasks={recentDone(tasks)}

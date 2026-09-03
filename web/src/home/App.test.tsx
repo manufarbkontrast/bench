@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import App from "./App";
 import { api } from "./api";
-import type { InboxFile, Project, Task } from "./types";
+import type { InboxFile, Kpi, Project, Task, ZahlenReply } from "./types";
 
 function task(overrides: Partial<Task> = {}): Task {
   return {
@@ -27,6 +27,35 @@ function project(overrides: Partial<Project> = {}): Project {
     ...overrides,
   };
 }
+
+function kpi(overrides: Partial<Kpi> = {}): Kpi {
+  return {
+    kennzahl: "Umsatz gesamt",
+    vergleich: "51.200 €",
+    aktuell: "54.300 €",
+    veraenderung: "+6,1 %",
+    ...overrides,
+  };
+}
+
+// Drawn from server/src/eingang/fixture/controlling/2026-08-15-zwischenstand/zusammenfassung.md,
+// the same sample fixture cockpit.spec.ts's e2e run reads - see that file's own derivation
+// comment.
+const zahlenFixture: ZahlenReply = {
+  run: { stichtag: "2026-08-15", modus: "zwischenstand" },
+  kpis: [
+    kpi(),
+    kpi({
+      kennzahl: "Google-ROAS",
+      vergleich: "3,8",
+      aktuell: "4,2",
+      veraenderung: "+0,4",
+    }),
+  ],
+  breakEven: [
+    'Kampagne "Sommeraktion Nord" liegt seit zwei Wochen unter dem Break-even.',
+  ],
+};
 
 // The sample fixture world server/src/eingang/fixture/inbox: the werkstattrunde transcript and
 // the m4a recording are unprocessed, the Hafenrunde transcript reconciles to a note - see
@@ -63,6 +92,7 @@ vi.mock("./api", () => ({
     projects: vi.fn(),
     inbox: vi.fn(),
     sessionNote: vi.fn(),
+    zahlenLast: vi.fn(),
   },
 }));
 
@@ -102,6 +132,7 @@ describe("Cockpit", () => {
     ]);
     vi.mocked(api.inbox).mockResolvedValue(inboxFixture);
     vi.mocked(api.sessionNote).mockResolvedValue({ body: sessionBody });
+    vi.mocked(api.zahlenLast).mockResolvedValue(zahlenFixture);
 
     render(<App />);
     await screen.findByText("Spezifikation fertigstellen");
@@ -159,8 +190,18 @@ describe("Cockpit", () => {
 
     const zahlen = panel("Zahlen");
     expect(
-      within(zahlen).getByText("Kommt mit der Zahlen-App (Phase 5)."),
+      within(zahlen).getByText("Zwischenstand vom 15.08.2026"),
     ).toBeInTheDocument();
+    expect(
+      within(zahlen).getByText("Umsatz gesamt: 54.300 €"),
+    ).toBeInTheDocument();
+    expect(within(zahlen).getByText("Google-ROAS: 4,2")).toBeInTheDocument();
+    expect(
+      within(zahlen).getByText("Kampagnen unter Break-even: 1"),
+    ).toBeInTheDocument();
+    expect(
+      within(zahlen).getByRole("link", { name: "Zur Zahlen-App" }),
+    ).toHaveAttribute("href", "/zahlen/");
 
     const erledigt = panel("Zuletzt erledigt");
     expect(within(erledigt).getByText("Test durchgeführt")).toBeInTheDocument();
@@ -169,16 +210,40 @@ describe("Cockpit", () => {
     ).toBeInTheDocument();
 
     const appRow = within(screen.getByRole("navigation", { name: "Apps" }));
-    for (const [name, href] of [
+    const appLinks = [
       ["Vault", "/vault/"],
       ["Projekte", "/projekte/"],
       ["Aufgaben", "/aufgaben/"],
       ["Eingang", "/eingang/"],
+      ["Kontext", "/kontext/"],
+      ["Zahlen", "/zahlen/"],
       ["CRM", "/crm/"],
       ["Rolodex", "/rolodex/"],
-    ]) {
+    ];
+    for (const [name, href] of appLinks) {
       expect(appRow.getByRole("link", { name })).toHaveAttribute("href", href);
     }
+    expect(appRow.getAllByRole("link")).toHaveLength(appLinks.length);
+  });
+
+  it("omits the Google-ROAS line when the reply carries no such row", async () => {
+    vi.mocked(api.tasks).mockResolvedValue([]);
+    vi.mocked(api.projects).mockResolvedValue([]);
+    vi.mocked(api.inbox).mockResolvedValue([]);
+    vi.mocked(api.sessionNote).mockResolvedValue(null);
+    vi.mocked(api.zahlenLast).mockResolvedValue({
+      run: { stichtag: "2026-08-15", modus: "zwischenstand" },
+      kpis: [kpi()],
+      breakEven: [],
+    });
+
+    render(<App />);
+    const zahlen = panel("Zahlen");
+    await within(zahlen).findByText("Umsatz gesamt: 54.300 €");
+    expect(within(zahlen).queryByText(/Google-ROAS/)).not.toBeInTheDocument();
+    expect(
+      within(zahlen).getByText("Kampagnen unter Break-even: 0"),
+    ).toBeInTheDocument();
   });
 
   it("shows every empty state when nothing is due, moving or done and no note exists", async () => {
@@ -186,6 +251,7 @@ describe("Cockpit", () => {
     vi.mocked(api.projects).mockResolvedValue([]);
     vi.mocked(api.inbox).mockResolvedValue([]);
     vi.mocked(api.sessionNote).mockResolvedValue(null);
+    vi.mocked(api.zahlenLast).mockResolvedValue({ run: null });
 
     render(<App />);
     await screen.findByText("Nichts überfällig.");
@@ -204,5 +270,11 @@ describe("Cockpit", () => {
     expect(
       within(eingang).getByRole("link", { name: "Verarbeiten" }),
     ).toHaveAttribute("href", "/eingang/");
+
+    const zahlen = panel("Zahlen");
+    expect(within(zahlen).getByText("Noch kein Lauf.")).toBeInTheDocument();
+    expect(
+      within(zahlen).getByRole("link", { name: "Zur Zahlen-App" }),
+    ).toHaveAttribute("href", "/zahlen/");
   });
 });

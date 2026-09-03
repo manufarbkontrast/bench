@@ -29,6 +29,28 @@ export interface InboxFile {
   status: "unverarbeitet" | "in_arbeit" | "notiz_vorhanden";
 }
 
+/** Mirrors zahlen's Kpi (server/src/zahlen/summary.ts) - the same duplicate-rather-than-import
+    rule as InboxFile above. */
+export interface Kpi {
+  kennzahl: string;
+  vergleich: string;
+  aktuell: string;
+  veraenderung: string;
+}
+
+/** Mirrors zahlen's RunFolder, narrowed to what the run line needs - stichtag and modus, not the
+    folder name the panel never links to. Not exported: ZahlenReply is the only shape a caller
+    outside this document needs. */
+interface Run {
+  stichtag: string;
+  modus: "zwischenstand" | "abschluss";
+}
+
+/** Mirrors GET /api/zahlen/last's reply (server/src/zahlen/routes.ts RunDetail), narrowed to
+    what the panel renders - the run line, the KPI rows and the break-even bullets. */
+export type ZahlenReply =
+  { run: null } | { run: Run; kpis: Kpi[]; breakEven: string[] };
+
 function ordinal(a: string, b: string): number {
   return Number(a > b) - Number(a < b);
 }
@@ -91,4 +113,15 @@ export function movingProjects(projects: Project[], now: number): Project[] {
         (p.lastCommitAt !== null && p.lastCommitAt >= now - WEEK_MS),
     )
     .sort((a, b) => (b.lastCommitAt ?? 0) - (a.lastCommitAt ?? 0));
+}
+
+const ZAHLEN_KENNZAHLEN = ["Umsatz gesamt", "Google-ROAS"];
+
+/** The panel's two KPI rows, picked from the parsed table by exact Kennzahl match in this fixed
+    order; a row the reply does not carry is omitted rather than padded - the Zahlen panel. */
+export function zahlenKpis(kpis: Kpi[]): Kpi[] {
+  return ZAHLEN_KENNZAHLEN.flatMap((name) => {
+    const row = kpis.find((k) => k.kennzahl === name);
+    return row === undefined ? [] : [row];
+  });
 }

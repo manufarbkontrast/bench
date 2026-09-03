@@ -8,23 +8,25 @@ database and no write path of its own.
 - Tests: `web/src/home/**/*.test.{ts,tsx}`, `e2e/cockpit.spec.ts`, plus the shared seams in
   `e2e/smoke.spec.ts` and `e2e/theme.spec.ts`
 
-## Four sibling reads, no database
+## Five sibling reads, no database
 
-`api.ts` makes exactly four requests - `GET /api/aufgaben/tasks`, `GET /api/projekte/list`,
-`GET /api/eingang/inbox`, `GET /api/vault/note?path=00_Index/Session_Context.md` (the last through
+`api.ts` makes exactly five requests - `GET /api/aufgaben/tasks`, `GET /api/projekte/list`,
+`GET /api/eingang/inbox`, `GET /api/vault/note?path=00_Index/Session_Context.md` (through
 `getOrNull`, since a vault without that note is expected, not an error, and resolves to `null` on a
-404 rather than throwing). Each panel filters and sorts its own slice of one response; nothing is
-shared across panels, and nothing is cached beyond the component's own state. `types.ts`
-deliberately redeclares narrow local shapes for `Task`, `Project` and `InboxFile` rather than
-importing them from `aufgaben`, `projekte` or `eingang` - the comment at the top of the file names
-this directly: the Cockpit stays free of any import from a sibling app, the same rule every other
-pair of apps already follows, so these few fields are duplicated here instead.
+404 rather than throwing), and `GET /api/zahlen/last`. Each panel filters and sorts its own slice of
+one response; nothing is shared across panels, and nothing is cached beyond the component's own
+state. `types.ts` deliberately redeclares narrow local shapes for `Task`, `Project`, `InboxFile`,
+`Kpi` and the Zahlen reply rather than importing them from `aufgaben`, `projekte`, `eingang` or
+`zahlen` - the comment at the top of the file names this directly: the Cockpit stays free of any
+import from a sibling app, the same rule every other pair of apps already follows, so these few
+fields are duplicated here instead.
 
 **`web/src/home` deliberately duplicates the small formatters too**, rather than importing them.
 `format.ts`'s `dateText` and `deltaText` are near-identical to `web/src/aufgaben/format.ts`'s
-`dateText` and `web/src/projekte/format.ts`'s `deltaText` - two or three lines each, and a shared
-helper module would be a fourth cross-app dependency for a handful of lines that already have a
-home in the apps that own the data.
+`dateText` and `web/src/projekte/format.ts`'s `deltaText`, and `runLineText`/`breakEvenText` mirror
+`web/src/zahlen/format.ts`'s functions of the same name (built on this document's own `dateText`
+rather than that app's) - a handful of lines each, and a shared helper module would be a fourth or
+fifth cross-app dependency for lines that already have a home in the apps that own the data.
 
 ## The seven panels, in fixed order
 
@@ -49,9 +51,12 @@ apps behind them use.
   `## ` heading becomes the panel's subline, the paragraph-split text under it renders as-is, and a
   plain link opens the note in Vault. A missing note, or one with no `## ` heading at all, renders
   `Keine Session-Notiz gefunden.` rather than an empty panel.
-- **Zahlen** is still a `PlaceholderPanel` with a fixed line naming the phase that fills it -
-  `Kommt mit der Zahlen-App (Phase 5).` The panel exists now, honestly labelled, so the page's final
-  shape is settled before the app behind it exists.
+- **Zahlen** (`ZahlenPanel`, `zahlenKpis` in `types.ts`) reads `GET /api/zahlen/last`: the run line
+  (`runLineText`, `Zwischenstand vom <date>` / `Abschluss vom <date>`), then the two KPI rows picked
+  from the reply by exact Kennzahl match - `Umsatz gesamt` and `Google-ROAS`, in that order, each as
+  `` `${kennzahl}: ${aktuell}` `` - a row the reply does not carry is omitted rather than padded,
+  then the break-even line (`breakEvenText`). `run: null` renders `Noch kein Lauf.` instead of those
+  three lines; the `Zur Zahlen-App` link into `/zahlen/` renders either way.
 - **Zuletzt erledigt** (`recentDone`) - the last five completed tasks by `doneAt` descending, a
   task with no `doneAt` sorted last.
 
@@ -60,21 +65,28 @@ apps behind them use.
 `50_Workflow`, `Templates` and `90_Archive` before the Cockpit ever sees the list; the Cockpit does
 not re-apply or know about that filter itself.
 
+**The app row below the header links all eight apps** - Vault, Projekte, Aufgaben, Eingang,
+Kontext, Zahlen, CRM, Rolodex, in that order - each a plain anchor with the app's own icon from
+`web/src/shared/AppIcons.tsx`, distinct from the `BenchNav` strip above it.
+
 ## Tests
 
-**Unit** (`web/src/home/App.test.tsx`, `session.test.ts`) mocks the four fetches and asserts all
+**Unit** (`web/src/home/App.test.tsx`, `session.test.ts`) mocks the five fetches and asserts all
 seven headings render in order, that fixture rows land in the right panel - including the Eingang
-panel's count and its `Nichts Neues.` empty state - and that `firstSection` picks the first `## `
-heading and stops at the next one or end of body.
+panel's count and its `Nichts Neues.` empty state, the Zahlen panel's run line and KPI lines with a
+missing KPI row omitted, and its `Noch kein Lauf.` empty state - and that `firstSection` picks the
+first `## ` heading and stops at the next one or end of body.
 
 **End to end** (`e2e/cockpit.spec.ts`) loads `/` against the built sample data and asserts all
 seven headings, an overdue task under `Überfällig`, the Eingang panel's count against the sample
 fixture's own two unprocessed files with its link into `/eingang/`, the session note's text under
-`Hier weitermachen` with a working link into Vault, and a sample project under `Projekte in
-Bewegung` - the last with a generous 20-second wait, because a fresh worker's first
-`GET /api/projekte/list`
+`Hier weitermachen` with a working link into Vault, a sample project under `Projekte in Bewegung` -
+the last with a generous 20-second wait, because a fresh worker's first `GET /api/projekte/list`
 can trigger the same lazy scan of the sample workshop that `/projekte/`'s own first visit does,
-which shells out to `git` several times before any row exists.
+which shells out to `git` several times before any row exists - and the Zahlen panel's run line and
+`Umsatz gesamt` line against the sample controlling fixture's last run
+(`server/src/eingang/fixture/controlling/2026-08-15-zwischenstand`, the one `letzter-lauf.json`
+names).
 
 ## Related documents
 
