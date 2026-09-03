@@ -199,20 +199,31 @@ vitest's built-in `coverage.thresholds`, **80% statements**, configured per work
 across every app: `server/vitest.config.ts` includes `src/**` and excludes `src/index.ts`;
 `web/vite.config.ts` includes `src/**` and excludes `main.tsx` and the test files.
 
-Where it stands, from `npm run coverage`:
+Where it stands, from `npm run coverage` - one row per directory the tool's own report prints:
 
-| Scope                      | Statements |
-| -------------------------- | ---------- |
-| `server/src`               | 88%        |
-| `web/src/crm`              | 100%       |
-| `web/src/crm/components`   | 95%        |
-| `web/src/crm/pages`        | 96%        |
-| `web/src/rolodex`          | 81%        |
-| `web/src/rolodex/pages`    | 80%        |
-| `web/src/vault`            | 85%        |
-| `web/src/vault/components` | 82%        |
-| `web/src/home`             | 100%       |
-| **web overall**            | **87%**    |
+| Scope                               | Statements |
+| ----------------------------------- | ---------- |
+| `server/src`                        | 92.53%     |
+| `web/src/aufgaben`                  | 79.43%     |
+| `web/src/aufgaben/components`       | 96.15%     |
+| `web/src/crm`                       | 100%       |
+| `web/src/crm/components`            | 94.76%     |
+| `web/src/crm/pages`                 | 95.77%     |
+| `web/src/eingang`                   | 76.53%     |
+| `web/src/eingang/components`        | 100%       |
+| `web/src/home`                      | 72.07%     |
+| `web/src/kontext`                   | 77.41%     |
+| `web/src/projekte`                  | 66.03%     |
+| `web/src/projekte/components`       | 100%       |
+| `web/src/rolodex`                   | 81.35%     |
+| `web/src/rolodex/components`        | 81.56%     |
+| `web/src/rolodex/components/person` | 86.18%     |
+| `web/src/rolodex/components/today`  | 80%        |
+| `web/src/rolodex/pages`             | 77.65%     |
+| `web/src/vault`                     | 85.49%     |
+| `web/src/vault/components`          | 81.88%     |
+| `web/src/zahlen`                    | 62.5%      |
+| **web overall**                     | **85.5%**  |
 
 **Do not lower the bar to make a red run green.**
 

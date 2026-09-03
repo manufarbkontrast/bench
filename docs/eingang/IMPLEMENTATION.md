@@ -54,6 +54,14 @@ missing target file never reaches a command:
 - **The file has to already exist where the kind expects it** - `plaud-process` under
   `<plaudHome>/inbox`, `aufgaben-import` under `<plaudHome>/notizen` - checked with `existsSync`
   and `statSync(...).isFile()` against the real path, not trusted from the request.
+- **The file's realpath must resolve inside the folder it was found in.** `resolvesInsideFolder`
+  (`jobs.ts`) resolves both the folder's and the target's realpath and requires the target's to
+  start with the folder's plus a path separator - the same boundary `vault/write.ts`'s
+  `resolvesInsideVault` draws for a vault write, kept as a same-module helper here rather than a
+  cross-app import. `fileNameOf`'s bare-basename check cannot see through a symlink, so this is
+  what catches a symlink planted in `inbox/` or `notizen/` that resolves outside `plaudHome`:
+  refused with `file escapes the inbox folder: <file>` / `... escapes the notizen folder: ...`,
+  before any argv is built.
 - **`controlling`'s `modus` is a two-value enum**, `"zwischenstand"` or `"abschluss"`; anything
   else is rejected before `controllingDir` is even looked at.
 - **A no-argument kind rejects extras.** `plaud-sync`, `vault-reindex` and `projekte-scan` all
@@ -123,6 +131,13 @@ requested (`EndReason`, first cause wins via `markEndReason`'s `??=`).
 - **Kill escalates: SIGTERM first, SIGKILL after 5 seconds** (`KILL_ESCALATION_MS`) if the child
   has not exited by then - a child that ignores SIGTERM would otherwise wedge the runner forever.
   A timeout firing on a still-running job escalates through the exact same path.
+  `createRunner`'s optional fourth parameter, `killEscalationMs`, exists purely as a test seam -
+  every production call site relies on the default - so a test can shorten the grace period rather
+  than wait out the real 5 seconds. `runner.test.ts` proves the escalation actually delivers
+  SIGKILL, not just that `escalateKill` is called, against `fixture/hang-hard.mjs`, a child that
+  installs a SIGTERM handler that ignores the signal and loops forever - `fake-job.mjs`'s own hang
+  mode installs no handler, so Node's default SIGTERM action would end it before an escalation
+  could ever be observed.
 - **Per-kind timeouts** (`JOB_TIMEOUTS_MS` in `jobs.ts`): `plaud-sync` 5 minutes, `plaud-process`
   20 minutes, `aufgaben-import` 15 minutes, `controlling` 45 minutes, `vault-reindex` and
   `projekte-scan` 10 minutes each. A timeout on a spawned job escalates the kill; a timeout on an
@@ -304,6 +319,19 @@ runner) cancelled mid-run reaching `Abgebrochen` with its log intact, followed b
   and every row stays in the database forever; `GET /jobs` only ever _displays_ the last 50. An
   accepted limit on a personal machine, not a target for retention work until the folder's size
   becomes an actual problem.
+- **The two listings of the notizen folder disagree on symlinks.** `listInbox`/`noteQuellen`
+  (`inbox.ts`) filter on `entry.isFile()`, which is `false` for a symlink regardless of what it
+  points to, so a symlinked note is silently excluded from both the inbox reconciliation and the
+  `quelle` scan. Aufgaben's own `listPlaudNotes` (`server/src/aufgaben/plaud.ts`) lists the same
+  folder with a plain `readdirSync` and no `Dirent` type check, so it **does** list a symlinked
+  `.md` file - a symlinked basename `GET /api/aufgaben/plaud` already returned can be handed
+  straight to `aufgaben-import`'s `POST /api/eingang/jobs`, and is only refused there by
+  `resolvesInsideFolder`, not by anything in Eingang's own listing.
+- **A hardlink passes `resolvesInsideFolder` unnoticed.** `realpathSync` only resolves symlinks, not
+  hardlinks, so a hardlinked file inside `inbox/` or `notizen/` whose other name sits outside
+  `plaudHome` looks like an ordinary file to this fence - out of scope by design, since placing a
+  hardlink there already needs write access to the folder, the same access that already permits
+  placing an ordinary file.
 
 ## Related documents
 

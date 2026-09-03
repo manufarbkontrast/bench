@@ -1,14 +1,15 @@
 import { defaultExclude, defineConfig } from "vitest/config";
 
 // watch.test.ts opens a real chokidar watcher and waits on its next fs event. Traced with
-// timestamped logging (2026-09-03, ledger has the raw runs): the write always happens and the
-// test's own 30s timer always fires within a few ms of on schedule, so the process's event loop
-// is not stalled - but the chokidar callback for that write is sometimes never delivered at all,
-// not merely late. It reproduces with coverage off and with vitest's own file parallelism off too,
-// so it is not particular to this suite's instrumentation; it tracks whatever else the machine is
-// scheduling at that moment. Sequencing this one file alone removes the one source of contention
-// this suite controls - the other 55 coverage-instrumented files competing for the same cores at
-// the exact moment a freshly registered watcher needs the OS to schedule its first native event.
+// timestamped file-based logging: the write always happens and the test's own 30s timer always
+// fires within a few ms of on schedule, so the process's event loop is not stalled - but the
+// chokidar/fsevents callback for that write is sometimes never delivered at all, not merely late.
+// Root cause: OS-level scheduling starves the native fsevents callback under heavy CPU contention -
+// reproduced with coverage off too, so it is not particular to this suite's instrumentation, and
+// not a defect in the test or the watcher. Sequencing this one file alone removes the one source of
+// contention this suite controls - the other 55 coverage-instrumented files competing for the same
+// cores at the exact moment a freshly registered watcher needs the OS to schedule its first native
+// event - but cannot remove contention from outside this run; see docs/PROCESS.md.
 const WATCH_TEST = "test/vault/watch.test.ts";
 
 export default defineConfig({

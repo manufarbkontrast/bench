@@ -59,6 +59,34 @@ than Vault, because the `appFallback` plugin in `web/vite.config.ts` treats the 
 static asset and skips its rewrite. Production (`npm start`) and the e2e suite, which navigate
 through the app rather than by direct URL, are unaffected.
 
+An adversarial pass by hand against a scratch vault (Phase 6 Task 3) found and closed one real bug
+(malformed frontmatter aborting the whole index - see `docs/vault/IMPLEMENTATION.md`) and left these
+confirmed-but-unasserted:
+
+- **Malformed frontmatter's browser rendering.** The parse fallback and the FTS insert are both
+  proven at the unit level; that a note with an unclosed `---` fence or invalid YAML still renders
+  its body in a real browser was confirmed once by hand against a scratch `VAULT_DIR`, not by an
+  e2e spec. A spec opening such a note and asserting its body still renders would close this.
+- **Umlauts and emoji in a note's path.** Confirmed end to end by hand against a scratch vault: the
+  tree, the encoded `/vault/n/...` deep link, backlinks, full-text search and the `obsidian://` href
+  all round-trip correctly for a folder and filename carrying both - none of this is asserted by a
+  spec, and no fixture note's path carries either.
+- **A very large note.** A roughly 5 MB note indexed in about 60ms and rendered in a real browser
+  (about 600ms load, about 1.1s to next interactive) without freezing the tab - confirmed once by
+  hand against a scratch vault; no spec fixture approaches this size.
+- **Symlinks inside the vault: the read/list half.** A fresh index never sees one, file or
+  directory, in-vault or pointing outside it - `scan.ts`'s `listNotes` reports a symlink's `Dirent`
+  as neither a file nor a directory. The live watcher disagrees: it follows a newly added symlink
+  and indexes what it finds through it, including content from outside the vault, until the next
+  full reindex silently drops it again (see `docs/vault/IMPLEMENTATION.md`'s "Things that will
+  bite"). The write-refusal half is proven at the unit level
+  (`server/test/vault/write.test.ts`'s "realpath containment" cases); this read/list inconsistency
+  itself is not exercised by any spec.
+- **An invalid `VAULT_DIR`.** Confirmed once by hand: the startup log says the configured path was
+  not found, and every vault-backed route falls back to the bundled sample fixture rather than an
+  empty state, with no route answering 500. Not covered by a spec - `e2e/fixtures.ts` always points
+  every worker at a real per-worker `VAULT_DIR`, so a missing-vault boot is never exercised.
+
 ## Projekte
 
 Covered by specs against the built sample workshop (`e2e/projekte/{table,board,scan}.spec.ts`): the
@@ -84,6 +112,17 @@ place in an automated suite:
   vault couples none of the sample workshop's checkouts - `board.spec.ts` only ever sees one
   section and one column. A board actually split across several brands and statuses has never been
   seen rendered in a real browser by the automated suite.
+- **An unborn-HEAD repo.** A fresh `git init` with no commit is covered at the unit level
+  (`git.test.ts`), but no e2e spec puts one in the scanned roots - the sample fixture commits to
+  every repo it builds. The table and detail rendering for that state (branch reads, every delta
+  column empty) was confirmed once by hand against a real Chrome (Phase 6 Task 4), not by an
+  automated spec.
+- **`gh` absent from `PATH`**, rather than `BENCH_GH=off`'s explicit switch, is covered at the unit
+  level for the two realistic failure shapes (`gh.test.ts`), but no e2e spec restricts `PATH` to
+  reproduce it - the suite's `BENCH_GH=off` exercises a different, pre-existing code path. Confirmed
+  once by hand (Phase 6 Task 4): a built server on a `gh`-less `PATH` scans a repository with a
+  `github.com` remote in under 200ms and renders an em dash for issues and PRs with no console
+  errors.
 
 ## Aufgaben and Cockpit
 
@@ -151,11 +190,17 @@ Left to judgement, because a real `claude -p` invocation, a real skill script an
   `~/Library/LaunchAgents` directory. A plist using the `StartCalendarInterval` **array** form
   (several run times in one job), or scheduled by `StartInterval` instead of a calendar, has only
   been reasoned about, never fed through `listScheduledRuns` and read by eye.
-- **The SIGKILL escalation.** `runner.test.ts`'s kill test proves `kill()` sends SIGTERM and the job
-  settles `killed` - but `fake-job.mjs`'s hang mode installs no signal handler, so Node's own
-  default SIGTERM action (terminate) ends it well inside the 5-second `KILL_ESCALATION_MS` window.
-  The escalation timer firing and actually sending SIGKILL to a child that ignores SIGTERM has
-  never been exercised, only reasoned about from the code.
+- **Symlink containment for `plaud-process`/`aufgaben-import`'s file argument** is covered at the
+  unit level (`jobs.test.ts`) and confirmed once against the routed 400 by hand (Phase 6 Task 4); it
+  was not re-proven against a real `claude -p` invocation with a symlinked target, since doing so
+  would require letting a real, un-fenced-by-anything-but-the-prompt subprocess run against a file
+  outside the folder it was told to write under - the same trust boundary "The real `claude -p`
+  jobs" above already names. Separately, `listInbox`/`noteQuellen` excluding a symlinked entry
+  outright (rather than following or crashing on it) is confirmed by hand, not by an automated spec.
+  A hardlink passes either of Bench's two realpath containments (here and the vault's own write
+  guard) unnoticed - `realpathSync` only resolves symlinks - but placing a hardlink into a watched
+  folder already needs write access to that folder, which already permits placing an ordinary file
+  there, so this is out of scope by design rather than a gap in either fence.
 
 ## Kontext
 
@@ -266,5 +311,11 @@ on the pipeline, delete confirmation, deep links. Left to judgement:
   broken.
 - Refresh on a deep link in **both** dev and prod.
 - After a chrome change, run `node e2e/tools/chrome-shots.mjs` against `npm start` and look at
-  all eight images. The suite asserts labels and the current tab; whether orange on the dark strip
-  is legible next to CRM's light sidebar is a judgement.
+  every screen it captures, both themes - its own docstring names exactly what that covers. The
+  suite asserts labels and the current tab; whether orange on the dark strip is legible next to
+  CRM's light sidebar is a judgement.
+- A full walkthrough of every document, tab and modal (49 states, both themes) plus one toggle
+  round trip on a probe task, driven by hand against the real machine (Phase 6 Task 7): zero
+  console errors anywhere, and the real vault, Plaud archive, repositories and controlling run all
+  rendered live with no copies. This is a one-time confirmation, not something the suite re-runs -
+  see the app sections above for what each Phase 6 task's own real-machine pass found.

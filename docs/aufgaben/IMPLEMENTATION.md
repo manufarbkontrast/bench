@@ -81,6 +81,17 @@ appending second would risk the opposite failure - a ledger entry for a task tha
 written - which is worse, because nothing about it looks wrong until someone goes looking for the
 task and cannot find it.
 
+**A `targetPath` whose realpath escapes the vault answers 400 before anything is recorded.**
+`appendTask` (`server/src/vault/write.ts`) returns `{ ok: false }` when `targetPath` resolves
+outside the vault once every symlink on the way is followed (`resolvesInsideVault`, the same
+containment the vault's own write path uses) - `POST /api/aufgaben/import` turns that into 400
+"targetPath must stay inside the vault" and never reaches `recordImport`, on the same
+append-first-record-second discipline above. This is the import route's only path containment:
+`knownTarget` above it only checks that `targetPath` is `TASK_INBOX` or already a row in the
+`notes` table - it says nothing about where that path resolves on disk, which is what let a
+vault-relative path through a symlink reach a real write outside the vault before this containment
+existed.
+
 **The ledger's `line` is provenance, not a live pointer.** It records where the task landed at
 import time, for the `Übernommen` link the UI shows afterwards. Nothing keeps it in step with
 later edits to the note - insert a line above it in Obsidian and the ledger's `line` now names the

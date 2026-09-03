@@ -72,8 +72,10 @@ about them - read it before concluding that a component is untestable.
 Playwright, in `e2e/`. Layout: `smoke.spec.ts` (the seams between the apps), `cockpit.spec.ts` (the
 Cockpit's own seam across five sibling APIs), then `aufgaben/`, `crm/`, `eingang/`, `kontext/`,
 `projekte/`, `rolodex/`, `vault/`, `zahlen/`, `theme.spec.ts`. `e2e/tools/chrome-shots.mjs` is not
-part of the suite - it drives a running app and captures every screen in both themes, for
-reviewing a visual change in one pass.
+part of the suite - it drives a running app and, in both themes, screenshots the nine document
+roots, every button-driven tab and view, and every modal/overlay reachable from one of those
+screens (detail routes that need a real record's id are deliberately left out - see the script's
+own docstring for exactly what it covers), for reviewing a visual change in one pass.
 
 Rules that keep this suite reliable:
 
@@ -174,6 +176,21 @@ platform package - it does that when a dependency is added. Clear all three `nod
 just the root one, or a stale nested copy shadows the hoisted package inside that workspace:
 `rm -rf node_modules web/node_modules server/node_modules package-lock.json && npm install`. See
 [CONTROLS.md](./CONTROLS.md).
+
+**If `server/test/vault/watch.test.ts` times out waiting for a filesystem event, stop before
+retrying.** `server/vitest.config.ts` already runs that one file in its own sequenced project, so it
+never competes with the other 55 coverage-instrumented files for a CPU quantum at the exact moment
+its freshly registered watcher needs the OS to schedule its first native event - proven to be
+system-level scheduling starvation of the chokidar/fsevents callback under heavy CPU contention,
+reproduced even with coverage off, not a defect in the test or the watcher. That sequencing removes
+this suite's own contribution to that contention; it cannot remove contention from outside the run.
+The probable outside source, not proven but observed once: a second live watcher on the same vault.
+A manually started Bench server (`npm start`/`npm run dev`) left running against a real,
+`.env`-configured vault keeps its own chokidar watcher open, and one such server appeared to contend
+with this test's watcher for delivery during Phase 6 - the failure reproduced only while the server
+was up and passed cleanly the moment it was stopped. If the test times out, check for a Bench server
+still listening on 8100 or 8101, stop it, and rerun - not a `--maxWorkers=2` retry, which only waits
+out the contention rather than removing its likely cause.
 
 **Never pipe a gate command through `tail` or `head`.** `npm run check | tail -150` reports the
 pipe's exit status, not the gate's - a Phase 3 session shipped past a real knip failure that way

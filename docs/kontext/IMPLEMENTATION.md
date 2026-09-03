@@ -113,6 +113,10 @@ encoded separator), so decoding it would print something that only looks like a 
 reliably being one. The Memory tab's section headings are exactly these encoded names - see
 "Things that will bite" below.
 
+`readMemory` gets those folder names from `directoryNames` (`server/src/kontext/dirs.ts`), a
+one-function module shared with `skills.ts`'s own `scanSkills` - both readers only ever needed the
+subdirectory names directly inside one folder, so the scan lives in one place rather than twice.
+
 ## Tests
 
 **Unit** (`server/test/kontext/`) covers `locateKontext`'s no-fallback behaviour against a
