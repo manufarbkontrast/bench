@@ -163,54 +163,65 @@ Covered by specs against the committed `claude-home` fixture (`e2e/kontext/konte
 Profil, Regeln and Stand render the fixture vault notes and the one Claude-side rule file; Skills
 counts the fixture's two folders and a search narrows the list without moving the counter off
 `2 Skills`; MCP lists the two fixture server names and the page never contains the poisoned URL's
-own host, `secret.example.com`.
+own host, `secret.example.com`. Task 9 re-ran the same shape of check against the real
+`~/.claude`: every one of the seven routes rendered real data, the Skills tab's counter (564)
+matched `ls ~/.claude/skills | wc -l` exactly, Memory rendered 22 project sections and Repos 24,
+and concatenating every `/api/kontext/*` response body (767 KB) into one file and running
+`gitleaks detect --no-git` over it found zero leaks.
 
 Left to judgment, because a real `~/.claude` and a real, populated MCP config have no place in an
 automated suite built on a synthetic fixture:
 
-- **Real `~/.claude` scale.** The fixture's Skills tab counts two folders; `server/src/kontext/
-skills.ts`'s own code comment puts a real machine at roughly 500. Whether the scan, the cache
-  and the client-side search still feel instant at that size, and whether the real folder count
-  matches `ls ~/.claude/skills | wc -l` against the UI's own counter, is only exercised by hand
-  against the real machine.
-- **The gitleaks page dump is live-only.** The no-secret design (server names only, out of MCP
+- **Real `~/.claude` scale, confirmed.** The fixture's Skills tab counts two folders;
+  `server/src/kontext/skills.ts`'s own code comment puts a real machine at roughly 500 - Task 9
+  found 564 real skill folders (549 with a readable `SKILL.md`), and the UI's own counter matched
+  `ls ~/.claude/skills | wc -l` exactly. Whether the scan, the cache and the client-side search
+  still feel instant at that size is a judgment only a person watching it render can make.
+- **The gitleaks page dump, run live.** The no-secret design (server names only, out of MCP
   config) is proven two ways already against the fixture - `readers.test.ts`'s unit assertion and
-  `kontext.spec.ts`'s page-text assertion, both against the one poisoned URL committed there.
-  Running `gitleaks detect --no-git` over every tab's actual rendered text, against a real
-  `~/.claude`, real registered repositories and the real vault, is real-machine work only (the
-  phase's own final gate task); the automated suite cannot reproduce a real secret leaking from
-  real data it was never given.
-- **Real projects and repos.** The fixture registers one invented project (`-tmp-beispiel`) with
-  one memory note; the Memory and Repos tabs against the real, multi-project
-  `~/.claude/projects` and the real checkouts under `PROJECT_ROOTS` - how many sections render,
-  and whether a stale or moved project's silent omission (see
+  `kontext.spec.ts`'s page-text assertion, both against the one poisoned URL committed there. Task
+  9 ran `gitleaks detect --no-git` over every tab's actual rendered text, against the real
+  `~/.claude`, real registered repositories and the real vault, and found zero leaks - the
+  automated suite proves the design, this proved it against real data.
+- **Real projects and repos, confirmed.** The fixture registers one invented project
+  (`-tmp-beispiel`) with one memory note; against the real, multi-project `~/.claude/projects` and
+  the real checkouts under `PROJECT_ROOTS`, Task 9 found Memory rendering 22 sections and Repos
+  24 - the same count as the 24 projects Projekte itself indexes, so nothing was silently dropped
+  this run. Whether a stale or moved project's silent omission (see
   [docs/kontext/IMPLEMENTATION.md](../docs/kontext/IMPLEMENTATION.md)'s "Things that will bite")
-  is ever actually hit - is only seen by hand.
+  is ever actually hit on a machine where one does go stale is still only seen by hand.
 
 ## Zahlen
 
 Covered by specs against the extended Eingang controlling fixture (`e2e/zahlen/zahlen.spec.ts`):
 the last run's `stichtag`, its `Umsatz gesamt` KPI row and the Bericht iframe; the archive listing
 both fixture runs and swapping every panel to the older one's own figures, including the
-missing-report case.
+missing-report case. Task 9 re-ran the same shape of check against the real archive and a real
+myCrafton host: the last run's seven KPI rows matched `zusammenfassung.md`'s own table exactly,
+diffed programmatically row by row, and `bestellungen` (3070) matched `letzter-lauf.json`; the
+archive listed all three real run folders, newest first, and opening an older one served its own
+KPI table and summary; with `MYCRAFTON_URL` configured to the real base, all four deep-link paths
+answered non-5xx (`301`, redirecting to the canonical domain).
 
 Left to judgment, because a real myCrafton host and a real archive size have no place in an
 automated suite:
 
-- **Real myCrafton resolution.** `MYCRAFTON_URL` is `""` for every e2e worker (`e2e/fixtures.ts`),
-  so the deep-links panel always renders `Nicht konfiguriert.` in the suite, and the four links'
-  actual targets are never requested. With a real base configured, whether each of the four paths
-  answers a non-5xx response is checked by hand with `curl -sI` (the phase's own final gate
-  task) - the suite has no live host to check it against.
-- **A real archive's size and shape.** The fixture carries exactly two run folders, one of them
-  missing `bericht.html`/`rohdaten.json` on purpose. A real `CONTROLLING_DIR` accumulating months
-  of runs - how the archive list reads at that length, whether every run's `zusammenfassung.md`
-  still parses cleanly - is only exercised against the real machine.
+- **Real myCrafton resolution, confirmed.** `MYCRAFTON_URL` is `""` for every e2e worker
+  (`e2e/fixtures.ts`), so the deep-links panel always renders `Nicht konfiguriert.` in the suite,
+  and the four links' actual targets are never requested. Task 9 configured the real base and ran
+  `curl -sk` against all four - `/`, `/umlagerungen`, `/nachbestellungen`, `/marken` - each
+  answering `301`, a redirect rather than a 5xx.
+- **A real archive's size and shape, confirmed at three runs.** The fixture carries exactly two
+  run folders, one of them missing `bericht.html`/`rohdaten.json` on purpose. Task 9 found the
+  real `CONTROLLING_DIR` carrying three runs; all three listed in the archive, newest first, and
+  the KPI table parsed cleanly for both the last run and an older one opened from the archive. How
+  the list reads once it grows to months of runs is still only seen by hand.
 - **`bestellungen` always reading the last run while browsing the archive** (see
   [docs/zahlen/IMPLEMENTATION.md](../docs/zahlen/IMPLEMENTATION.md)'s "Things that will bite") is
-  provable from the code and the fixture alone, but whether it reads as confusing in practice - the
-  order count not moving while every other figure on the page does - is a judgment only a person
-  looking at the real archive can make.
+  provable from the code and the fixture alone, and Task 9 confirmed it live - selecting an older
+  archived run still showed the same order count as the last run's own panel. Whether it reads as
+  confusing in practice, with every other figure on the page changing except that one, is a
+  judgment only a person looking at the real archive can make.
 
 ## CRM
 
