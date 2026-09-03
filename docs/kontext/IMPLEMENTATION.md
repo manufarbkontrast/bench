@@ -129,6 +129,24 @@ server names and asserts the page never contains `secret.example.com`.
 
 ## Things that will bite
 
+- **Rules, memory notes, and every repo's `CLAUDE.md`/`AGENTS.md` body render verbatim.** Regeln,
+  Memory and Repos read each file whole and pass its body straight to a `<pre>`, with no scan or
+  scrub of their own - a secret a person pastes into one of those files **will** render, on this
+  tab, in full. The structural names-only guarantee - `readMcpServers` keeping only
+  `Object.keys(parsed.mcpServers ?? {})`, see "The MCP file split" above - covers the MCP config
+  alone; REQUIREMENTS.md scopes it the same way ("Any secret, token or connection detail. MCP
+  server configuration can carry these..."), and it says nothing about the other five sources. The
+  Task 9 gitleaks dump sweep - a live `gitleaks detect --no-git` run over every tab's rendered
+  text (`changes/bench-os/PLAN-phase-5.md`) - is the detection this relies on; rotating whatever it
+  finds is the remedy, not a scrub this app is meant to perform itself.
+- **An unreadable file under `~/.claude/rules` or a project's `memory` folder 500s that whole tab,
+  silently.** `readClaudeFile` (`readers.ts`) calls `readFileSync`/`statSync` with no `try`/`catch`,
+  deliberate per STANDARDS.md's no-defensive-code rule and not an oversight, so a file
+  `readdirSync` already listed failing to open (an EACCES permission bit, say) throws straight past
+  the route handler into Express's default 500. The web app's `get()` helper (`api.ts`) turns that
+  into a rejected promise the `void api.regeln().then(...)`-style calls in `App.tsx` never catch,
+  so the tab's state stays at its empty default and the UI shows `Nichts gefunden.` exactly as it
+  would for a genuinely empty folder - no error reaches the page anywhere.
 - **An edited `SKILL.md` inside an existing skill folder is invisible until the next folder add or
   remove.** The cache invalidates on the skills directory's own mtime, and editing a file one
   level down does not touch its parent directory's mtime - a person who fixes a typo in a skill's
