@@ -122,6 +122,12 @@ Bericht (only once a run is selected), Zusammenfassung (likewise), and myCrafton
 - **`fileUrl`** builds the `/api/zahlen/file` URL used directly as the Bericht iframe's `src` and
   as both download links' `href` - the file's content is never fetched by this app's own code,
   only linked to.
+- **The Bericht iframe is sandboxed to `sandbox="allow-scripts"`.** `bericht.html` is generated
+  from ad-platform-controlled strings this app never escapes itself, so the sandbox's opaque
+  origin strips the same-origin fetch authority an unescaped one would otherwise carry into
+  Bench's authless write routes, while `allow-scripts` still lets the report's own inline chart
+  JS run. Relative subresources inside it already 404 under `FILE_ALLOWLIST`'s three-name
+  allowlist, so the sandbox is the second layer, not the only one.
 
 ## Tests
 

@@ -111,6 +111,14 @@ describe("Zahlen App", () => {
       "src",
       "/api/zahlen/file?folder=2026-08-15-zwischenstand&name=bericht.html",
     );
+    // The report is generated from ad-platform-controlled strings (campaign names, search
+    // terms) that this app never escapes itself - sandboxing to an opaque origin strips the
+    // same-origin fetch authority an unescaped one would otherwise get over Bench's authless
+    // write routes, while allow-scripts keeps the report's own inline chart JS working.
+    expect(screen.getByTitle("Bericht")).toHaveAttribute(
+      "sandbox",
+      "allow-scripts",
+    );
     expect(screen.getByText("rohdaten.json")).toHaveAttribute(
       "href",
       "/api/zahlen/file?folder=2026-08-15-zwischenstand&name=rohdaten.json",

@@ -81,10 +81,17 @@ export default function App() {
         {current.run !== null && (
           <section className="zahlen-section">
             <h2>Bericht</h2>
+            {/* bericht.html is generated from ad-platform-controlled strings (campaign names,
+                search terms) this app never escapes itself, so an unescaped one could run
+                script here. sandbox="allow-scripts" gives the frame an opaque origin, which
+                strips the same-origin fetch authority that script would otherwise have over
+                Bench's authless write routes, while still letting the report's own inline
+                chart JS run. */}
             <iframe
               title="Bericht"
               className="zahlen-bericht"
               src={fileUrl(current.run.folder, "bericht.html")}
+              sandbox="allow-scripts"
             />
           </section>
         )}
