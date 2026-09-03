@@ -148,10 +148,14 @@ iframe stays present even though July has no `bericht.html` of its own.
   starts flush against the left margin, cells that stop being pipe-delimited), Zahlen shows an
   empty KPI table with no indication that anything is wrong, rather than an error naming the run
   or the file.
-- **`letzter-lauf.json`'s `ordner`, `bericht` and `zusammenfassung` path fields are read for their
-  basename only, and never followed as paths** - see "Basename-only resolution" above. A person
-  reading the raw JSON file on disk might reasonably expect Zahlen to open exactly what those
-  fields point at; it does not, by design.
+- **`letzter-lauf.json`'s `ordner` path field is read for its basename only, and never followed as
+  a path** - see "Basename-only resolution" above. A person reading the raw JSON file on disk
+  might reasonably expect Zahlen to open exactly what it points at; it does not, by design. The
+  file's own `bericht` and `zusammenfassung` fields are not this app's business at all - `runs.ts`'s
+  `LetzterLaufFile` interface declares only `ordner` and `bestellungen`, so those two path fields
+  are present in the file but never read anywhere in `server/src/zahlen/`; the actual `bericht.html`
+  and `zusammenfassung.md` are found by the run folder's own name plus `FILE_ALLOWLIST`, not by
+  anything in `letzter-lauf.json`.
 - **`bestellungen` always reflects the machine's actual last run, even while viewing an older
   archived one.** Selecting July's run through the archive still shows August's order count next
   to it, because `bestellungenFor` always reads the one `letzter-lauf.json` at the top of
