@@ -82,6 +82,20 @@ describe("GET /api/zahlen/run", () => {
     expect(suffixed.status).toBe(400);
   });
 
+  it("400s a basename that only extends or precedes the run-folder shape", async () => {
+    // Pins RUN_FOLDER's `^...$` anchoring: without it, a regex .test() would accept either as a
+    // substring match rather than requiring the whole basename to be the run-folder shape.
+    const trailing = await request(app)
+      .get("/api/zahlen/run")
+      .query({ folder: "2026-08-15-zwischenstand-extra" });
+    expect(trailing.status).toBe(400);
+
+    const leading = await request(app)
+      .get("/api/zahlen/run")
+      .query({ folder: "x2026-08-15-zwischenstand" });
+    expect(leading.status).toBe(400);
+  });
+
   it("answers the zusammenfassung-only folder with an empty kpis array", async () => {
     const res = await request(app)
       .get("/api/zahlen/run")

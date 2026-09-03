@@ -352,6 +352,9 @@ describe("createRunner - a broken log stream", () => {
   // real "error" event carries - only the source is faked, not the runner's reaction to it.
   it("is caught, not thrown, and the job still resolves failed", async () => {
     const { db, runner } = newRunner({
+      // Never resolves - runInternal's own `void internals[name](log)...` (runner.ts) already
+      // voids this handler's promise, and the stream error below ends the job through
+      // settle.immediate before this promise could settle anyway, so nothing here awaits it.
       "vault-reindex": () => new Promise<void>(() => undefined),
     });
 

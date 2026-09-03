@@ -17,21 +17,32 @@ export type EingangJobKind =
 
 export type JobStatus = "running" | "done" | "failed" | "killed" | "timeout";
 
-const EINGANG_JOB_KINDS: readonly EingangJobKind[] = [
+const EINGANG_JOB_KINDS = [
   "plaud-sync",
   "plaud-process",
   "aufgaben-import",
   "controlling",
   "vault-reindex",
   "projekte-scan",
-];
+] as const satisfies readonly EingangJobKind[];
+
+/** The literal union of members `EINGANG_JOB_KINDS` actually lists. `satisfies` above already
+    makes the compiler reject a listed member that is not an EingangJobKind (soundness); this
+    type exists only so format.test.ts can pin the other direction with `expectTypeOf` - every
+    EingangJobKind member is actually listed (completeness) - without exporting the array itself. */
+export type ListedEingangJobKind = (typeof EINGANG_JOB_KINDS)[number];
 
 /** Narrows a job row's bare `kind` string to the known union - a job started before a kind was
     retired, or one this build genuinely does not know, still has to render something, so this
-    stays a runtime check rather than a type assertion. Keep in step with EingangJobKind by hand,
-    the same way server/src/eingang/jobs.ts's JOB_KINDS tracks JobKind: format.ts's
-    Record<EingangJobKind, ...> label map is what actually forces a compile error when a new
-    member is added without one. */
+    stays a runtime check rather than a type assertion. `EINGANG_JOB_KINDS` staying in step with
+    EingangJobKind is now half compiler-enforced: `satisfies` catches a listed member the union
+    does not have, and format.test.ts's `expectTypeOf<EingangJobKind>().toEqualTypeOf<
+    ListedEingangJobKind>()` catches a union member the array fails to list - both checked by
+    `tsc` (npm run typecheck / check), since vitest's own typecheck runner is not enabled here and
+    `vitest run` alone executes expectTypeOf as a no-op. server/src/eingang/jobs.ts's JOB_KINDS
+    still tracks its own, separate JobKind union by hand; format.ts's
+    Record<EingangJobKind, ...> label map is what forces a compile error there when a new member
+    is added without a label. */
 export function isEingangJobKind(kind: string): kind is EingangJobKind {
   return (EINGANG_JOB_KINDS as readonly string[]).includes(kind);
 }

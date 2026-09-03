@@ -93,8 +93,11 @@ test("cancelling Einsammeln while it runs reaches Abgebrochen with its log still
   await expect(logPanel).toBeVisible();
 
   // The cancelled job is fully terminal now - runner.finish() clears isRunning() before the DB
-  // write that "Abgebrochen" above just waited for, so this first click is a clean 201 and the
-  // fake's three-second sleep means the very next click deterministically lands inside it.
+  // write that "Abgebrochen" above just waited for, so this first click is a clean 201. The
+  // second click landing inside the guard is not a race against the fake job's three-second
+  // runtime: POST /jobs is a synchronous Express handler, and Node's run-to-completion guarantee
+  // means the second request's isRunning() check cannot interleave with the first request
+  // registering the job as running, however close together the two clicks land.
   await startEinsammeln.click();
   await startEinsammeln.click();
   await expect(page.getByText("Läuft bereits.")).toBeVisible();

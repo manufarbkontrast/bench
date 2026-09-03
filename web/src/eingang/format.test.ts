@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   dateText,
   dateTimeText,
@@ -9,7 +9,20 @@ import {
   scheduledRunText,
   sizeText,
 } from "./format";
-import type { InboxFile, JobRow, JobStatus, ScheduledRun } from "./types";
+import type {
+  EingangJobKind,
+  InboxFile,
+  JobRow,
+  JobStatus,
+  ListedEingangJobKind,
+  ScheduledRun,
+} from "./types";
+
+// A type-level pin, checked by `tsc` (npm run typecheck / check) rather than at runtime: if
+// EINGANG_JOB_KINDS in types.ts ever drops a member EingangJobKind still has, this assertion
+// stops compiling. `vitest run` alone (no typecheck.enabled in vite.config.ts's test block)
+// executes expectTypeOf as a no-op, so this is enforced by the typecheck gate, not the test run.
+expectTypeOf<EingangJobKind>().toEqualTypeOf<ListedEingangJobKind>();
 
 describe("sizeText", () => {
   it("formats kilobytes with a German decimal comma", () => {

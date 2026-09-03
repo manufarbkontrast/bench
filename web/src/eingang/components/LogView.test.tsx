@@ -80,6 +80,33 @@ describe("LogView", () => {
     }
   });
 
+  it("schedules no interval at all when the first poll already finds the job terminal", async () => {
+    vi.useFakeTimers();
+    try {
+      // The `job` prop still says "running" - it is whatever the Jobs table last fetched - but
+      // the job finished in the gap before this panel's own first poll resolves. The old
+      // implementation decided whether to schedule the interval from that stale prop, so it
+      // still set one up here and wasted a full 2s tick only to self-stop on its first fire.
+      const running = job({ status: "running" });
+      const done = { ...running, status: "done" as const, finishedAt: 123 };
+      vi.mocked(api.job).mockResolvedValue({ job: done, log: "final" });
+
+      render(<LogView job={running} onClose={vi.fn()} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(api.job).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      // No wasted tick: the interval was never scheduled, so nothing polls again.
+      expect(api.job).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stops polling once a poll rejects, rather than ticking forever against a dead server", async () => {
     vi.useFakeTimers();
     try {

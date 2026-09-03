@@ -17,6 +17,7 @@ export default function LogView({
 
   useEffect(() => {
     let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | undefined;
 
     async function poll(): Promise<string> {
       const res = await api.job(job.id);
@@ -27,31 +28,34 @@ export default function LogView({
       return res.job.status;
     }
 
-    void poll();
-
-    if (job.status !== "running") {
-      return () => {
-        cancelled = true;
-      };
+    async function tick(): Promise<void> {
+      try {
+        const status = await poll();
+        if (status !== "running" && timer !== undefined) clearInterval(timer);
+      } catch {
+        // A dead server will not come back mid-panel, and would otherwise tick forever with an
+        // unhandled rejection every 2s - closing and reopening the log re-polls from scratch.
+        if (timer !== undefined) clearInterval(timer);
+      }
     }
 
-    // A 2s tick reads as a human-watchable tail, not a stream - fast enough to feel live, slow
-    // enough not to hammer the log file while a job runs.
-    const timer = setInterval(() => {
-      void poll()
-        .then((status) => {
-          if (status !== "running") clearInterval(timer);
-        })
-        .catch(() => {
-          // A dead server will not come back mid-panel, and would otherwise tick forever with an
-          // unhandled rejection every 2s - closing and reopening the log re-polls from scratch.
-          clearInterval(timer);
-        });
-    }, 2000);
+    async function run(): Promise<void> {
+      // Gating the interval on this first poll's own result, rather than the `job` prop passed
+      // in at mount, means a job that already turned terminal by the time this resolves costs no
+      // interval at all - the old stale-prop check still started one, wasting a 2s tick only to
+      // self-stop on its first fire.
+      const status = await poll();
+      if (cancelled || status !== "running") return;
+      // A 2s tick reads as a human-watchable tail, not a stream - fast enough to feel live, slow
+      // enough not to hammer the log file while a job runs.
+      timer = setInterval(() => void tick(), 2000);
+    }
+
+    void run();
 
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      if (timer !== undefined) clearInterval(timer);
     };
   }, [job.id, job.status]);
 

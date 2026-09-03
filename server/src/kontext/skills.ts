@@ -1,5 +1,6 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { directoryNames } from "./dirs.js";
 
 interface Skill {
   name: string;
@@ -23,16 +24,6 @@ interface CacheEntry extends SkillsResult {
  * hidden, that a changed mtime replaces wholesale rather than patches in place.
  */
 const cache = new Map<string, CacheEntry>();
-
-function directoryNames(dir: string): string[] {
-  let entries;
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-  return entries.filter((entry) => entry.isDirectory()).map((e) => e.name);
-}
 
 /**
  * The tolerant first-": " line scan aufgaben/plaud.ts and eingang/inbox.ts already carry: a

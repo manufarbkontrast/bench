@@ -2,7 +2,13 @@
 import { Router } from "express";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
-import { bestellungenFor, isRunFolderName, lastRun, listRuns } from "./runs.js";
+import {
+  bestellungenFor,
+  isRunFolderName,
+  lastRun,
+  listRuns,
+  type RunFolder,
+} from "./runs.js";
 import { parseSummary, type Kpi } from "./summary.js";
 
 /**
@@ -16,11 +22,7 @@ export interface ZahlenContext {
 }
 
 interface RunDetail {
-  run: {
-    folder: string;
-    stichtag: string;
-    modus: "zwischenstand" | "abschluss";
-  };
+  run: RunFolder;
   kpis: Kpi[];
   breakEven: string[];
   zusammenfassung: string;
@@ -48,14 +50,7 @@ function readZusammenfassung(dir: string, folder: string): string {
   }
 }
 
-function runDetail(
-  dir: string,
-  run: {
-    folder: string;
-    stichtag: string;
-    modus: "zwischenstand" | "abschluss";
-  },
-): RunDetail {
+function runDetail(dir: string, run: RunFolder): RunDetail {
   const zusammenfassung = readZusammenfassung(dir, run.folder);
   const { kpis, breakEven } = parseSummary(zusammenfassung);
   return {

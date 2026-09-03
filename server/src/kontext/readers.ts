@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { directoryNames } from "./dirs.js";
 
 export interface VaultNote {
   path: string;
@@ -45,16 +46,6 @@ function isDirectory(target: string): boolean {
   } catch {
     return false;
   }
-}
-
-function directoryNames(dir: string): string[] {
-  let entries;
-  try {
-    entries = readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-  return entries.filter((entry) => entry.isDirectory()).map((e) => e.name);
 }
 
 function mdFileNames(dir: string): string[] {
