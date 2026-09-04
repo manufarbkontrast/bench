@@ -190,7 +190,9 @@ A manually started Bench server (`npm start`/`npm run dev`) left running against
 with this test's watcher for delivery during Phase 6 - the failure reproduced only while the server
 was up and passed cleanly the moment it was stopped. If the test times out, check for a Bench server
 still listening on 8100 or 8101, stop it, and rerun - not a `--maxWorkers=2` retry, which only waits
-out the contention rather than removing its likely cause.
+out the contention rather than removing its likely cause. The `watch` project itself carries a
+single scoped `retry: 1` for that same proven external cause; a second consecutive failure of that
+project is no longer explained by it and is a real signal worth investigating, not another retry.
 
 **Never pipe a gate command through `tail` or `head`.** `npm run check | tail -150` reports the
 pipe's exit status, not the gate's - a Phase 3 session shipped past a real knip failure that way

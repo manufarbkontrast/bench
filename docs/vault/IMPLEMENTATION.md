@@ -186,7 +186,11 @@ check on a value that could go either way can.
   still answers for a genuine stale `raw` - the two are not the same failure and do not get the
   same status. `appendTask` gained an `ok` discriminant it never needed before, since it could not
   previously fail; both of its callers (task creation and the Plaud import write path) check it
-  and answer the same 400 rather than writing outside the vault. See `write.test.ts`'s "realpath
+  and answer the same 400 rather than writing outside the vault. An in-vault symlink - both
+  endpoints inside the vault - is allowed by this same guard, and a toggle or create through it
+  replaces the link itself with a plain file holding the new content: `atomicWrite`'s `renameSync`
+  lands on the link's own directory entry, not the path it pointed at, so the target note is left
+  byte-unchanged and the symlink does not survive the write. See `write.test.ts`'s "realpath
   containment" cases, and the matching route-level cases in `tasks-routes.test.ts` and
   `aufgaben/routes.test.ts`, for exactly what does and does not get refused.
 

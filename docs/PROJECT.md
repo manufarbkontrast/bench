@@ -192,16 +192,18 @@ the rules above.
   rebuilds it from the markdown.
 - **Two write paths into the vault, guarded.** Toggling or creating a task, and importing a Plaud
   work item - both go through the single write surface in `server/src/vault/write.ts`. Nothing
-  else writes to a source.
+  else writes to a source. "Inside the vault" is realpath-enforced: a symlink whose target resolves
+  outside the vault is refused, once every symlink on the way is followed.
 - **Local CLIs are fair game.** `git`, `gh` and `claude` run as processes on this machine, the way
   Bench already runs `gitleaks`. No cloud call is made directly and no token is held.
 - **A job runs on click, through a fence, never on its own schedule.** `eingang` starts a skill
   script or a `claude -p` run only when a person clicks a button, and only after `planJob`
   (`server/src/eingang/jobs.ts`) has checked the job's kind against a closed catalog and any file
   argument against a bare basename that already exists in the one folder that kind may touch -
-  every check runs before any command is built, so a rejected request never reaches a shell. Bench
-  itself schedules nothing; `eingang` only displays the launchd entries a person already set up
-  outside it (SPEC.md principle 6).
+  every check runs before any command is built, so a rejected request never reaches a shell. "The
+  one folder" is realpath-enforced too: a symlink resolving outside it is refused before any
+  argument is built. Bench itself schedules nothing; `eingang` only displays the launchd entries a
+  person already set up outside it (SPEC.md principle 6).
 - **`aufgaben`, `projekte` and `kontext` read the vault index.** A task is a line in a vault note,
   a project's brand and status come from the vault note that couples to it, and Kontext's Profil,
   Regeln and Stand tabs read the vault's profile, workflow and session notes - so all three apps

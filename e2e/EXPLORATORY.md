@@ -86,6 +86,13 @@ confirmed-but-unasserted:
   not found, and every vault-backed route falls back to the bundled sample fixture rather than an
   empty state, with no route answering 500. Not covered by a spec - `e2e/fixtures.ts` always points
   every worker at a real per-worker `VAULT_DIR`, so a missing-vault boot is never exercised.
+- **A known, unfixed residual: `watch.ts`'s `add`/`change` handler still lets an uncaught throw
+  reach chokidar.** Phase 6 Task 3 closed the _parse_ half of this failure class - `splitNote` now
+  catches malformed frontmatter - but `indexNote`'s own `readFileSync` in the watcher's handler is
+  not wrapped, so a note deleted or made unreadable between the chokidar event and the read still
+  takes the process down. Narrow in practice - `awaitWriteFinish` and the dot-file rule already
+  cover the common editor temp-file case - but it is the one corner of the class this phase did not
+  close, deliberately left for its own reviewed fix rather than folded in here.
 
 ## Projekte
 
@@ -200,7 +207,10 @@ Left to judgement, because a real `claude -p` invocation, a real skill script an
   A hardlink passes either of Bench's two realpath containments (here and the vault's own write
   guard) unnoticed - `realpathSync` only resolves symlinks - but placing a hardlink into a watched
   folder already needs write access to that folder, which already permits placing an ordinary file
-  there, so this is out of scope by design rather than a gap in either fence.
+  there, so this is out of scope by design rather than a gap in either fence. Both containments
+  also check then act, and a path component swapped for a symlink in the gap between the two
+  escapes - the same dismissal applies: the swap needs the same write access to the folder that
+  already permits placing a file there.
 
 ## Kontext
 

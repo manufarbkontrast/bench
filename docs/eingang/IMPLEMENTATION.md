@@ -332,6 +332,10 @@ runner) cancelled mid-run reaching `Abgebrochen` with its log intact, followed b
   `plaudHome` looks like an ordinary file to this fence - out of scope by design, since placing a
   hardlink there already needs write access to the folder, the same access that already permits
   placing an ordinary file.
+- **The check-then-act gap: TOCTOU.** `resolvesInsideFolder` checks, then `planJob` returns a plan
+  that is acted on afterwards; a path component swapped for a symlink in the gap between the two
+  escapes the fence. Dismissed on the same ground as the hardlink above - exploiting it needs the
+  same write access to the folder that already permits placing an ordinary file there.
 
 ## Related documents
 
