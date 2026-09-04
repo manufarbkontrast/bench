@@ -215,13 +215,12 @@ describe("realpath containment", () => {
   });
 
   it("does not refuse a symlink whose realpath stays inside the vault", () => {
-    symlinkSync(
-      path.join(dir, LEUCHTTURM),
-      path.join(dir, "90_Archive", "InVaultLink.md"),
-    );
+    const linkPath = path.join(dir, "90_Archive", "InVaultLink.md");
+    symlinkSync(path.join(dir, LEUCHTTURM), linkPath);
     const before = db
       .prepare("SELECT raw FROM tasks WHERE path = ? AND line = ?")
       .get(LEUCHTTURM, 8) as TaskRow;
+    const targetBefore = readFileSync(path.join(dir, LEUCHTTURM), "utf8");
 
     const result = toggleTask(
       dir,
@@ -233,6 +232,12 @@ describe("realpath containment", () => {
     );
 
     expect(result.ok).toBe(true);
+    // atomicWrite's rename lands on the link's own directory entry, not the path it pointed at -
+    // so the write replaces the symlink itself with a plain file holding the new content, and the
+    // target note it used to point at is left byte-unchanged. Pinned deliberately: see
+    // docs/vault/IMPLEMENTATION.md's symlink paragraph.
+    expect(lstatSync(linkPath).isSymbolicLink()).toBe(false);
+    expect(readFileSync(path.join(dir, LEUCHTTURM), "utf8")).toBe(targetBefore);
   });
 
   it("appendTask refuses a target that is a symlink to outside the vault", () => {

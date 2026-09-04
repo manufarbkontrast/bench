@@ -313,10 +313,15 @@ describe("createRunner - SIGKILL escalation", () => {
   // unproven.
   it("hang-hard.mjs really does ignore SIGTERM", async () => {
     const child = spawn(process.execPath, [HANG_HARD_PATH]);
-    child.kill("SIGTERM");
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(child.exitCode).toBeNull();
-    child.kill("SIGKILL");
+    try {
+      child.kill("SIGTERM");
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      expect(child.exitCode).toBeNull();
+    } finally {
+      // In a finally so a failing assertion above cannot orphan a spinning child - this suite is
+      // precisely the one that runs under the CPU load most likely to trip that assertion.
+      child.kill("SIGKILL");
+    }
   });
 
   it("kill() escalates to SIGKILL after the grace period, on a child that ignores SIGTERM", async () => {

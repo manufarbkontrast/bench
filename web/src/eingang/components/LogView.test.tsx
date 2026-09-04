@@ -27,6 +27,16 @@ function job(overrides: Partial<JobRow> = {}): JobRow {
   };
 }
 
+/** Runs `fn` under fake timers, restoring real ones afterwards even if `fn` throws. */
+async function withFakeTimers(fn: () => Promise<void>): Promise<void> {
+  vi.useFakeTimers();
+  try {
+    await fn();
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
 describe("LogView", () => {
   it("renders the job label and the fetched log", async () => {
     const theJob = job({ status: "done", finishedAt: Date.now() });
@@ -48,8 +58,7 @@ describe("LogView", () => {
   });
 
   it("polls every 2s while running and stops once the job is done", async () => {
-    vi.useFakeTimers();
-    try {
+    await withFakeTimers(async () => {
       const running = job({ status: "running" });
       const done = { ...running, status: "done" as const, finishedAt: 123 };
       vi.mocked(api.job)
@@ -75,14 +84,11 @@ describe("LogView", () => {
       });
       // Status left "running" after the second poll, so no further tick fetched again.
       expect(api.job).toHaveBeenCalledTimes(2);
-    } finally {
-      vi.useRealTimers();
-    }
+    });
   });
 
   it("schedules no interval at all when the first poll already finds the job terminal", async () => {
-    vi.useFakeTimers();
-    try {
+    await withFakeTimers(async () => {
       // The `job` prop still says "running" - it is whatever the Jobs table last fetched - but
       // the job finished in the gap before this panel's own first poll resolves. The old
       // implementation decided whether to schedule the interval from that stale prop, so it
@@ -102,14 +108,11 @@ describe("LogView", () => {
       });
       // No wasted tick: the interval was never scheduled, so nothing polls again.
       expect(api.job).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.useRealTimers();
-    }
+    });
   });
 
   it("stops polling once a poll rejects, rather than ticking forever against a dead server", async () => {
-    vi.useFakeTimers();
-    try {
+    await withFakeTimers(async () => {
       const running = job({ status: "running" });
       vi.mocked(api.job)
         .mockResolvedValueOnce({ job: running, log: "first" })
@@ -131,14 +134,11 @@ describe("LogView", () => {
         await vi.advanceTimersByTimeAsync(6000);
       });
       expect(api.job).toHaveBeenCalledTimes(2);
-    } finally {
-      vi.useRealTimers();
-    }
+    });
   });
 
   it("never polls a job that is already finished when opened", async () => {
-    vi.useFakeTimers();
-    try {
+    await withFakeTimers(async () => {
       const finished = job({ status: "done", finishedAt: Date.now() });
       vi.mocked(api.job).mockResolvedValue({ job: finished, log: "done log" });
 
@@ -152,14 +152,11 @@ describe("LogView", () => {
         await vi.advanceTimersByTimeAsync(10_000);
       });
       expect(api.job).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.useRealTimers();
-    }
+    });
   });
 
   it("stops polling once unmounted", async () => {
-    vi.useFakeTimers();
-    try {
+    await withFakeTimers(async () => {
       const running = job({ status: "running" });
       vi.mocked(api.job).mockResolvedValue({ job: running, log: "x" });
 
@@ -174,9 +171,7 @@ describe("LogView", () => {
         await vi.advanceTimersByTimeAsync(10_000);
       });
       expect(api.job).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.useRealTimers();
-    }
+    });
   });
 
   it("calls onClose when Schließen is clicked", async () => {

@@ -119,7 +119,11 @@ describe("planJob - the fence", () => {
 
       const result = planJob("plaud-process", { file: "escape.txt" }, ctx);
 
-      expect(result).toEqual({ error: expect.any(String) as string });
+      // The distinctive message, not just a shape pin - so a refactor that keeps the refusal but
+      // moves where it fires (e.g. to an lstat check) cannot silently swap in an unrelated error.
+      expect(result).toEqual({
+        error: "file escapes the inbox folder: escape.txt",
+      });
     });
   });
 
@@ -166,7 +170,10 @@ describe("planJob - the fence", () => {
 
       const result = planJob("aufgaben-import", { file: "escape.md" }, ctx);
 
-      expect(result).toEqual({ error: expect.any(String) as string });
+      // The distinctive message, not just a shape pin - see the matching plaud-process case above.
+      expect(result).toEqual({
+        error: "file escapes the notizen folder: escape.md",
+      });
     });
   });
 

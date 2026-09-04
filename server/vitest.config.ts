@@ -48,6 +48,11 @@ export default defineConfig({
           name: "watch",
           include: [WATCH_TEST],
           fileParallelism: false,
+          // Scoped to this project only: the proven cause is OS-level scheduling starvation of
+          // the fsevents callback under CPU contention, reproduced with coverage off, so the
+          // retry covers the machine, not a defect in the test or the watcher - the sequencing
+          // above already removed the suite's own contribution to that contention.
+          retry: 1,
         },
       },
     ],

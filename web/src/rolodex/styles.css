@@ -7,6 +7,9 @@
      high-contrast text and hover shade do not need to either. */
   --amber-fg: #453303;
   --amber-hover: #f0b827;
+  /* The gift-surface border only, kept at its original value rather than folded into --amber-deep
+     - see the dark block below for how the dark value is derived from it. */
+  --amber-border: #f0dca8;
   --blue: #209dd7;
   --blue-deep: #16719e;
   --blue-soft: #e3f2fb;
@@ -72,6 +75,10 @@
   color-scheme: dark;
   --amber-deep: #e2b842;
   --amber-soft: #3a2e0d;
+  /* #f0dca8 sits about 20% of the way from --amber-soft to --amber-deep in each RGB channel
+     (light: soft #fdf3d7, deep #b98200) - applying that same 20% blend to this theme's soft/deep
+     pair keeps the border's visual weight against --amber-soft the same in both themes. */
+  --amber-border: #5c4a18;
   --blue-deep: #7cc7e8;
   --blue-soft: #123243;
   --purple: #a877c4;
@@ -1439,7 +1446,7 @@ tr:hover .cell-actions {
 
 .gift-surface {
   background: var(--amber-soft);
-  border: 1px solid var(--amber-deep);
+  border: 1px solid var(--amber-border);
   border-radius: 10px;
   padding: 12px 16px;
   margin: 12px 20px;
