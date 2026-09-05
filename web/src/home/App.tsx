@@ -211,7 +211,15 @@ export default function App() {
 
   useEffect(() => {
     void api.tasks().then(setTasks);
-    void api.stand().then(setStand);
+    // Sequenced, not parallel: GET /list scans the sample workshop on an empty table (see
+    // server/src/projekte/routes.ts), but GET /stand never scans and just reads the table as it
+    // stands - fired in parallel, a fresh install (nothing in data/projekte.sqlite yet) would show
+    // an empty panel until Neu scannen or a reload. Warming first means the scan has already run.
+    // Same ordering as web/src/projekte/App.tsx's own mount effect.
+    void api
+      .warmProjects()
+      .then(() => api.stand())
+      .then(setStand);
     void api.inbox().then(setInboxFiles);
     void api
       .sessionNote()

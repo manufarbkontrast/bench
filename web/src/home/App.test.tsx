@@ -117,6 +117,7 @@ const sessionBody = [
 vi.mock("./api", () => ({
   api: {
     tasks: vi.fn(),
+    warmProjects: vi.fn(),
     stand: vi.fn(),
     inbox: vi.fn(),
     sessionNote: vi.fn(),
@@ -126,6 +127,9 @@ vi.mock("./api", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Resolved by default so every test but the ordering test below can ignore it; that one test
+  // overrides this with its own manually controlled promise.
+  vi.mocked(api.warmProjects).mockResolvedValue(undefined);
 });
 
 function panel(name: string): HTMLElement {
@@ -255,6 +259,33 @@ describe("Cockpit", () => {
       expect(appRow.getByRole("link", { name })).toHaveAttribute("href", href);
     }
     expect(appRow.getAllByRole("link")).toHaveLength(appLinks.length);
+  });
+
+  it("fetches the stand only after warmProjects has resolved, so a fresh install does not race the first scan", async () => {
+    // GET /list (warmProjects) scans an empty table before answering
+    // (server/src/projekte/routes.ts); GET /stand never scans. Firing them in parallel on a fresh
+    // install would let /stand read the table before the scan has filled it in - same race Task 4
+    // fixed inside the Projekte app itself.
+    let resolveWarm!: () => void;
+    vi.mocked(api.warmProjects).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveWarm = () => {
+            resolve(undefined);
+          };
+        }),
+    );
+    vi.mocked(api.tasks).mockResolvedValue([]);
+    vi.mocked(api.inbox).mockResolvedValue([]);
+    vi.mocked(api.sessionNote).mockResolvedValue(null);
+    vi.mocked(api.zahlenLast).mockResolvedValue({ run: null });
+    vi.mocked(api.stand).mockResolvedValue({ projekte: [], ohneProjekt: [] });
+
+    render(<App />);
+    expect(api.stand).not.toHaveBeenCalled();
+    resolveWarm();
+    await within(panel("Projekte in Bewegung")).findByText("Alles ruhig.");
+    expect(api.stand).toHaveBeenCalledTimes(1);
   });
 
   it("shows a handoff's age first, then its staleness hint", async () => {
