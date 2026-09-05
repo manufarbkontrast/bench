@@ -3,11 +3,7 @@ import path from "node:path";
 import type Database from "better-sqlite3";
 import { openDb as openVaultDb } from "../../src/vault/db.js";
 import type { ProjectRow } from "../../src/projekte/db.js";
-import type {
-  ProjektStand,
-  Signals,
-  StandReply,
-} from "../../src/projekte/stand.js";
+import type { ProjektStand, Signals } from "../../src/projekte/stand.js";
 import { localDay, projektStand } from "../../src/projekte/stand.js";
 import { scratchDir } from "./tmp.js";
 
@@ -111,7 +107,7 @@ describe("projektStand", () => {
       row({ path: "/abs/repo-a", name: "repo-a" }),
       row({ path: "/abs/other", name: "other" }),
     ];
-    const reply: StandReply = projektStand(db, rows);
+    const reply = projektStand(db, rows);
     const first: ProjektStand = reply.projekte[0];
     expect(first.repos.map((r) => r.name)).toEqual(["repo-a"]);
     expect(first.missingRepos).toEqual(["nicht-da"]);

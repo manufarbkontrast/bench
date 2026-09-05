@@ -2,7 +2,6 @@ import { afterAll, describe, expect, it } from "vitest";
 import path from "node:path";
 import type Database from "better-sqlite3";
 import { openDb as openVaultDb } from "../../src/vault/db.js";
-import type { Handoff } from "../../src/projekte/handoffs.js";
 import {
   parseUpdated,
   vaultHandoffs,
@@ -59,6 +58,13 @@ describe("zustandSection", () => {
   it("is empty without any H2", () => {
     expect(zustandSection("# Nur Titel\n\nText")).toBe("");
   });
+  it("keeps a fenced block's own ## line as part of the section, not a boundary", () => {
+    const body =
+      "# Handoff\n\n## Zustand\n\nText davor.\n\n```\n## nicht wirklich eine Überschrift\n```\n\nText danach.\n\n## Offen\n\nX\n";
+    expect(zustandSection(body)).toBe(
+      "Text davor.\n\n```\n## nicht wirklich eine Überschrift\n```\n\nText danach.",
+    );
+  });
 });
 
 describe("parseUpdated", () => {
@@ -94,7 +100,7 @@ describe("vaultHandoffs", () => {
     const { handoffs, warnings } = vaultHandoffs(db);
     expect(warnings).toEqual([]);
     expect(handoffs).toHaveLength(1);
-    const h: Handoff = handoffs[0];
+    const h = handoffs[0];
     expect(h.slug).toBe("leuchtturm");
     expect(h.title).toBe("Handoff: Leuchtturm");
     expect(h.updated).toBe("2026-08-01");
@@ -114,6 +120,28 @@ describe("vaultHandoffs", () => {
     ]);
     const { handoffs } = vaultHandoffs(db);
     expect(handoffs[0].title).toBe("hafen");
+  });
+  it("falls back to the slug when the only # line sits inside a fenced block", () => {
+    const db = buildVault([
+      {
+        path: `${HANDOFF}/Handoff_fenced.md`,
+        frontmatter: { projekt: "fenced" },
+        body: "## Zustand\n\n```\n# build the thing\n```\n\nText.\n",
+      },
+    ]);
+    const { handoffs } = vaultHandoffs(db);
+    expect(handoffs[0].title).toBe("fenced");
+  });
+  it("skips a fenced # line and reads the real H1 that follows", () => {
+    const db = buildVault([
+      {
+        path: `${HANDOFF}/Handoff_fenced2.md`,
+        frontmatter: { projekt: "fenced2" },
+        body: "```\n# x\n```\n\n# Title\n\n## Zustand\n\nText.\n",
+      },
+    ]);
+    const { handoffs } = vaultHandoffs(db);
+    expect(handoffs[0].title).toBe("Title");
   });
   it("ignores notes outside the Handoffs folder, including a sibling with an underscore", () => {
     const db = buildVault([
@@ -160,5 +188,24 @@ describe("vaultHandoffs", () => {
     expect(handoffs[0].repos).toEqual([path.resolve("/abs/x")]);
     expect(handoffs[1].repos).toEqual([]);
     expect(warnings).toEqual(["Ungültiger repos-Eintrag in Handoff_a.md"]);
+  });
+  it("warns when repos is present but not a list", () => {
+    const db = buildVault([
+      {
+        path: `${HANDOFF}/Handoff_a.md`,
+        frontmatter: { projekt: "a", repos: "~/Projekte/x" },
+      },
+    ]);
+    const { handoffs, warnings } = vaultHandoffs(db);
+    expect(handoffs[0].repos).toEqual([]);
+    expect(warnings).toEqual(["repos ist keine Liste in Handoff_a.md"]);
+  });
+  it("stays silent when repos is simply absent", () => {
+    const db = buildVault([
+      { path: `${HANDOFF}/Handoff_b.md`, frontmatter: { projekt: "b" } },
+    ]);
+    const { handoffs, warnings } = vaultHandoffs(db);
+    expect(handoffs[0].repos).toEqual([]);
+    expect(warnings).toEqual([]);
   });
 });

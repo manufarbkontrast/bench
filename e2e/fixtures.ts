@@ -2,7 +2,6 @@ import { test as base, expect } from "@playwright/test";
 import { spawn } from "node:child_process";
 import {
   cpSync,
-  existsSync,
   mkdirSync,
   readFileSync,
   rmSync,
@@ -63,8 +62,10 @@ export const test = base.extend<
       // shows up in another worker's tree.
       const vaultDir = workerVault(workerInfo.workerIndex);
       mkdirSync(vaultDir, { recursive: true });
+      // The fixture is committed, so it always exists - no guard needed before the unconditional
+      // handoff rewrite below, which reads a file straight back out of vaultDir.
       const fixture = path.join(root, "server", "src", "vault", "fixture");
-      if (existsSync(fixture)) cpSync(fixture, vaultDir, { recursive: true });
+      cpSync(fixture, vaultDir, { recursive: true });
 
       // The committed Handoff_leuchtturm.md names a synthetic path (~/Projekte/leuchtturm) that
       // couples to nothing, so npm start and the unit tests show "Repo nicht gefunden: leuchtturm"

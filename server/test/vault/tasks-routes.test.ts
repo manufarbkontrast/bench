@@ -19,6 +19,7 @@ import { appWithVault } from "./app.js";
 import { copyFixture } from "./fixture.js";
 
 const LEUCHTTURM = "30_Projekte/Leuchtturm/Leuchtturm.md";
+const HANDOFF = "50_Workflow/Handoffs/Handoff_leuchtturm.md";
 
 let dir: string;
 let db: Database.Database;
@@ -93,6 +94,18 @@ describe("PATCH /api/vault/tasks", () => {
       .send({ path: "nope.md", line: 1, raw: "- [ ] x" });
 
     expect(res.status).toBe(404);
+  });
+
+  it("answers 400 for a handoff note and leaves it untouched", async () => {
+    const before = readFileSync(path.join(dir, HANDOFF), "utf8");
+
+    const res = await request(app)
+      .patch("/api/vault/tasks")
+      .send({ path: HANDOFF, line: 9, raw: "- [ ] Farbe der Kuppel" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "handoff notes are read-only" });
+    expect(readFileSync(path.join(dir, HANDOFF), "utf8")).toBe(before);
   });
 
   it("answers 400 when the body is incomplete", async () => {
@@ -185,5 +198,17 @@ describe("POST /api/vault/tasks", () => {
       .send({ text: "x", path: "not-a-note.md" });
 
     expect(res.status).toBe(404);
+  });
+
+  it("answers 400 for a handoff note and leaves it untouched", async () => {
+    const before = readFileSync(path.join(dir, HANDOFF), "utf8");
+
+    const res = await request(app)
+      .post("/api/vault/tasks")
+      .send({ text: "Neue Aufgabe", path: HANDOFF });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "handoff notes are read-only" });
+    expect(readFileSync(path.join(dir, HANDOFF), "utf8")).toBe(before);
   });
 });

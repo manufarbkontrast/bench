@@ -471,6 +471,7 @@ button {
   font-family: inherit;
   font-size: 13px;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .projekte-stand-card > a {

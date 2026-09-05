@@ -40,9 +40,10 @@ export default function ProjektCard({
   onSelect: (path: string) => void;
 }) {
   const hints = standHints(projekt);
+  const headingId = `stand-${projekt.slug}`;
   return (
-    <article className="projekte-stand-card">
-      <h2>{projekt.slug}</h2>
+    <article className="projekte-stand-card" aria-labelledby={headingId}>
+      <h2 id={headingId}>{projekt.slug}</h2>
       {projekt.title !== projekt.slug && (
         <p className="projekte-stand-subtitle">{projekt.title}</p>
       )}
@@ -51,8 +52,11 @@ export default function ProjektCard({
       </p>
       {hints.length > 0 && (
         <ul className="projekte-badges">
-          {hints.map((hint) => (
-            <li key={hint} className="projekte-badge">
+          {hints.map((hint, index) => (
+            // Two missing repos under different parents can share a basename, so the hint
+            // string alone is not a unique key - and deduping it would hide one of them from a
+            // view whose whole point is an honest picture of what is missing.
+            <li key={index} className="projekte-badge">
               {hint}
             </li>
           ))}

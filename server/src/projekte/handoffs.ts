@@ -29,14 +29,33 @@ interface NoteRow {
 const isH1 = (line: string): boolean => line.startsWith("# ");
 const isH2 = (line: string): boolean => line.startsWith("## ");
 
+const FENCE = /^(```|~~~)/;
+
+// Handoffs are free-form notes, not the fixed-shape machine output the scanner style below was
+// borrowed from - a `## ` or `# ` line inside a fenced code block must not read as a real
+// heading. Mirrors wikilinks.ts's stripCodeBlocks, blanking fenced lines rather than dropping
+// them so line positions still line up with the original `lines` array; the import is forbidden,
+// same as EXCLUDED_FOLDERS in stand.ts.
+function maskFencedLines(lines: string[]): string[] {
+  let inFence = false;
+  return lines.map((line) => {
+    if (FENCE.test(line.trim())) {
+      inFence = !inFence;
+      return "";
+    }
+    return inFence ? "" : line;
+  });
+}
+
 /** The body of `## Zustand`; absent, the first H2 section; absent, "". */
 export function zustandSection(body: string): string {
   const lines = body.split("\n");
-  const zustand = lines.findIndex((line) => /^## Zustand\b/.test(line));
-  const start = zustand === -1 ? lines.findIndex(isH2) : zustand;
+  const masked = maskFencedLines(lines);
+  const zustand = masked.findIndex((line) => /^## Zustand\b/.test(line));
+  const start = zustand === -1 ? masked.findIndex(isH2) : zustand;
   if (start === -1) return "";
   const rest = lines.slice(start + 1);
-  const end = rest.findIndex(isH2);
+  const end = masked.slice(start + 1).findIndex(isH2);
   return (end === -1 ? rest : rest.slice(0, end)).join("\n").trim();
 }
 
@@ -45,8 +64,9 @@ export function zustandSection(body: string): string {
     slug when the body has none. Not exported: only vaultHandoffs below calls it, and both new
     cases are covered through that function in handoffs.test.ts. */
 function handoffTitle(body: string, slug: string): string {
-  const h1 = body.split("\n").find(isH1);
-  return h1 === undefined ? slug : h1.slice(2).trim();
+  const lines = body.split("\n");
+  const index = maskFencedLines(lines).findIndex(isH1);
+  return index === -1 ? slug : lines[index].slice(2).trim();
 }
 
 // gray-matter turns an unquoted date into a Date, which the index serialises as an ISO datetime;
@@ -62,7 +82,11 @@ function reposOf(
   file: string,
   warnings: string[],
 ): string[] {
-  if (!Array.isArray(frontmatter.repos)) return [];
+  if (!Array.isArray(frontmatter.repos)) {
+    if (frontmatter.repos !== undefined)
+      warnings.push(`repos ist keine Liste in ${file}`);
+    return [];
+  }
   const repos: string[] = [];
   for (const entry of frontmatter.repos) {
     if (typeof entry === "string" && entry !== "")

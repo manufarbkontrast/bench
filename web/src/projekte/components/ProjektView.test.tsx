@@ -142,6 +142,19 @@ describe("ProjektView", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps both badges when two missing repos share a basename from different parents", () => {
+    // missingRepos already holds basenames (server/src/projekte/stand.ts's path.basename), so
+    // "/a/cache" and "/b/cache" arrive here as the identical string "cache" twice - badges are
+    // keyed by index rather than by that string, or the second would collide with the first.
+    const stand: StandReply = {
+      projekte: [projekt({ missingRepos: ["cache", "cache"] })],
+      ohneProjekt: [],
+      warnings: [],
+    };
+    render(<ProjektView stand={stand} today={TODAY} onSelect={vi.fn()} />);
+    expect(screen.getAllByText("Repo nicht gefunden: cache")).toHaveLength(2);
+  });
+
   it("calls onSelect with a repo's path when its name is clicked", async () => {
     const onSelect = vi.fn();
     const stand: StandReply = {

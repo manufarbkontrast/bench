@@ -135,6 +135,16 @@ function knownTarget(vaultDb: Database.Database, targetPath: string): boolean {
   );
 }
 
+// A handoff note is the /handoff skill's write surface, not the Plaud import's - PROJECT.md's
+// "Bench never writes a handoff" promise, enforced here rather than only documented. Declared
+// locally rather than imported from projekte/handoffs.ts's HANDOFF_FOLDER: the two apps never
+// import each other, the same rule EXCLUDED_FOLDERS follows elsewhere in this codebase.
+const HANDOFF_FOLDER = "50_Workflow/Handoffs/";
+
+function isHandoffNote(relPath: string): boolean {
+  return relPath.startsWith(HANDOFF_FOLDER);
+}
+
 export function aufgabenRouter(
   ctx: AufgabenContext,
   vault: VaultContext,
@@ -168,6 +178,10 @@ export function aufgabenRouter(
     }
     if (findImport(ledger, file, rowHash)) {
       res.status(409).json({ error: "already imported" });
+      return;
+    }
+    if (isHandoffNote(targetPath)) {
+      res.status(400).json({ error: "handoff notes are read-only" });
       return;
     }
     if (!knownTarget(vault.db, targetPath)) {

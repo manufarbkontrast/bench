@@ -32,6 +32,7 @@ const PLAUD_DIR = path.resolve(
 );
 const PLAUD_FILE = "2026-08-20_hafenrunde.md";
 const LEUCHTTURM = "30_Projekte/Leuchtturm/Leuchtturm.md";
+const HANDOFF = "50_Workflow/Handoffs/Handoff_leuchtturm.md";
 
 interface TaskReply {
   path: string;
@@ -265,6 +266,28 @@ describe("POST /api/aufgaben/import", () => {
       targetPath: "not-a-note.md",
     });
     expect(res.status).toBe(400);
+  });
+
+  it("answers 400 when targetPath is a handoff note, and never records the import", async () => {
+    const plaudRes = await request(app).get("/api/aufgaben/plaud");
+    const rowHash = (plaudRes.body as PlaudResponse).notes[0].items[1].rowHash;
+    const before = readFileSync(path.join(dir, HANDOFF), "utf8");
+
+    const res = await request(app).post("/api/aufgaben/import").send({
+      file: PLAUD_FILE,
+      rowHash,
+      targetPath: HANDOFF,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "handoff notes are read-only" });
+    expect(readFileSync(path.join(dir, HANDOFF), "utf8")).toBe(before);
+    const ledgerCount = (
+      aufgaben.ledger
+        .prepare("SELECT COUNT(*) AS c FROM task_imports")
+        .get() as { c: number }
+    ).c;
+    expect(ledgerCount).toBe(0);
   });
 
   it("appends into an existing note when targetPath names one, with no due date field when bis is not a date", async () => {

@@ -27,9 +27,10 @@ test("the Projekte view opens by default, shows the coupled handoff and leaves t
   });
   await expect(leuchtturmHeading).toBeVisible({ timeout: 20_000 });
 
-  const leuchtturmCard = page
-    .locator("article.projekte-stand-card")
-    .filter({ has: leuchtturmHeading });
+  const leuchtturmCard = page.getByRole("article", {
+    name: "leuchtturm",
+    exact: true,
+  });
   await expect(leuchtturmCard.locator(".projekte-stand-subtitle")).toHaveText(
     "Handoff: Leuchtturm",
   );
@@ -37,9 +38,12 @@ test("the Projekte view opens by default, shows the coupled handoff and leaves t
   await expect(leuchtturmCard.locator("pre.projekte-stand-text")).toHaveText(
     "Der Leuchtturm steht; die Lampe ist bestellt.",
   );
-  // The fixture Leuchtturm.md holds six checkboxes, five open (lines 8, 9, 10, 11, 13 in the
-  // committed frontmatter+body) and one done (Kickoff halten, line 12) - re-count here if the
-  // note changes.
+  // The fixture Leuchtturm.md holds six checkboxes, five open (lines 14, 15, 16, 17, 19 in the
+  // committed file, frontmatter included) and one done (Kickoff halten, line 18) - re-count here
+  // if the note changes.
+  // `.projekte-badges` sets `list-style: none`, which drops the `<ul>`/`<li>` pair's implicit
+  // list/listitem roles in this engine - a role-based locator would never find this element, so
+  // the CSS class stays.
   await expect(
     leuchtturmCard.locator("li.projekte-badge", {
       hasText: "5 offene Aufgaben",
@@ -62,13 +66,7 @@ test("the Projekte view opens by default, shows the coupled handoff and leaves t
     page.getByRole("complementary", { name: "Details zu leuchtfeuer" }),
   ).toBeVisible();
 
-  const hafenHeading = page.getByRole("heading", {
-    name: "hafen",
-    exact: true,
-  });
-  const hafenCard = page
-    .locator("article.projekte-stand-card")
-    .filter({ has: hafenHeading });
+  const hafenCard = page.getByRole("article", { name: "hafen", exact: true });
   await expect(hafenCard.locator(".projekte-stand-subtitle")).toHaveText(
     "Handoff: Hafen",
   );
