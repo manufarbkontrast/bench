@@ -2,7 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import App from "./App";
 import { api } from "./api";
-import type { InboxFile, Kpi, Project, Task, ZahlenReply } from "./types";
+import type {
+  HandoffRow,
+  InboxFile,
+  Kpi,
+  Project,
+  Task,
+  ZahlenReply,
+} from "./types";
 
 function task(overrides: Partial<Task> = {}): Task {
   return {
@@ -72,6 +79,27 @@ function inWeek(days: number): string {
   return new Date(Date.now() + days * DAY_MS).toISOString().slice(0, 10);
 }
 
+/** The local calendar day `days` before now, in App.tsx's own YYYY-MM-DD shape - not
+    toISOString, which would drift a day west of Greenwich here just as it would there. */
+function daysAgo(days: number): string {
+  const d = new Date(Date.now() - days * DAY_MS);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function handoffRow(overrides: Partial<HandoffRow> = {}): HandoffRow {
+  return {
+    slug: "leuchtturm",
+    title: "Leuchtturm",
+    updated: daysAgo(0),
+    missingRepos: [],
+    signals: { veraltet: false, dirtyRepos: 0, offeneTasks: 0 },
+    ...overrides,
+  };
+}
+
 const sessionBody = [
   "# Session-Kontext",
   "",
@@ -89,7 +117,7 @@ const sessionBody = [
 vi.mock("./api", () => ({
   api: {
     tasks: vi.fn(),
-    projects: vi.fn(),
+    stand: vi.fn(),
     inbox: vi.fn(),
     sessionNote: vi.fn(),
     zahlenLast: vi.fn(),
@@ -119,17 +147,20 @@ describe("Cockpit", () => {
       }),
       task({ text: "Ohne Datum erledigt", done: true, doneAt: null }),
     ]);
-    vi.mocked(api.projects).mockResolvedValue([
-      project({ name: "leuchtturm", dirty: 2, ahead: 1, behind: 0 }),
-      project({
-        name: "frisch-committed",
-        lastCommitAt: Date.now() - DAY_MS,
-      }),
-      project({
-        name: "ruhig-und-alt",
-        lastCommitAt: Date.now() - 30 * DAY_MS,
-      }),
-    ]);
+    vi.mocked(api.stand).mockResolvedValue({
+      projekte: [],
+      ohneProjekt: [
+        project({ name: "leuchtturm", dirty: 2, ahead: 1, behind: 0 }),
+        project({
+          name: "frisch-committed",
+          lastCommitAt: Date.now() - DAY_MS,
+        }),
+        project({
+          name: "ruhig-und-alt",
+          lastCommitAt: Date.now() - 30 * DAY_MS,
+        }),
+      ],
+    });
     vi.mocked(api.inbox).mockResolvedValue(inboxFixture);
     vi.mocked(api.sessionNote).mockResolvedValue({ body: sessionBody });
     vi.mocked(api.zahlenLast).mockResolvedValue(zahlenFixture);
@@ -226,9 +257,138 @@ describe("Cockpit", () => {
     expect(appRow.getAllByRole("link")).toHaveLength(appLinks.length);
   });
 
+  it("shows a handoff's age first, then its staleness hint", async () => {
+    vi.mocked(api.tasks).mockResolvedValue([]);
+    vi.mocked(api.inbox).mockResolvedValue([]);
+    vi.mocked(api.sessionNote).mockResolvedValue(null);
+    vi.mocked(api.zahlenLast).mockResolvedValue({ run: null });
+    vi.mocked(api.stand).mockResolvedValue({
+      projekte: [
+        handoffRow({
+          updated: daysAgo(3),
+          signals: { veraltet: true, dirtyRepos: 0, offeneTasks: 0 },
+        }),
+      ],
+      ohneProjekt: [],
+    });
+
+    render(<App />);
+    const bewegung = panel("Projekte in Bewegung");
+    await within(bewegung).findByText("Leuchtturm");
+    expect(
+      within(bewegung).getByText("vor 3 Tagen · Stand veraltet"),
+    ).toBeInTheDocument();
+    expect(
+      within(bewegung).getByRole("link", { name: /Leuchtturm/ }),
+    ).toHaveAttribute("href", "/projekte/");
+  });
+
+  it("covers every handoffMeta branch: age variants, hint plurals and a missing repo", async () => {
+    vi.mocked(api.tasks).mockResolvedValue([]);
+    vi.mocked(api.inbox).mockResolvedValue([]);
+    vi.mocked(api.sessionNote).mockResolvedValue(null);
+    vi.mocked(api.zahlenLast).mockResolvedValue({ run: null });
+    vi.mocked(api.stand).mockResolvedValue({
+      projekte: [
+        handoffRow({ slug: "quiet", title: "Ruhig" }),
+        handoffRow({ slug: "no-date", title: "Ohne Datum", updated: null }),
+        handoffRow({ slug: "one-day", title: "Ein Tag", updated: daysAgo(1) }),
+        handoffRow({
+          slug: "dirty-one",
+          title: "Ein Repo",
+          signals: { veraltet: false, dirtyRepos: 1, offeneTasks: 0 },
+        }),
+        handoffRow({
+          slug: "dirty-many",
+          title: "Mehrere Repos",
+          signals: { veraltet: false, dirtyRepos: 2, offeneTasks: 0 },
+        }),
+        handoffRow({
+          slug: "task-one",
+          title: "Eine Aufgabe",
+          signals: { veraltet: false, dirtyRepos: 0, offeneTasks: 1 },
+        }),
+        handoffRow({
+          slug: "task-many",
+          title: "Mehrere Aufgaben",
+          signals: { veraltet: false, dirtyRepos: 0, offeneTasks: 2 },
+        }),
+        handoffRow({
+          slug: "missing-repo",
+          title: "Fehlendes Repo",
+          missingRepos: ["kaputt"],
+        }),
+      ],
+      ohneProjekt: [],
+    });
+
+    render(<App />);
+    const bewegung = panel("Projekte in Bewegung");
+    await within(bewegung).findByText("Ruhig");
+    expect(within(bewegung).getByText("heute")).toBeInTheDocument();
+    expect(within(bewegung).getByText("Datum fehlt")).toBeInTheDocument();
+    expect(within(bewegung).getByText("vor 1 Tag")).toBeInTheDocument();
+    expect(
+      within(bewegung).getByText("heute · 1 Repo ungesichert"),
+    ).toBeInTheDocument();
+    expect(
+      within(bewegung).getByText("heute · 2 Repos ungesichert"),
+    ).toBeInTheDocument();
+    expect(
+      within(bewegung).getByText("heute · 1 offene Aufgabe"),
+    ).toBeInTheDocument();
+    expect(
+      within(bewegung).getByText("heute · 2 offene Aufgaben"),
+    ).toBeInTheDocument();
+    expect(
+      within(bewegung).getByText("heute · Repo nicht gefunden: kaputt"),
+    ).toBeInTheDocument();
+  });
+
+  it("folds handoffs past HANDOFF_ROWS into a … und n weitere row", async () => {
+    vi.mocked(api.tasks).mockResolvedValue([]);
+    vi.mocked(api.inbox).mockResolvedValue([]);
+    vi.mocked(api.sessionNote).mockResolvedValue(null);
+    vi.mocked(api.zahlenLast).mockResolvedValue({ run: null });
+    const rows = Array.from({ length: 10 }, (_, i) =>
+      handoffRow({ slug: `h${String(i)}`, title: `Handoff ${String(i)}` }),
+    );
+    vi.mocked(api.stand).mockResolvedValue({ projekte: rows, ohneProjekt: [] });
+
+    render(<App />);
+    const bewegung = panel("Projekte in Bewegung");
+    await within(bewegung).findByText("Handoff 0");
+    expect(within(bewegung).getByText("Handoff 7")).toBeInTheDocument();
+    expect(within(bewegung).queryByText("Handoff 8")).not.toBeInTheDocument();
+    expect(within(bewegung).queryByText("Handoff 9")).not.toBeInTheDocument();
+    const more = within(bewegung).getByText("… und 2 weitere");
+    expect(more).toBeInTheDocument();
+    expect(more.closest("a")).toHaveAttribute("href", "/projekte/");
+  });
+
+  it("lists moving rows from ohneProjekt only, alongside any handoffs", async () => {
+    vi.mocked(api.tasks).mockResolvedValue([]);
+    vi.mocked(api.inbox).mockResolvedValue([]);
+    vi.mocked(api.sessionNote).mockResolvedValue(null);
+    vi.mocked(api.zahlenLast).mockResolvedValue({ run: null });
+    vi.mocked(api.stand).mockResolvedValue({
+      projekte: [handoffRow()],
+      ohneProjekt: [project({ name: "frei-schwebend", dirty: 1 })],
+    });
+
+    render(<App />);
+    const bewegung = panel("Projekte in Bewegung");
+    await within(bewegung).findByText("Leuchtturm");
+    expect(within(bewegung).getByText("frei-schwebend")).toBeInTheDocument();
+    expect(within(bewegung).getByText("1 geändert")).toBeInTheDocument();
+    // One row for the handoff, one for the sole unattached repo - nothing coupled to the
+    // handoff sneaks in as a second moving row.
+    expect(within(bewegung).getAllByRole("link")).toHaveLength(2);
+  });
+
   it("omits the Google-ROAS line when the reply carries no such row", async () => {
     vi.mocked(api.tasks).mockResolvedValue([]);
-    vi.mocked(api.projects).mockResolvedValue([]);
+    vi.mocked(api.stand).mockResolvedValue({ projekte: [], ohneProjekt: [] });
     vi.mocked(api.inbox).mockResolvedValue([]);
     vi.mocked(api.sessionNote).mockResolvedValue(null);
     vi.mocked(api.zahlenLast).mockResolvedValue({
@@ -248,7 +408,7 @@ describe("Cockpit", () => {
 
   it("shows every empty state when nothing is due, moving or done and no note exists", async () => {
     vi.mocked(api.tasks).mockResolvedValue([]);
-    vi.mocked(api.projects).mockResolvedValue([]);
+    vi.mocked(api.stand).mockResolvedValue({ projekte: [], ohneProjekt: [] });
     vi.mocked(api.inbox).mockResolvedValue([]);
     vi.mocked(api.sessionNote).mockResolvedValue(null);
     vi.mocked(api.zahlenLast).mockResolvedValue({ run: null });

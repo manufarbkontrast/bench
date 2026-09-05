@@ -116,6 +116,71 @@ export function movingProjects(projects: Project[], now: number): Project[] {
     .sort((a, b) => (b.lastCommitAt ?? 0) - (a.lastCommitAt ?? 0));
 }
 
+/** Mirrors GET /api/projekte/stand's ProjektStand (server/src/projekte/stand.ts), narrowed to
+    what the Cockpit's handoff row renders - not the repos or notePath, which the panel never
+    shows. */
+export interface HandoffRow {
+  slug: string;
+  title: string;
+  updated: string | null;
+  missingRepos: string[];
+  signals: { veraltet: boolean; dirtyRepos: number; offeneTasks: number };
+}
+
+/** Mirrors StandReply, minus `warnings` - the panel has nowhere to show them. */
+export interface StandReply {
+  projekte: HandoffRow[];
+  ohneProjekt: Project[];
+}
+
+/** Handoffs shown before the panel folds the rest into "… und n weitere". */
+export const HANDOFF_ROWS = 8;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Whole days between two YYYY-MM-DD strings, today minus updated; null without a date. Both
+    sides go through Date.UTC of their parsed parts, so a viewer's own offset never enters it -
+    the same trick server/src/projekte/stand.ts's localDay uses in the other direction. */
+function ageDays(updated: string | null, today: string): number | null {
+  if (updated === null) return null;
+  const [uy, um, ud] = updated.split("-").map(Number);
+  const [ty, tm, td] = today.split("-").map(Number);
+  return Math.round(
+    (Date.UTC(ty, tm - 1, td) - Date.UTC(uy, um - 1, ud)) / DAY_MS,
+  );
+}
+
+function ageText(days: number | null): string {
+  if (days === null) return "Datum fehlt";
+  if (days === 0) return "heute";
+  if (days === 1) return "vor 1 Tag";
+  return `vor ${String(days)} Tagen`;
+}
+
+/** The same wording as web/src/projekte/stand.ts's standHints, written again here rather than
+    imported - this document never imports from a sibling app (see the top comment). */
+function handoffHints(row: HandoffRow): string[] {
+  const hints: string[] = [];
+  if (row.signals.veraltet) hints.push("Stand veraltet");
+  if (row.signals.dirtyRepos === 1) hints.push("1 Repo ungesichert");
+  else if (row.signals.dirtyRepos > 1)
+    hints.push(`${String(row.signals.dirtyRepos)} Repos ungesichert`);
+  if (row.signals.offeneTasks === 1) hints.push("1 offene Aufgabe");
+  else if (row.signals.offeneTasks > 1)
+    hints.push(`${String(row.signals.offeneTasks)} offene Aufgaben`);
+  for (const name of row.missingRepos)
+    hints.push(`Repo nicht gefunden: ${name}`);
+  return hints;
+}
+
+/** A handoff row's meta line - age first, then the same staleness/dirty-repo/open-task/missing
+    hints the Projekte app's own Stand card shows, joined the same way. */
+export function handoffMeta(row: HandoffRow, today: string): string {
+  return [ageText(ageDays(row.updated, today)), ...handoffHints(row)].join(
+    " · ",
+  );
+}
+
 const ZAHLEN_KENNZAHLEN = ["Umsatz gesamt", "Google-ROAS"];
 
 /** The panel's two KPI rows, picked from the parsed table by exact Kennzahl match in this fixed

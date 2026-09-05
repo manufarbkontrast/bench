@@ -1,4 +1,4 @@
-import type { InboxFile, Project, Task, ZahlenReply } from "./types";
+import type { InboxFile, StandReply, Task, ZahlenReply } from "./types";
 
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -30,8 +30,7 @@ interface SessionNote {
 export const api = {
   tasks: () =>
     get<{ tasks: Task[] }>("/api/aufgaben/tasks").then((r) => r.tasks),
-  projects: () =>
-    get<{ projects: Project[] }>("/api/projekte/list").then((r) => r.projects),
+  stand: () => get<StandReply>("/api/projekte/stand"),
   inbox: () =>
     get<{ files: InboxFile[] }>("/api/eingang/inbox").then((r) => r.files),
   sessionNote: () =>

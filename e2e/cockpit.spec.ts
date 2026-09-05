@@ -24,6 +24,11 @@ function panel(page: Page, heading: string) {
 test("the Cockpit surfaces overdue tasks, the session note and moving projects", async ({
   page,
 }) => {
+  // The Cockpit reads GET /api/projekte/stand (Task 5 of the projektstand change), which
+  // deliberately never scans - unlike /list, which the Cockpit called before and which the table
+  // and board views still call on first visit. Scan directly first, so this test does not depend
+  // on some other spec having scanned the sample workshop in this worker already.
+  await page.request.post("/api/projekte/scan");
   await page.goto("/");
 
   for (const heading of HEADINGS) {
@@ -62,15 +67,11 @@ test("the Cockpit surfaces overdue tasks, the session note and moving projects",
     zahlen.getByRole("link", { name: "Zur Zahlen-App" }),
   ).toHaveAttribute("href", "/zahlen/");
 
-  // Generous: a fresh worker's first read of /api/projekte/list can trigger the same lazy scan
-  // of the sample workshop as /projekte/'s own first visit, which shells out to git several
-  // times before any row exists - see smoke.spec.ts and projekte/scan.spec.ts for the same 20s
-  // wait on that call.
   await expect(
     panel(page, "Projekte in Bewegung").getByText("leuchtfeuer", {
       exact: true,
     }),
-  ).toBeVisible({ timeout: 20_000 });
+  ).toBeVisible();
 
   const link = session.getByRole("link", { name: "Im Vault öffnen" });
   await expect(link).toHaveAttribute(
