@@ -6,6 +6,7 @@ import { queryText } from "../vault/routes/query.js";
 import { listProjects, type ProjectRow } from "./db.js";
 import type { GhRunner } from "./gh.js";
 import { scanProjects, type ScanSummary } from "./pipeline.js";
+import { projektStand } from "./stand.js";
 
 export interface ProjekteContext {
   db: Database.Database;
@@ -88,6 +89,12 @@ export function projekteRouter(
       summary,
       projects: withDerived(rows),
     });
+  });
+
+  // Never triggers a scan: reads the projects table as it stands, so an empty table simply
+  // yields every handoff with all its repos missing - the honest picture before the first scan.
+  router.get("/stand", (_req, res) => {
+    res.json(projektStand(vaultDb, listProjects(db)));
   });
 
   router.post("/scan", async (_req, res) => {
