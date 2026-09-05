@@ -33,25 +33,26 @@ A `projects` row is a checkout; a **project** is a step up from that: a handoff 
 reads the vault's `notes` table `WHERE folder = '50_Workflow/Handoffs'` (equality, not `LIKE
 '50_Workflow%'` - see "Things that will bite") and turns each row into a `Handoff`:
 
-| Field      | Source                                                                                  |
-| ---------- | --------------------------------------------------------------------------------------- |
-| `slug`     | frontmatter `projekt`, trimmed, lowercased - the card's own heading                     |
-| `title`    | the body's first `# ` line, trimmed, wherever it falls; falls back to `slug` with no H1 |
-| `notePath` | the note's vault-relative path, for the `Handoff im Vault` link                         |
-| `updated`  | frontmatter `updated` as `YYYY-MM-DD`, or `null` when missing or unparsable             |
-| `repos`    | frontmatter `repos`: an array of strings, each tilde-expanded and `path.resolve`d       |
-| `zustand`  | the body's `## Zustand` section; absent, the first `## ` section; absent, `""`          |
+| Field      | Source                                                                                                                                                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `slug`     | frontmatter `projekt`, trimmed, lowercased - the card's own heading                                                                                                                                                       |
+| `title`    | the body's first `# ` line outside any fenced code block, trimmed, wherever it falls; falls back to `slug` with no H1                                                                                                     |
+| `notePath` | the note's vault-relative path, for the `Handoff im Vault` link                                                                                                                                                           |
+| `updated`  | frontmatter `updated` as `YYYY-MM-DD`, or `null` when missing or unparsable                                                                                                                                               |
+| `repos`    | frontmatter `repos`: an array of strings, each tilde-expanded and `path.resolve`d - a non-string entry warns and is dropped; a `repos` value present but not a list warns too and yields `[]`; simply absent stays silent |
+| `zustand`  | the body's `## Zustand` section; absent, the first `## ` section; absent, `""`                                                                                                                                            |
 
-A handoff without a string `projekt` becomes a warning line (`Handoff ohne projekt: <file>`) and is
-dropped; a second handoff claiming a slug already seen becomes `Doppelter Slug <slug>: <file>` and
-is dropped too - first note path (sorted) wins, the same dedupe rule `couple.ts` applies to
-duplicate project paths. `stand.ts`'s `projektStand` couples each handoff's `repos` entries to
-`projects` rows by lowercased path equality; entries that match nothing land in `missingRepos` as
-their basenames. Three signals are computed at read time, never stored: `veraltet` (the handoff's
-`updated` is earlier than the local calendar day of the newest coupled commit), `dirtyRepos` (how
-many coupled repos carry uncommitted changes), and `offeneTasks` (open vault tasks whose own
-`projekt` frontmatter matches the slug, outside `50_Workflow`/`Templates`/`90_Archive`). A
-`projects` row that no handoff's `repos` names at all lands in `ohneProjekt`.
+A handoff without a string `projekt`, or one that is empty or whitespace-only after trimming,
+becomes a warning line (`Handoff ohne projekt: <file>`) and is dropped; a second handoff claiming a
+slug already seen becomes `Doppelter Slug <slug>: <file>` and is dropped too - first note path
+(sorted) wins, the same dedupe rule `couple.ts` applies to duplicate project paths. `stand.ts`'s
+`projektStand` couples each handoff's `repos` entries to `projects` rows by lowercased path
+equality; entries that match nothing land in `missingRepos` as their basenames. Three signals are
+computed at read time, never stored: `veraltet` (the handoff's `updated` is earlier than the local
+calendar day of the newest coupled commit), `dirtyRepos` (how many coupled repos carry uncommitted
+changes), and `offeneTasks` (open vault tasks whose _containing note's_ `projekt` frontmatter
+matches the slug, outside `50_Workflow`/`Templates`/`90_Archive`). A `projects` row that no
+handoff's `repos` names at all lands in `ohneProjekt`.
 
 ## The scan pipeline
 
@@ -175,7 +176,8 @@ Mounted at `/api/projekte` (`routes.ts`), four routes:
 `GET /stand` calls `projektStand(vaultDb, listProjects(db))` and answers `{ projekte, ohneProjekt,
 warnings }`, each `projekte` entry the project-level shape above ("The project level, above the
 rows"). `projekte` is sorted `veraltet` first, then by `updated` ascending (oldest first, unknown
-dates last); `ohneProjekt` keeps the `projects` table's own order. It **never triggers a scan** -
+dates last); `ohneProjekt` keeps `listProjects`'s own order, `ORDER BY path` - path-ascending, not
+insertion order. It **never triggers a scan** -
 unlike `GET /list`, it reads `listProjects(db)` as it stands, so on an empty table (a fresh clone,
 or `data/projekte.sqlite` deleted) it answers immediately with every handoff's repos in
 `missingRepos` rather than blocking on a scan; the web app and the Cockpit both warm the table with
@@ -235,8 +237,10 @@ Handoffs.` when `projekte` is empty, `Alle Repos sind einem Projekt zugeordnet.`
   no redundant second line. Below that: `Handoff vom <date> · <age>` or `Datum fehlt`
   (`web/src/projekte/stand.ts`'s `ageDays`/`ageText`/`dayText`, the browser-side counterpart to
   `server/src/projekte/stand.ts`'s `localDay`); the badges `standHints` derives from the
-  `signals` and `missingRepos` (`Stand veraltet`, `<n> Repos ungesichert`, `<n> offene Aufgaben`,
-  one `Repo nicht gefunden: <name>` per missing entry); the `zustand` text verbatim in a `<pre>`
+  `signals` and `missingRepos` (`Stand veraltet`, `1 Repo ungesichert` / `<n> Repos ungesichert`,
+  `1 offene Aufgabe` / `<n> offene Aufgaben`, one `Repo nicht gefunden: <name>` per missing entry -
+  keyed by index, since two missing entries under different parents can share a basename); the
+  `zustand` text verbatim in a `<pre>`
   (empty ones render no block at all); the `Handoff im Vault` link; then the coupled repositories
   as `RepoRow`s, each opening the same `Detail` panel as the other two views.
 - **`ProjectsTable`** sorts rows by `lastCommitAt` descending, nulls last; each row shows the
@@ -270,8 +274,10 @@ does not notice the change by itself.
 per file in `beforeAll` (`scratchDir` in `tmp.ts`, cleaned up in `afterAll`), or against a scratch
 vault database built and inserted into directly for `couple.ts` and the routes' vault-reading
 paths. `gh.test.ts` never calls the real CLI - every case injects a fake `GhRunner`. `handoffs.test.ts`
-covers the frontmatter fields, tilde expansion, `Zustand` extraction (including the first-H2
-fallback and the no-H2 empty case), and the two warning shapes (missing `projekt`, duplicate slug).
+covers the frontmatter fields, tilde expansion, fenced code blocks (`## `/`# ` lines inside a
+` ``` ` fence read as prose, never as headings), `Zustand` extraction (including the first-H2
+fallback and the no-H2 empty case), and the four warning shapes (missing or blank `projekt`,
+duplicate slug, a non-string `repos` entry, and a `repos` value present but not a list).
 `stand.test.ts` covers coupling by lowercased path, `missingRepos`, each signal with a positive and
 a negative case, the sort order, and the `50_Workflow` task exclusion - `TZ=Europe/Berlin` is
 pinned for the whole suite in `server/vitest.config.ts` so its day-boundary cases actually
@@ -281,8 +287,10 @@ all (every row falls to `ohneProjekt`), and an empty `projects` table answered w
 a scan.
 
 Web: `web/src/projekte/stand.test.ts` covers `ageDays`/`ageText`/`dayText`/`standHints` directly;
-`components/ProjektView.test.tsx` covers the cards, the badges, `Ohne Projekt`, both empty states,
-and the vault link's path encoding.
+`components/ProjektView.test.tsx` covers the cards, the badges (including two missing repos that
+share a basename, keyed by index so neither is dropped), `Ohne Projekt`, both empty states, and the
+vault link's path encoding; `App.test.tsx` pins the `/list`-before-`/stand` fetch sequencing and
+`Projekte` as the default view.
 
 **End to end** (`e2e/projekte/`) runs against the per-worker sample workshop, `BENCH_GH: "off"`:
 `table.spec.ts` and `board.spec.ts` assert the sample's known state (the duplicate pair, the
@@ -352,6 +360,12 @@ lands under `Ohne Projekt`.
   resolved paths as plain strings; neither follows a symlink nor detects a hardlink to the same
   inode under a different path, so either would couple, miss coupling, or double-count exactly as
   the underlying string comparison dictates, with no special handling either way.
+- **A `## `/`# ` line inside a fenced code block never reads as a heading.** `zustandSection` and
+  the H1 title scan both mask fenced lines first (`handoffs.ts`'s `maskFencedLines`, mirroring
+  `server/src/vault/index/wikilinks.ts`'s `stripCodeBlocks`), so a shell comment or a stray `## `
+  inside a ` ``` ` block in a handoff never truncates the `Zustand` text or becomes the card's
+  subtitle - handoffs are free-form LLM-written notes, not the fixed-shape output the scanner style
+  was borrowed from.
 
 ## Related documents
 

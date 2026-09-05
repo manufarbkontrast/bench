@@ -74,6 +74,10 @@ detail the spec left open:
    `1 offene Aufgabe` / `<n> offene Aufgaben`. The other strings are as the spec writes them.
 6. **The Cockpit reads `/stand` instead of `/list`.** `ohneProjekt` is exactly the set the
    moving-repositories rows may show, so one fetch serves both halves of the panel.
+
+   Superseded at execution (user ruling 2026-09-05): the Cockpit fetches `/list` first as the
+   lazy first-scan trigger, then `/stand`.
+
 7. **The Projekte view renders even with zero repositories.** The existing
    `Keine Projekte gefunden.` empty state applies to the table and board only.
 8. **The fixture project note `30_Projekte/Leuchtturm/Leuchtturm.md` gains `projekt: leuchtturm`**

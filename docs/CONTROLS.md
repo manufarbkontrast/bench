@@ -212,7 +212,7 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 
 | Scope                               | Statements |
 | ----------------------------------- | ---------- |
-| `server/src`                        | 92.53%     |
+| `server/src`                        | 92.8%      |
 | `web/src/aufgaben`                  | 79.43%     |
 | `web/src/aufgaben/components`       | 96.15%     |
 | `web/src/crm`                       | 100%       |
@@ -220,9 +220,9 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 | `web/src/crm/pages`                 | 95.77%     |
 | `web/src/eingang`                   | 76.53%     |
 | `web/src/eingang/components`        | 100%       |
-| `web/src/home`                      | 72.07%     |
+| `web/src/home`                      | 78.37%     |
 | `web/src/kontext`                   | 77.41%     |
-| `web/src/projekte`                  | 66.03%     |
+| `web/src/projekte`                  | 81.63%     |
 | `web/src/projekte/components`       | 100%       |
 | `web/src/rolodex`                   | 81.35%     |
 | `web/src/rolodex/components`        | 81.56%     |
@@ -232,7 +232,7 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 | `web/src/vault`                     | 85.49%     |
 | `web/src/vault/components`          | 81.88%     |
 | `web/src/zahlen`                    | 62.5%      |
-| **web overall**                     | **85.5%**  |
+| **web overall**                     | **86.01%** |
 
 **Do not lower the bar to make a red run green.**
 

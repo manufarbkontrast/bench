@@ -127,10 +127,13 @@ place in an automated suite:
   every repo it builds. The table and detail rendering for that state (branch reads, every delta
   column empty) was confirmed once by hand against a real Chrome (Phase 6 Task 4), not by an
   automated spec.
-- **The real handoffs' `repos:` lists.** The fixture vault carries two synthetic handoffs, one
-  coupled to a single checkout; the seven real handoffs' own `repos:` entries - several projects
-  spanning more than one checkout, three with none at all - are only exercised by hand against the
-  real vault and the real `PROJECT_ROOTS` scan.
+- **The real handoffs' `repos:` lists.** The committed fixture vault's two synthetic handoffs
+  couple to nothing on their own - `Handoff_leuchtturm.md` names `~/Projekte/leuchtturm`, which
+  matches no scanned row, and `Handoff_hafen.md` names no `repos:` at all; only each e2e worker's
+  own rewritten copy (`e2e/fixtures.ts`) points `leuchtturm` at a real, scanned checkout, as this
+  file's own Projekte paragraph above states. The seven real handoffs' own `repos:` entries -
+  several projects spanning more than one checkout, three with none at all - are only exercised by
+  hand against the real vault and the real `PROJECT_ROOTS` scan.
 - **A Stand card's age text against the real clock.** `ageText`'s day-count wording (`heute`, `vor
 1 Tag`, `vor <n> Tagen`) is covered at the unit level for fixed inputs; whether it reads right
   next to a real handoff's actual age - months old, or from today - is only seen by hand.
@@ -159,7 +162,9 @@ target lands it under the inbox's heading; importing an unmatched Plaud row file
 suggested target and the ledger survives a reload, the dedup hint appears on a row that overlaps
 an existing open task, the Issues tab shows its off-mode message. The Cockpit's own spec covers all
 seven panels rendering in order against the sample data, an overdue task, the session note's first
-section with its Vault link, and a moving project.
+section with its Vault link, and under `Projekte in Bewegung` the `leuchtturm` handoff row and the
+uncoupled `treibgut` row from `ohneProjekt`, with `leuchtfeuer` asserted absent since it is already
+shown coupled to the handoff.
 
 Left to judgement, for the same reason as Projekte's own `gh` gap below - a live call has no place
 in an automated suite, and the fixture data was built to exercise specific behaviour once each
@@ -233,7 +238,9 @@ Left to judgement, because a real `claude -p` invocation, a real skill script an
 ## Kontext
 
 Covered by specs against the committed `claude-home` fixture (`e2e/kontext/kontext.spec.ts`):
-Profil, Regeln and Stand render the fixture vault notes and the one Claude-side rule file; Skills
+Profil, Regeln and Stand render the fixture vault notes and the one Claude-side rule file - Regeln
+reads `50_Workflow/` as a prefix, so the fixture's two handoff notes now render there too, alongside
+the fixture's other workflow note, unremarked by any assertion; Skills
 counts the fixture's two folders and a search narrows the list without moving the counter off
 `2 Skills`; MCP lists the two fixture server names and the page never contains the poisoned URL's
 own host, `secret.example.com`. Task 9 re-ran the same shape of check against the real

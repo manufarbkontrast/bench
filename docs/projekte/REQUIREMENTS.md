@@ -87,4 +87,5 @@ first of all a handoff note under the vault's `50_Workflow/Handoffs/`, coupled t
 checkouts through the note's own `repos:` frontmatter. Projekte gains a project-level view showing
 each handoff's `Zustand` text verbatim plus three signals Bench computes - staleness against the
 newest coupled commit, uncommitted repos, open vault tasks - and the Cockpit's panel lists the
-same handoffs by age. Full brief: [changes/projektstand/SPEC.md](../changes/projektstand/SPEC.md).
+same handoffs in `/stand`'s own order: stale ones first, then oldest updated first. Full brief:
+[changes/projektstand/SPEC.md](../changes/projektstand/SPEC.md).

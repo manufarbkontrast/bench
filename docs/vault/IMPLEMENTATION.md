@@ -152,11 +152,11 @@ check on a value that could go either way can.
 - **Every search term becomes an FTS prefix match.** `"prof"*` matches "Profile", which is usually
   what you want, but also means the query is never an exact-word search - there is no way to ask
   for one from the search box.
-- **The fixture vault is asserted on by its own counts.** `watch.test.ts` hardcodes note counts (15,
-  16 - the fixture's 15 indexed notes, its `.obsidian/Ignored.md` excluded like every dot-prefixed
-  path, plus one added or removed by the test itself); change a file under
-  `server/src/vault/fixture/` and the counts it is compared against, or a passing test starts
-  failing on an unrelated fixture edit.
+- **The fixture vault is asserted on by its own counts.** `watch.test.ts`, `indexer.test.ts` and
+  `routes.test.ts` all hardcode note counts (15, 16 - the fixture's 15 indexed notes, its
+  `.obsidian/Ignored.md` excluded like every dot-prefixed path, plus one added or removed by the
+  test itself); change a file under `server/src/vault/fixture/` and the counts every one of the
+  three compares against, or a passing test starts failing on an unrelated fixture edit.
 - **The watcher needs `ready` in tests.** Chokidar's first scan is asynchronous; a test that writes
   a file before the watcher fires `ready` can write before anything is listening and see no event at
   all. `watch.test.ts` awaits it before doing anything else.
@@ -195,6 +195,10 @@ check on a value that could go either way can.
   byte-unchanged and the symlink does not survive the write. See `write.test.ts`'s "realpath
   containment" cases, and the matching route-level cases in `tasks-routes.test.ts` and
   `aufgaben/routes.test.ts`, for exactly what does and does not get refused.
+- **A handoff note under `50_Workflow/Handoffs/` is read-only, checked before either write
+  function is even called.** `routes/tasks.ts`'s PATCH and POST handlers both reject a `relPath`
+  under that folder with 400 "handoff notes are read-only" - a local `HANDOFF_FOLDER` constant, not
+  an import from `projekte/handoffs.ts` (the two apps never import each other).
 
 ## Related documents
 

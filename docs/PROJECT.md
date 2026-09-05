@@ -21,8 +21,9 @@ what remain of the original four, and the new ones arrive one phase at a time.
 | **Rolodex**  | `/rolodex`  | Personal CRM for your own people: check-in cadences, circles, birthdays, a timeline of every conversation, CSV and vCard import                                                                                                                  | `data/rolodex.sqlite`                                       |
 
 The Cockpit at `/` replaces the old card-grid launcher: seven panels onto tasks, the watched
-inbox, moving repositories, the vault's own session note and the last controlling run, plus a
-plain link into each app. Every page carries the same navigation strip: the Bench mark, then
+inbox, projects and the moving repositories no handoff claims, the vault's own session note and
+the last controlling run, plus a plain link into each app. Every page carries the same navigation
+strip: the Bench mark, then
 Start, Vault, Projekte, Aufgaben, Eingang, Kontext, Zahlen, CRM and Rolodex, each with the icon
 that identifies it inside its own app too, and one theme toggle on the right.
 
@@ -69,7 +70,7 @@ server/             ONE Express app
   src/crm/            crm routes + db + seed
   src/rolodex/        rolodex routes + db + seed
   src/vault/          vault routes + db + indexer, and the one write path (write.ts)
-  src/projekte/       projekte routes + db + scan pipeline
+  src/projekte/       projekte routes + db + scan pipeline, reads vault.sqlite for handoffs + tasks
   src/aufgaben/       aufgaben routes + import ledger db, reads vault.sqlite
   src/eingang/        eingang routes + jobs db + runner; index.ts wires its two internal job
                       kinds to the vault and projekte modules' own indexing code, in-process
@@ -205,12 +206,13 @@ the rules above.
   argument is built. Bench itself schedules nothing; `eingang` only displays the launchd entries a
   person already set up outside it (SPEC.md principle 6).
 - **`aufgaben`, `projekte` and `kontext` read the vault index.** A task is a line in a vault note,
-  a project's brand and status come from the vault note that couples to it, and Kontext's Profil,
-  Regeln and Stand tabs read the vault's profile, workflow and session notes - so all three apps
-  read `vault.sqlite` through an injected handle rather than opening it themselves, the exception
-  to "one database per app", and a one-way dependency in each case. Kontext also reads Projekte's
-  registered project paths through an injected getter, for its Repos tab - the same pattern,
-  applied to a second sibling's data rather than a database.
+  a project's brand and status come from the vault note that couples to it, a project itself is a
+  handoff note under `50_Workflow/Handoffs/` with its own open-task count read from the same
+  `tasks` table, and Kontext's Profil, Regeln and Stand tabs read the vault's profile, workflow and
+  session notes - so all three apps read `vault.sqlite` through an injected handle rather than
+  opening it themselves, the exception to "one database per app", and a one-way dependency in each
+  case. Kontext also reads Projekte's registered project paths through an injected getter, for its
+  Repos tab - the same pattern, applied to a second sibling's data rather than a database.
 - **A project is a handoff note.** A git checkout is not a project on its own; a project is a
   handoff note under the vault's `50_Workflow/Handoffs/`, coupled to zero or more checkouts through
   the note's own `repos:` frontmatter and named by its `projekt:` slug. Bench never writes a

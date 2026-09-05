@@ -51,8 +51,10 @@ apps behind them use.
   of its own beyond the status check.
 - **Projekte in Bewegung** lists handoffs before repositories. `stand.projekte` (`GET
 /api/projekte/stand`, already sorted staleness-first) renders one row per project - its slug, then
-  age and the same badge wording `standHints` produces in the Projekte app itself
-  (`handoffMeta`/`handoffHints` in `types.ts`, written again here rather than imported), capped at
+  age and the same badge wording `standHints` produces in the Projekte app itself (`Stand
+veraltet`, `1 Repo ungesichert` / `<n> Repos ungesichert`, `1 offene Aufgabe` / `<n> offene
+Aufgaben`, `Repo nicht gefunden: <name>` - `handoffMeta`/`handoffHints` in `types.ts`, written
+  again here rather than imported), capped at
   `HANDOFF_ROWS` (8) with a trailing `… und <n> weitere` row linking to `/projekte/` once there are
   more. Below that, `movingProjects` renders repositories - but only from `stand.ohneProjekt`, the
   scanned checkouts no handoff claims, where `dirty > 0`, `ahead > 0`, `behind > 0`, or the last
@@ -60,7 +62,8 @@ apps behind them use.
   is the same `<n> geändert · <n> voraus · <n> zurück` / `sauber` wording Projekte's own `deltaText`
   produces, computed locally rather than imported. Reading `ohneProjekt` rather than every scanned
   row is what keeps a coupled repository from ever appearing twice - once as part of its handoff's
-  own row, once again in the moving-repositories list.
+  own row, once again in the moving-repositories list. No handoff rows and no moving repositories
+  renders `Alles ruhig.` instead of an empty panel.
 - **Hier weitermachen** reads `firstSection` (`session.ts`) of the session note's body: the first
   `## ` heading becomes the panel's subline, the paragraph-split text under it renders as-is, and a
   plain link opens the note in Vault. A missing note, or one with no `## ` heading at all, renders
@@ -104,9 +107,8 @@ first `GET /api/projekte/list` can trigger the same lazy scan of the sample work
 `/projekte/`'s own first visit does, which shells out to `git` several times before any row exists
 
 - and the Zahlen panel's run line and `Umsatz gesamt` line against the sample controlling fixture's
-  last run
-  (`server/src/eingang/fixture/controlling/2026-08-15-zwischenstand`, the one `letzter-lauf.json`
-  names).
+  last run (`server/src/eingang/fixture/controlling/2026-08-15-zwischenstand`, the one
+  `letzter-lauf.json` names).
 
 ## Related documents
 

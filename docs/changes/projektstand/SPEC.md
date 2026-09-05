@@ -60,6 +60,9 @@ frontmatter carries `projekt`. From the note:
 | `repos`    | frontmatter `repos`: array of strings, each tilde-expanded and `path.resolve`d   |
 | `zustand`  | the body of the `## Zustand` section; absent, the first H2 section; absent, `""` |
 
+Superseded at execution (user ruling 2026-09-05): the title is the slug; the note's first H1 is
+the subtitle; the index's filename title is unused.
+
 The section is cut by a hand-rolled line scanner (the `zahlen/summary.ts` style): from the first
 line matching `^## Zustand\b` up to the next line starting `## `. Frontmatter arrives already
 parsed from the index (`notes.frontmatter` is JSON), so no YAML is parsed here.
