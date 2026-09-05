@@ -41,7 +41,10 @@ const SCREENS = [
     steps: [{ css: ".sidebar-action" }],
     close: "escape",
   },
-  { name: "projekte-table", path: "/projekte/" },
+  // The Projekte view is the app's default since the handoff work; the table and the board need
+  // their view buttons clicked to be seen at all.
+  { name: "projekte-stand", path: "/projekte/" },
+  { name: "projekte-table", path: "/projekte/", steps: ["Tabelle"] },
   { name: "projekte-board", path: "/projekte/", steps: ["Board"] },
   { name: "aufgaben-heute", path: "/aufgaben/" },
   { name: "aufgaben-woche", path: "/aufgaben/", steps: ["Woche"] },
