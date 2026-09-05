@@ -1,11 +1,21 @@
 /**
- * One toggle, four apps. The choice lives in localStorage rather than in React state, because
+ * One toggle, three apps. The choice lives in localStorage rather than in React state, because
  * each app is its own document and the theme has to survive the navigation between them.
  */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
-const APPS = ["/", "/crm/", "/space/", "/rolodex/", "/groove/"];
+const APPS = [
+  "/",
+  "/vault/",
+  "/projekte/",
+  "/aufgaben/",
+  "/eingang/",
+  "/kontext/",
+  "/zahlen/",
+  "/crm/",
+  "/rolodex/",
+];
 
 const theme = (page: Page) =>
   page.evaluate(() => document.documentElement.dataset.theme);
@@ -24,7 +34,7 @@ test("the toggle switches the app you are in and every app after it", async ({
   await page.reload();
   expect(await theme(page)).toBe("light");
 
-  await page.getByRole("button", { name: /Switch to/ }).click();
+  await page.getByRole("button", { name: /Design wechseln/ }).click();
   expect(await theme(page)).toBe("dark");
 
   for (const path of APPS) {
@@ -38,7 +48,7 @@ test("each app repaints rather than only the strip", async ({ page }) => {
     await page.goto(path);
     // Start from a known theme, then flip it.
     const before = await bodyBackground(page);
-    await page.getByRole("button", { name: /Switch to/ }).click();
+    await page.getByRole("button", { name: /Design wechseln/ }).click();
     const after = await bodyBackground(page);
     expect(after, `${path} kept the same background`).not.toBe(before);
   }
@@ -46,16 +56,22 @@ test("each app repaints rather than only the strip", async ({ page }) => {
 
 test("the choice survives a reload", async ({ page }) => {
   await page.goto("/rolodex/");
-  await page.getByRole("button", { name: /Switch to/ }).click();
+  await page.getByRole("button", { name: /Design wechseln/ }).click();
   const chosen = await theme(page);
   await page.reload();
   expect(await theme(page)).toBe(chosen);
 });
 
 test("the strip says which way the toggle goes", async ({ page }) => {
-  await page.goto("/space/");
-  const button = page.getByRole("button", { name: /Switch to/ });
+  await page.goto("/vault/");
+  const button = page.getByRole("button", { name: /Design wechseln/ });
   const label = await button.getAttribute("aria-label");
   await button.click();
   await expect(button).not.toHaveAttribute("aria-label", label!);
+});
+
+test("a first visit is dark", async ({ page }) => {
+  // A fresh context has nothing in localStorage, so this is the first-visit path in a real browser.
+  await page.goto("/");
+  expect(await theme(page)).toBe("dark");
 });

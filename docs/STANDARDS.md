@@ -77,12 +77,12 @@ These read as machine-written and are unwelcome here.
 **In UI**
 
 - Gradients. Flat colour only.
-- A brand colour per app. In Bench chrome, colour means state - amber is "you are here" - and an
+- A brand colour per app. In Bench chrome, colour means state - orange is "you are here" - and an
   app is told apart by its glyph. One colour per app stops scaling at about four.
 - Left-border accent stripes on cards and callouts.
 - Drop shadows used for decoration rather than to lift something that is genuinely floating.
 - Emoji as icons. Use the inline SVG set in `web/src/crm/components/Icons.tsx`, or `lucide-react`
-  in Space.
+  in Vault and Rolodex.
 - Purple-to-blue hero gradients, glassmorphism, oversized rounded corners.
 
 The exception, kept deliberately: the small conic-gradient brand mark.
@@ -99,7 +99,7 @@ The exception, kept deliberately: the small conic-gradient brand mark.
 
 ## CSS
 
-- Each app owns one global `styles.css`. They are **not** scoped, and class names across the four
+- Each app owns one global `styles.css`. They are **not** scoped, and class names across the three
   apps genuinely collide - see [PROJECT.md](./PROJECT.md).
 - Reuse the palette variables in `:root`. Do not introduce a new colour without a reason.
 - **Every colour goes through a variable, and every variable has a dark value.** A literal in a
@@ -118,15 +118,17 @@ change working - see [PROCESS.md](./PROCESS.md). Do not leave completed work sit
 
 - **Never commit red.** If the checks do not pass, the work is not finished; fix it or say plainly
   what you could not fix and leave it uncommitted.
-- **Write the message in the commit,** not in your reply. Plain sentences, wrapped at roughly 80
-  columns, no emoji and no `feat:` / `chore:` prefixes. Say what changed and why.
+- **Write the message in the commit,** not in your reply. One line in Conventional Commits form -
+  `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `test:` - imperative, under 72 characters, with
+  a wrapped body only when the why does not fit on that line; no emoji. Say what changed and why.
 - **Still report in your reply.** Name anything a reader would otherwise be surprised by: a bug that
   turned out to be pre-existing, a deliberate gap, a decision that looks odd without the reason,
   anything incomplete or unverified. The commit records the change; the reply records the judgement.
 - **Leave the tree clean of scratch files** - delete any throwaway scripts you wrote along the way.
   Commit the work, not the workings.
 - **Do not rewrite history.** No amending, rebasing, force-pushing or tagging unless asked directly.
-- **Do not push** unless asked. Committing is now part of the job; publishing is still Ed's call.
+- **Do not push** unless asked. Committing is now part of the job; publishing is still the user's
+  call.
 
 ## Related documents
 

@@ -1,24 +1,37 @@
 /**
- * The primary navigation, identical in all four documents. Each app is its own page, so these
- * are plain anchors rather than router links.
+ * The primary navigation, identical in all nine documents - the launcher and the eight apps.
+ * Each app is its own page, so these are plain anchors rather than router links.
  */
 import { useState } from "react";
 import {
   BenchMark,
+  IconAufgaben,
   IconCrm,
-  IconGroove,
+  IconEingang,
   IconHome,
+  IconKontext,
   IconMoon,
+  IconProjekte,
   IconRolodex,
-  IconSpace,
   IconSun,
+  IconVault,
+  IconZahlen,
 } from "./AppIcons";
 import { currentTheme, toggleTheme, type Theme } from "./theme";
 import "./nav.css";
 
-type AppKey = "home" | "crm" | "space" | "rolodex" | "groove";
+type AppKey =
+  | "home"
+  | "vault"
+  | "projekte"
+  | "aufgaben"
+  | "eingang"
+  | "kontext"
+  | "zahlen"
+  | "crm"
+  | "rolodex";
 
-/** Colour marks the active app and nothing else: one amber chip, wherever you are. An app is
+/** Colour marks the active app and nothing else: one orange chip, wherever you are. An app is
     told apart by its glyph, which is what still works once there are more of them than there
     are brand colours. */
 const APPS: {
@@ -27,22 +40,55 @@ const APPS: {
   label: string;
   Icon: (p: { size?: number }) => React.ReactElement;
 }[] = [
-  { key: "home", href: "/", label: "Home", Icon: IconHome },
+  { key: "home", href: "/", label: "Start", Icon: IconHome },
+  { key: "vault", href: "/vault/", label: "Vault", Icon: IconVault },
+  {
+    key: "projekte",
+    href: "/projekte/",
+    label: "Projekte",
+    Icon: IconProjekte,
+  },
+  {
+    key: "aufgaben",
+    href: "/aufgaben/",
+    label: "Aufgaben",
+    Icon: IconAufgaben,
+  },
+  {
+    key: "eingang",
+    href: "/eingang/",
+    label: "Eingang",
+    Icon: IconEingang,
+  },
+  {
+    key: "kontext",
+    href: "/kontext/",
+    label: "Kontext",
+    Icon: IconKontext,
+  },
+  {
+    key: "zahlen",
+    href: "/zahlen/",
+    label: "Zahlen",
+    Icon: IconZahlen,
+  },
   { key: "crm", href: "/crm/", label: "CRM", Icon: IconCrm },
-  { key: "space", href: "/space/", label: "Space", Icon: IconSpace },
   { key: "rolodex", href: "/rolodex/", label: "Rolodex", Icon: IconRolodex },
-  { key: "groove", href: "/groove/", label: "Groove", Icon: IconGroove },
 ];
 
 export default function BenchNav({ active }: { active: AppKey }) {
   const [theme, setTheme] = useState<Theme>(currentTheme);
+  const switchLabel =
+    theme === "dark"
+      ? "Zum hellen Design wechseln"
+      : "Zum dunklen Design wechseln";
   return (
     <header className="bench-nav">
       <span className="bench-nav-brand">
         <BenchMark size={21} />
         Bench
       </span>
-      <nav className="bench-nav-links" aria-label="Primary">
+      <nav className="bench-nav-links" aria-label="Primary" lang="de">
         {APPS.map(({ key, href, label, Icon }) => (
           <a
             key={key}
@@ -59,8 +105,8 @@ export default function BenchNav({ active }: { active: AppKey }) {
         type="button"
         className="bench-nav-theme"
         onClick={() => setTheme(toggleTheme())}
-        aria-label={theme === "dark" ? "Switch to light" : "Switch to dark"}
-        title={theme === "dark" ? "Switch to light" : "Switch to dark"}
+        aria-label={switchLabel}
+        title={switchLabel}
       >
         {theme === "dark" ? <IconSun size={16} /> : <IconMoon size={16} />}
       </button>

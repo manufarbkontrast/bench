@@ -37,7 +37,7 @@ describe("CRM App", () => {
     expect(
       screen.getByRole("heading", { name: "Dashboard", level: 1 }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Start" })).toHaveAttribute(
       "href",
       "/",
     );

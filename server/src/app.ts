@@ -3,10 +3,20 @@ import type Database from "better-sqlite3";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  aufgabenRouter,
+  type AufgabenContext,
+  type AufgabenSources,
+} from "./aufgaben/routes.js";
 import { crmRouter } from "./crm/routes.js";
+import { eingangRouter, type EingangContext } from "./eingang/routes.js";
+import { kontextRouter, type KontextContext } from "./kontext/routes.js";
+import { listProjects } from "./projekte/db.js";
+import { projekteRouter, type ProjekteContext } from "./projekte/routes.js";
 import { rolodexRouter } from "./rolodex/routes/index.js";
 import type { Repo } from "./rolodex/db/index.js";
-import { spaceRouter } from "./space/routes/index.js";
+import { vaultRouter, type VaultContext } from "./vault/routes/index.js";
+import { zahlenRouter, type ZahlenContext } from "./zahlen/routes.js";
 
 const webDist = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -14,12 +24,42 @@ const webDist = path.resolve(
 );
 
 /** The apps with their own HTML entry point in web/dist, for deep-link fallback. */
-const APPS = ["crm", "space", "rolodex", "groove"];
+const APPS = [
+  "crm",
+  "rolodex",
+  "vault",
+  "projekte",
+  "aufgaben",
+  "eingang",
+  "kontext",
+  "zahlen",
+];
 
 export interface Dbs {
   crm: Database.Database;
-  space: Database.Database;
   rolodex: Repo;
+  vault: VaultContext;
+  projekte: ProjekteContext;
+  aufgaben: AufgabenSources;
+  eingang: EingangContext;
+  kontext: KontextContext;
+  zahlen: ZahlenContext;
+}
+
+/**
+ * The GitHub labels aufgaben's issue view fetches - one per scanned project with a remote, read
+ * fresh on each call rather than snapshotted once. The route dedupes; two projects can share a
+ * label. Built here, not in server/src/aufgaben/, which never imports from server/src/projekte/.
+ */
+function githubLabelsFrom(projekteDb: Database.Database): () => string[] {
+  return () =>
+    listProjects(projekteDb)
+      .map((project) => project.remoteLabel)
+      .filter((label): label is string => label !== null);
+}
+
+function aufgabenContext(dbs: Dbs): AufgabenContext {
+  return { ...dbs.aufgaben, githubLabels: githubLabelsFrom(dbs.projekte.db) };
 }
 
 /** Build the Express app around the open databases. */
@@ -37,8 +77,13 @@ export function createApp(dbs: Dbs): express.Express {
   });
 
   app.use("/api/crm", crmRouter(dbs.crm));
-  app.use("/api/space", spaceRouter(dbs.space));
   app.use("/api/rolodex", rolodexRouter(dbs.rolodex));
+  app.use("/api/vault", vaultRouter(dbs.vault));
+  app.use("/api/projekte", projekteRouter(dbs.projekte, dbs.vault.db));
+  app.use("/api/aufgaben", aufgabenRouter(aufgabenContext(dbs), dbs.vault));
+  app.use("/api/eingang", eingangRouter(dbs.eingang));
+  app.use("/api/kontext", kontextRouter(dbs.kontext));
+  app.use("/api/zahlen", zahlenRouter(dbs.zahlen));
 
   if (existsSync(webDist)) {
     app.use(express.static(webDist));
@@ -53,5 +98,27 @@ export function createApp(dbs: Dbs): express.Express {
       res.sendFile(path.join(webDist, owner ?? "", "index.html"));
     });
   }
+
+  // Express 5 forwards a rejected async handler here automatically. Without this, its default
+  // error page answers with an HTML stack trace - absolute paths from a machine only Bench runs
+  // on - instead of the JSON every other reply on /api already is.
+  app.use(
+    (
+      err: unknown,
+      _req: express.Request,
+      res: express.Response,
+      next: express.NextFunction,
+    ) => {
+      // Express's own documented rule: once headers are sent, delegate to its default handler
+      // (which closes the connection) rather than trying to send a second response.
+      if (res.headersSent) {
+        next(err);
+        return;
+      }
+      console.error(err);
+      res.status(500).json({ error: "Internal server error" });
+    },
+  );
+
   return app;
 }

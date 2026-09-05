@@ -1,114 +1,244 @@
-/** Launcher: one card per app. Plain anchors - each app is its own document. */
+/** Cockpit: one page onto what needs attention across the vault, the repositories and the
+    tasks, replacing the old card-grid launcher. Reads five sibling APIs directly - each panel
+    is one fetch's worth of rows, filtered and sorted here rather than in a shared module. */
+import { useEffect, useState } from "react";
 import BenchNav from "../shared/BenchNav";
 import {
+  IconAufgaben,
   IconCrm,
-  IconGroove,
+  IconEingang,
+  IconKontext,
+  IconProjekte,
   IconRolodex,
-  IconSpace,
+  IconVault,
+  IconZahlen,
 } from "../shared/AppIcons";
+import { api } from "./api";
+import { breakEvenText, dateText, deltaText, runLineText } from "./format";
+import { firstSection, type Section } from "./session";
+import {
+  movingProjects,
+  overdueTasks,
+  recentDone,
+  unverarbeitetCount,
+  weekTasks,
+  zahlenKpis,
+  type InboxFile,
+  type Project,
+  type Task,
+  type ZahlenReply,
+} from "./types";
 
-interface AppCard {
+const SESSION_NOTE_HREF = "/vault/n/00_Index/Session_Context.md";
+
+const APPS: {
   href: string;
   name: string;
-  tagline: string;
-  detail: string;
-  facts: string[];
   Icon: (p: { size?: number }) => React.ReactElement;
-}
-
-const APPS: AppCard[] = [
-  {
-    href: "/crm/",
-    name: "CRM",
-    tagline: "Deals, and the people behind them",
-    detail:
-      "Organizations, contacts and a drag-and-drop pipeline, with a dashboard that adds up what is actually in play.",
-    facts: ["Pipeline", "Dashboard", "Activities"],
-    Icon: IconCrm,
-  },
-  {
-    href: "/space/",
-    name: "Space",
-    tagline: "Everything you know, in one place",
-    detail:
-      "Pages and blocks that nest as deep as you like, databases with table, board and list views, and search across the lot.",
-    facts: ["Pages", "Databases", "Search"],
-    Icon: IconSpace,
-  },
-  {
-    href: "/rolodex/",
-    name: "Rolodex",
-    tagline: "The people in your life, kept close",
-    detail:
-      "Who you are due to contact, what is going on with them, birthdays coming up, and a timeline of every conversation.",
-    facts: ["Check-ins", "Circles", "Calendar"],
-    Icon: IconRolodex,
-  },
-  {
-    href: "/groove/",
-    name: "Groove",
-    tagline: "A groovebox in the browser",
-    detail:
-      "Four synth units, one transport and a master DJ filter. Pure Web Audio — no samples, no plugins, no latency budget.",
-    facts: ["4 units", "16 steps", "Web Audio"],
-    Icon: IconGroove,
-  },
+}[] = [
+  { href: "/vault/", name: "Vault", Icon: IconVault },
+  { href: "/projekte/", name: "Projekte", Icon: IconProjekte },
+  { href: "/aufgaben/", name: "Aufgaben", Icon: IconAufgaben },
+  { href: "/eingang/", name: "Eingang", Icon: IconEingang },
+  { href: "/kontext/", name: "Kontext", Icon: IconKontext },
+  { href: "/zahlen/", name: "Zahlen", Icon: IconZahlen },
+  { href: "/crm/", name: "CRM", Icon: IconCrm },
+  { href: "/rolodex/", name: "Rolodex", Icon: IconRolodex },
 ];
 
+/** The local calendar day - matches the aufgaben app's own todayISO. */
+function todayISO(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function TaskPanel({
+  heading,
+  tasks,
+  meta,
+  empty,
+}: {
+  heading: string;
+  tasks: Task[];
+  meta: (task: Task) => string | null;
+  empty: string;
+}) {
+  return (
+    <section className="home-panel">
+      <h2>{heading}</h2>
+      {tasks.length === 0 ? (
+        <p className="home-empty">{empty}</p>
+      ) : (
+        <ul className="home-rows">
+          {tasks.map((task) => {
+            const rowMeta = meta(task);
+            return (
+              <li key={`${task.path}:${task.line}`}>
+                <a className="home-row" href="/aufgaben/">
+                  <span className="home-row-text">{task.text}</span>
+                  {rowMeta !== null && (
+                    <span className="home-row-meta">{rowMeta}</span>
+                  )}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function ProjectPanel({ projects }: { projects: Project[] }) {
+  return (
+    <section className="home-panel">
+      <h2>Projekte in Bewegung</h2>
+      {projects.length === 0 ? (
+        <p className="home-empty">Alles ruhig.</p>
+      ) : (
+        <ul className="home-rows">
+          {projects.map((project) => (
+            <li key={project.path}>
+              <a className="home-row" href="/projekte/">
+                <span className="home-row-text">{project.name}</span>
+                <span className="home-row-meta">
+                  {deltaText(project.dirty, project.ahead, project.behind)}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function SessionPanel({ section }: { section: Section | null }) {
+  return (
+    <section className="home-panel">
+      <h2>Hier weitermachen</h2>
+      {section === null ? (
+        <p className="home-empty">Keine Session-Notiz gefunden.</p>
+      ) : (
+        <>
+          <p className="home-session-heading">{section.heading}</p>
+          {section.text.split("\n\n").map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
+          <a className="home-session-link" href={SESSION_NOTE_HREF}>
+            Im Vault öffnen
+          </a>
+        </>
+      )}
+    </section>
+  );
+}
+
+function EingangPanel({ files }: { files: InboxFile[] }) {
+  const count = unverarbeitetCount(files);
+  return (
+    <section className="home-panel">
+      <h2>Eingang</h2>
+      {count === 0 ? (
+        <p className="home-empty">Nichts Neues.</p>
+      ) : (
+        <p>{`${count} unverarbeitet`}</p>
+      )}
+      <a className="home-session-link" href="/eingang/">
+        Verarbeiten
+      </a>
+    </section>
+  );
+}
+
+function ZahlenPanel({ reply }: { reply: ZahlenReply }) {
+  return (
+    <section className="home-panel">
+      <h2>Zahlen</h2>
+      {reply.run === null ? (
+        <p className="home-empty">Noch kein Lauf.</p>
+      ) : (
+        <>
+          <p>{runLineText(reply.run)}</p>
+          {zahlenKpis(reply.kpis).map((row) => (
+            <p key={row.kennzahl}>{`${row.kennzahl}: ${row.aktuell}`}</p>
+          ))}
+          <p>{breakEvenText(reply.breakEven)}</p>
+        </>
+      )}
+      <a className="home-session-link" href="/zahlen/">
+        Zur Zahlen-App
+      </a>
+    </section>
+  );
+}
+
 export default function App() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [inboxFiles, setInboxFiles] = useState<InboxFile[]>([]);
+  const [session, setSession] = useState<Section | null>(null);
+  const [zahlen, setZahlen] = useState<ZahlenReply>({ run: null });
+
+  useEffect(() => {
+    void api.tasks().then(setTasks);
+    void api.projects().then(setProjects);
+    void api.inbox().then(setInboxFiles);
+    void api
+      .sessionNote()
+      .then((note) => setSession(note ? firstSection(note.body) : null));
+    void api.zahlenLast().then(setZahlen);
+  }, []);
+
+  const today = todayISO();
+  const now = new Date().getTime();
+
   return (
     <>
       <BenchNav active="home" />
       <div className="home">
         <header className="home-header">
-          <p className="home-eyebrow">Local-first · no login · no cloud</p>
           <h1>Bench</h1>
-          <p className="home-lede">
-            Four apps, one server, one machine. Your data lives in SQLite files
-            on this disk and goes nowhere else.
-          </p>
         </header>
 
-        <div className="home-grid">
-          {APPS.map((app) => (
-            <a className="home-card" href={app.href} key={app.href}>
-              <app.Icon size={104} />
-              <div className="home-card-body">
-                <h2>{app.name}</h2>
-                <p className="home-tagline">{app.tagline}</p>
-                <p className="home-detail">{app.detail}</p>
-                <ul className="home-facts">
-                  {app.facts.map((f) => (
-                    <li key={f}>{f}</li>
-                  ))}
-                </ul>
-              </div>
-              <span className="home-open">
-                Open
-                <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M5 12h13M12 5.5 18.5 12 12 18.5" />
-                </svg>
-              </span>
+        <nav className="home-apps" aria-label="Apps">
+          {APPS.map(({ href, name, Icon }) => (
+            <a key={href} className="home-app" href={href}>
+              <Icon size={18} />
+              {name}
             </a>
           ))}
-        </div>
+        </nav>
 
-        <footer className="home-footer">
-          <span>
-            <strong>npm run dev</strong> · API on 8100, Vite on 8101
-          </span>
-          <span>SQLite in ./data</span>
-        </footer>
+        <div className="home-panels">
+          <TaskPanel
+            heading="Überfällig"
+            tasks={overdueTasks(tasks, today)}
+            meta={(t) => `Fällig ${dateText(t.due)}`}
+            empty="Nichts überfällig."
+          />
+          <TaskPanel
+            heading="Diese Woche"
+            tasks={weekTasks(tasks, today)}
+            meta={(t) => `Fällig ${dateText(t.due)}`}
+            empty="Diese Woche ist nichts fällig."
+          />
+          <EingangPanel files={inboxFiles} />
+          <ProjectPanel projects={movingProjects(projects, now)} />
+          <SessionPanel section={session} />
+          <ZahlenPanel reply={zahlen} />
+          <TaskPanel
+            heading="Zuletzt erledigt"
+            tasks={recentDone(tasks)}
+            meta={(t) =>
+              t.doneAt !== null ? `Erledigt ${dateText(t.doneAt)}` : null
+            }
+            empty="Noch nichts erledigt."
+          />
+        </div>
       </div>
     </>
   );

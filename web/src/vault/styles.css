@@ -1,0 +1,490 @@
+/* Vault: the launcher's greys, orange as the one accent, dark first. */
+
+:root {
+  color-scheme: light;
+  /* The brand accent - stays the same value in both themes, unlike every other token here. */
+  --accent: #ff5c00;
+  /* Same reasoning: a modal's backdrop scrim needs to read dark regardless of the page's own
+     theme, so it stays put too. */
+  --overlay-scrim: rgba(0, 0, 0, 0.4);
+  --accent-ink: #b84200;
+  --accent-wash: rgba(255, 92, 0, 0.12);
+  --bg: #ffffff;
+  --bg-sidebar: #f2f4f6;
+  --bg-raised: #ffffff;
+  --bg-hover: rgba(28, 33, 40, 0.06);
+  --text: #1c2128;
+  --text-soft: #5b636e;
+  --text-faint: #868e99;
+  --border: #dfe3e8;
+  --code-bg: #f2f4f6;
+  --shadow: 0 8px 28px rgba(20, 22, 26, 0.16);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --accent-ink: #ff7a33;
+  --accent-wash: rgba(255, 92, 0, 0.16);
+  --bg: #14171c;
+  --bg-sidebar: #1c2128;
+  --bg-raised: #1c2128;
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --text: #e9edf2;
+  --text-soft: #9aa3ae;
+  --text-faint: #6f7884;
+  --border: #2b323b;
+  --code-bg: #1c2128;
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Helvetica Neue", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* The nav strip takes 47px; the app fills what is left and the main column scrolls. */
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+.app {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  user-select: none;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 14px 16px 6px;
+  color: var(--accent-ink);
+}
+
+.brand-name {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.brand-sub {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.sidebar-top {
+  padding: 4px 8px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--text-soft);
+}
+
+.sidebar-action:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.sidebar-kbd {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding-right: 8px;
+  border-radius: 6px;
+  margin: 0 6px;
+  color: var(--text-soft);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.tree-row:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.tree-row.active {
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+}
+
+.tree-folder {
+  font-weight: 600;
+}
+
+.chevron {
+  display: flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  transition: transform 120ms ease;
+}
+
+.chevron.open {
+  transform: rotate(90deg);
+}
+
+.tree-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.main {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.note {
+  max-width: 76ch;
+  margin: 0 auto;
+  padding: 36px 40px 80px;
+}
+
+.note-folder {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+.note h1 {
+  margin: 0 0 18px;
+  font-size: 30px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.note-raw {
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.note-missing {
+  padding: 40px;
+  color: var(--text-soft);
+}
+
+.note-header {
+  margin-bottom: 24px;
+}
+
+.note-actions {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.note-action {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-soft);
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.note-action:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.note-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.note-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.note-tags li {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.note-frontmatter {
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+
+.note-frontmatter th {
+  text-align: left;
+  padding: 3px 14px 3px 0;
+  color: var(--text-faint);
+  font-weight: 500;
+}
+
+.note-frontmatter td {
+  padding: 3px 0;
+  color: var(--text-soft);
+}
+
+.note-body {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.note-body h1,
+.note-body h2,
+.note-body h3 {
+  margin: 28px 0 10px;
+  line-height: 1.25;
+}
+
+.note-body h2 {
+  font-size: 21px;
+}
+
+.note-body h3 {
+  font-size: 17px;
+}
+
+.note-body p,
+.note-body ul,
+.note-body ol {
+  margin: 0 0 12px;
+}
+
+.note-body a {
+  color: var(--accent-ink);
+}
+
+.note-body a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.note-body blockquote {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  background: var(--bg-sidebar);
+  border-radius: 6px;
+  color: var(--text-soft);
+}
+
+.note-body blockquote p {
+  margin: 0;
+}
+
+.note-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  background: var(--code-bg);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.note-body pre {
+  padding: 12px 14px;
+  background: var(--code-bg);
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.note-body pre code {
+  padding: 0;
+  background: none;
+}
+
+.note-body table {
+  border-collapse: collapse;
+  margin: 0 0 12px;
+}
+
+.note-body th,
+.note-body td {
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  text-align: left;
+}
+
+.note-body img {
+  max-width: 100%;
+}
+
+.note-body input[type="checkbox"] {
+  margin-right: 6px;
+}
+
+.note-backlinks {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.note-backlinks h2 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+
+.note-backlinks ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.note-backlinks a {
+  color: var(--accent-ink);
+}
+
+.note-empty {
+  color: var(--text-faint);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  background: var(--overlay-scrim);
+  z-index: 10;
+}
+
+.find {
+  width: min(640px, 92vw);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.find-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.find-glyph {
+  color: var(--text-faint);
+}
+
+.find-input {
+  flex: 1;
+  font: inherit;
+  font-size: 16px;
+  color: inherit;
+  background: none;
+  border: none;
+  outline: none;
+}
+
+.find-kbd,
+.find-crumb,
+.find-snippet,
+.find-empty {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.find-results {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.find-result {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.find-result.selected {
+  background: var(--accent-wash);
+}
+
+.find-title {
+  font-weight: 600;
+}
+
+.find-snippet {
+  grid-column: 1 / -1;
+  color: var(--text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.find-enter {
+  color: var(--text-faint);
+  align-self: center;
+}
+
+.find-empty {
+  padding: 10px;
+}

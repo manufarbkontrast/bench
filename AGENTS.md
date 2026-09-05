@@ -1,7 +1,9 @@
 # Bench - agent instructions
 
-Four local-first apps (CRM, Space, Rolodex, Groove) behind one Express server. One npm workspace
-root with two workspaces: `web/` (one Vite project, an HTML entry point per app) and `server/`.
+Eight local-first apps (CRM, Rolodex, Vault, Projekte, Aufgaben, Eingang, Kontext, Zahlen) behind
+one Express server.
+One npm workspace root with two workspaces: `web/` (one Vite project, an HTML entry point per app)
+and `server/`.
 TypeScript throughout, data in local SQLite files under `data/`, Playwright specs in `e2e/`. All
 commands run from the root.
 
@@ -13,6 +15,10 @@ commands run from the root.
   and `check` fails on unformatted files.
 - **Never push.** The agent commits; the user pushes and opens the pull request, and CI gates the merge.
 - **If a session begins on `main`, branch before committing**, and say so in the reply.
+- **Bench OS work follows [docs/changes/bench-os/PLAN.md](docs/changes/bench-os/PLAN.md)** phase
+  by phase; the task plan for the current phase sits beside it.
+- **German UI, English code.** Labels, routes and copy in German; identifiers, comments, docs and
+  commit messages in English.
 
 ## Commands
 

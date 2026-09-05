@@ -1,14 +1,19 @@
 # Bench
 
-Four local-first apps behind one server. No login, no cloud - everything runs on your machine and
-your data lives in local SQLite files. Light and dark, one toggle for all four.
+Eight local-first apps behind one server, growing into a personal workbench - see
+`docs/changes/bench-os/`. No login, no cloud - everything runs on your machine and your data lives
+in local SQLite files. Light and dark, one toggle for all eight.
 
-|             |            |                                                                                                                     |
-| ----------- | ---------- | ------------------------------------------------------------------------------------------------------------------- |
-| **CRM**     | `/crm`     | Personal sales CRM: organizations, contacts, deals, a drag-and-drop pipeline, activities and a dashboard.           |
-| **Space**   | `/space`   | Personal knowledge manager: pages and blocks, databases with table / board / list views, quick find.                |
-| **Rolodex** | `/rolodex` | Personal CRM for the people in your life: who to contact, circles, birthdays, and a timeline of every conversation. |
-| **Groove**  | `/groove`  | Browser groovebox: four synth units, one transport, a master DJ filter. All Web Audio, no samples.                  |
+|              |             |                                                                                                                                                                                   |
+| ------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Vault**    | `/vault`    | A window onto an Obsidian vault: folder tree, rendered notes, wikilinks, backlinks, full-text search.                                                                             |
+| **Projekte** | `/projekte` | A read-only inventory of git checkouts and working folders: git state, duplicates, vault coupling, issues and PRs.                                                                |
+| **Aufgaben** | `/aufgaben` | A board over the vault's own tasks, Plaud work items awaiting import, and GitHub issues read-only.                                                                                |
+| **Eingang**  | `/eingang`  | What arrived and is not yet processed: watched folders, fenced jobs against the local skills with a live log and a kill switch, scheduled launchd runs read-only.                 |
+| **Kontext**  | `/kontext`  | What the system knows about the user: vault profile and rules, Claude Code's own rules and memory, each project's `CLAUDE.md`/`AGENTS.md`, the skill catalogue, MCP server names. |
+| **Zahlen**   | `/zahlen`   | The last controlling run and its archive: the parsed KPI table, the rendered report, and deep links into myCrafton.                                                               |
+| **CRM**      | `/crm`      | Personal sales CRM: organizations, contacts, deals, a drag-and-drop pipeline, activities and a dashboard.                                                                         |
+| **Rolodex**  | `/rolodex`  | Personal CRM for the people in your life: who to contact, circles, birthdays, and a timeline of every conversation.                                                               |
 
 This README is the full walkthrough: install it, run the checks, make a change, open a pull
 request. Work through it in order.
@@ -49,7 +54,11 @@ confirm with `node -v`. If you would rather not use a package manager, the insta
 **Fork first - do not clone this repository directly.** You will be opening a pull request at the
 end, and that only works from your own copy.
 
-1. Go to **https://github.com/ed-donner/bench**
+This repository, `manufarbkontrast/bench`, is itself a fork of
+[ed-donner/bench](https://github.com/ed-donner/bench), now growing into Bench OS - see
+`docs/changes/bench-os/`. Fork **this** repository, not the upstream one.
+
+1. Go to **https://github.com/manufarbkontrast/bench**
 2. Click **Fork** (top right), then **Create fork**
 
 You now have `https://github.com/<your-username>/bench`.
@@ -58,7 +67,7 @@ You now have `https://github.com/<your-username>/bench`.
 directly instead and carry on from 1.4:
 
 ```bash
-git clone https://github.com/ed-donner/bench.git
+git clone https://github.com/manufarbkontrast/bench.git
 cd bench
 ```
 
@@ -89,7 +98,12 @@ only when you are deliberately adding a dependency.
 `npm ci` prints one deprecation warning, about `prebuild-install`. It is expected and harmless -
 the reason it stays is documented in [docs/PROJECT.md](./docs/PROJECT.md).
 
-## 1.5 Run it
+## 1.5 Point Bench at your vault (optional)
+
+Copy `.env.example` to `.env` and fill in `VAULT_DIR` with the path to your Obsidian vault. Without
+it Bench shows a small sample vault. The server prints, on start, which sources it found.
+
+## 1.6 Run it
 
 ```bash
 npm start
@@ -100,8 +114,8 @@ before anything appears**, which is normal, not a hang. Then open:
 
 **http://localhost:8100**
 
-The first run creates and seeds the three SQLite databases under `data/` with sample data. Click
-through all four apps and the theme toggle to confirm it works.
+The first run creates the SQLite databases under `data/`, seeded with sample data. Click through
+all eight apps and the theme toggle to confirm it works.
 
 Stop the server with `Ctrl+C`.
 
@@ -175,8 +189,8 @@ past** - anything it reports is yours.
 npm run e2e
 ```
 
-Playwright drives a real Chromium through all four apps: the launcher, CRM, Space, Rolodex, Groove
-and the shared theme toggle. It takes about a minute.
+Playwright drives a real Chromium through the Cockpit, the eight apps and the shared theme
+toggle. It takes about a minute.
 
 What it does under the hood, which explains the wait and the ports:
 
@@ -261,7 +275,7 @@ Do this in the browser.
    button. Click it. (No banner? Click **Contribute** → **Open pull request**, or use the
    **Pull requests** tab → **New pull request**.)
 3. Check the four dropdowns at the top read:
-   - **base repository:** `ed-donner/bench`
+   - **base repository:** `manufarbkontrast/bench`
    - **base:** `main`
    - **head repository:** `<your-username>/bench`
    - **compare:** `my-change`

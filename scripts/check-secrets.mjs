@@ -12,7 +12,6 @@ import { readFileSync } from "node:fs";
 /** These exist to hold synthetic data, and that is the standing assumption. */
 const SYNTHETIC = new Set([
   "server/src/crm/seed.ts",
-  "server/src/space/seed.ts",
   "server/src/rolodex/seed.ts",
 ]);
 

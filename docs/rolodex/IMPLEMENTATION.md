@@ -84,7 +84,7 @@ page reads (`useStore`) and the toast stack (`useToast`). Pages fetch their own 
 Bench's checks are stricter than the original repo's, so the code changed shape on the way in.
 Anything below is a difference from `projects/rolodex`, not a decision to revisit lightly.
 
-- **`node:sqlite` to `better-sqlite3`.** One driver in the process, matching CRM and Space. The
+- **`node:sqlite` to `better-sqlite3`.** One driver in the process, matching CRM and Vault. The
   APIs are near-identical; the ported tests are what proved it.
 - **One 777-line `db.ts` became `db/`**, a module per table composed by `createRepo`, because 500
   lines and 200 lines-per-function are hard limits here. `createDate` and `createConnection` grew
@@ -121,5 +121,5 @@ Anything below is a difference from `projects/rolodex`, not a decision to revisi
 ## Related documents
 
 - [REQUIREMENTS.md](./REQUIREMENTS.md) - the original brief, kept for intent
-- [PROJECT.md](../PROJECT.md) - how the four apps fit together
+- [PROJECT.md](../PROJECT.md) - how the three apps fit together
 - [PROCESS.md](../PROCESS.md) - how to make a change here

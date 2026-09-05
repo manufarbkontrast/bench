@@ -6,7 +6,16 @@ import { fileURLToPath } from "node:url";
 /** Multi-page build: one HTML entry per app, so their global styles never collide. */
 const entry = (name: string) => fileURLToPath(new URL(name, import.meta.url));
 
-const APPS = ["crm", "space", "rolodex", "groove"];
+const APPS = [
+  "crm",
+  "rolodex",
+  "vault",
+  "projekte",
+  "aufgaben",
+  "eingang",
+  "kontext",
+  "zahlen",
+];
 
 /** Dev only: send a deep link like /crm/contacts to that app's HTML, not the launcher. */
 function appFallback(): PluginOption {
@@ -33,9 +42,13 @@ export default defineConfig({
       input: {
         home: entry("index.html"),
         crm: entry("crm/index.html"),
-        space: entry("space/index.html"),
         rolodex: entry("rolodex/index.html"),
-        groove: entry("groove/index.html"),
+        vault: entry("vault/index.html"),
+        projekte: entry("projekte/index.html"),
+        aufgaben: entry("aufgaben/index.html"),
+        eingang: entry("eingang/index.html"),
+        kontext: entry("kontext/index.html"),
+        zahlen: entry("zahlen/index.html"),
       },
     },
   },
@@ -47,7 +60,7 @@ export default defineConfig({
   preview: { port: 8102, strictPort: true },
   test: {
     environment: "jsdom",
-    setupFiles: ["src/space/test/setup.ts"],
+    setupFiles: ["src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     // The default 5s is wall-clock, and the parallel coverage run can starve a forked worker on
     // a slow or busy machine - a millisecond test then times out. No test here legitimately runs
@@ -56,15 +69,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**"],
-      // jsdom has no AudioContext, so Groove's audio graph cannot be unit tested without a mock
-      // that would assert nothing about how it sounds. EXPLORATORY.md records that gap; excluding
-      // it here keeps this threshold from implying coverage it does not have.
-      exclude: [
-        "src/**/main.tsx",
-        "src/**/test/**",
-        "src/**/*.test.*",
-        "src/groove/audio/**",
-      ],
+      exclude: ["src/**/main.tsx", "src/**/test/**", "src/**/*.test.*"],
       thresholds: { statements: 80 },
     },
   },

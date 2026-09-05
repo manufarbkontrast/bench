@@ -14,14 +14,14 @@ open while lint fails. None of that lets you skip `npm run check` - a hook firin
 already failed.
 
 **The gate is CI.** It runs `check` and `e2e` on every push and pull request, and `main` is
-protected: no merge without it passing. That gate only sees the work once Ed pushes the branch,
-which is what makes running the checks locally a requirement rather than a courtesy. See
+protected: no merge without it passing. That gate only sees the work once the user pushes the
+branch, which is what makes running the checks locally a requirement rather than a courtesy. See
 [CONTROLS.md](./CONTROLS.md).
 
 ## 1. Understand before changing
 
-- Read the app's docs first: [crm/](./crm/), [space/](./space/), [rolodex/](./rolodex/),
-  [groove/](./groove/). Each holds an IMPLEMENTATION.md with the domain rules and the traps, and a
+- Read the app's docs first: [crm/](./crm/), [projekte/](./projekte/), [rolodex/](./rolodex/),
+  [vault/](./vault/). Each holds an IMPLEMENTATION.md with the domain rules and the traps, and a
   REQUIREMENTS.md with the original brief.
 - For a bug, **prove the root cause before fixing it.** Reproduce it, measure it, show the evidence.
   Do not apply a workaround to a symptom you have not explained. If a fix depends on a guess, the
@@ -42,7 +42,7 @@ Work from the data outwards, because each layer can be validated on its own:
 1. **Schema and data layer** (`server/src/<app>/db.ts`). Existing databases are migrated in place -
    see the migration in `server/src/crm/db.ts` for the pattern: check `PRAGMA table_info`, add the
    column, backfill.
-2. **API routes** (`server/src/<app>/routes*.ts`), under `/api/crm` or `/api/space`.
+2. **API routes** (`server/src/<app>/routes*.ts`), under `/api/crm` or `/api/rolodex`.
 3. **Types and helpers** (`web/src/<app>/types.ts`). Derived values belong in one place that both
    the tables and the charts read from.
 4. **UI**.
@@ -55,24 +55,27 @@ Three layers, each with a different job. Add to whichever ones the change touche
 
 ### Unit tests - `npm test`
 
-vitest, server and web. Server suites live in `server/test/{crm,space,rolodex}/`; web suites sit
-beside the code they cover. Coverage is measured across every app at 80% statements and currently
-sits at 87% on the server and 86% on web, with `web/src/groove/audio/**` excluded because jsdom has
-no `AudioContext`.
+vitest, server and web. Server suites live in `server/test/{crm,rolodex,vault,projekte}/`; web suites sit
+beside the code they cover. Coverage is measured across every app at 80% statements; run
+`npm run coverage` for the current figure per workspace rather than trusting a number written here.
 
 Use these for logic with edges: calculations, filtering, sorting, migrations, data transforms. A
 new derived value or a new column default should get one.
 
-jsdom implements no layout, no pointer capture, no canvas, no audio and no `Blob.text()`, so any
-component that measures itself or reads a file needs a stub before it will render at all.
-[CONTROLS.md](./CONTROLS.md) lists the seven that have bitten so far and what each suite does
+jsdom implements no layout, no canvas and no `Blob.text()`, so any component that measures itself
+or reads a file needs a stub before it will render at all.
+[CONTROLS.md](./CONTROLS.md) lists the six that have bitten so far and what each suite does
 about them - read it before concluding that a component is untestable.
 
 ### End-to-end tests - `npm run e2e`
 
-Playwright, in `e2e/`. Layout: `smoke.spec.ts` (the seams between the apps), then `crm/`, `space/`,
-`groove/`. `e2e/tools/screenshots.mjs` is not part of the suite - it drives a running app and
-captures every screen in both themes, for reviewing a visual change in one pass.
+Playwright, in `e2e/`. Layout: `smoke.spec.ts` (the seams between the apps), `cockpit.spec.ts` (the
+Cockpit's own seam across five sibling APIs), then `aufgaben/`, `crm/`, `eingang/`, `kontext/`,
+`projekte/`, `rolodex/`, `vault/`, `zahlen/`, `theme.spec.ts`. `e2e/tools/chrome-shots.mjs` is not
+part of the suite - it drives a running app and, in both themes, screenshots the nine document
+roots, every button-driven tab and view, and every modal/overlay reachable from one of those
+screens (detail routes that need a real record's id are deliberately left out - see the script's
+own docstring for exactly what it covers), for reviewing a visual change in one pass.
 
 Rules that keep this suite reliable:
 
@@ -90,28 +93,11 @@ Rules that keep this suite reliable:
   the viewport and dnd-kit drags never activate.
 - **Drag with the keyboard where the library supports it.** CRM's pipeline uses
   `@hello-pangea/dnd`: Space to lift, arrows to move, Space to drop - deterministic, no coordinates.
-  Space's board and Rolodex's circles use dnd-kit; the board now has a keyboard sensor, but its
-  specs stay mouse-driven because a column drag starts from a grip that only appears on hover.
-  A dnd-kit drag needs the pointer to move past its 6px activation distance in several steps before
-  it starts, so `mouse.move(..., { steps })` is not optional.
+  Rolodex's circles use dnd-kit. A dnd-kit drag needs the pointer to move past its 6px activation
+  distance in several steps before it starts, so `mouse.move(..., { steps })` is not optional.
 - `getByRole` name matching is substring-based: `{ name: "BASS step 1" }` also matches steps 10-16.
   Pass `exact: true` for numbered labels. **This is a Playwright rule only** - Testing Library's
   `name` already matches the whole string, and `exact` is not one of its options there.
-- **Never poll a periodic value for a one-off reading.** `expect.poll` settles at a 1s interval
-  once it has worked through its defaults of 100, 250, 500, 1000ms. Groove's playhead is periodic -
-  134ms a step, 2.14s a bar - so each poll advances 7.47 steps and two polls fall a step short of
-  the bar, which walks the samples backwards through it in a comb: 12, 11, 10, 9. "Wait for the
-  playhead to pass step 12" could therefore miss steps 13 to 15 for a whole 10s window, and this
-  spec failed roughly 1 run in 60 because of it. Heavy CPU load moved the phase, which made it look
-  like an audio-clock problem for a while; it was not - the headless audio clock measures within
-  0.1% of real time and rAF runs at 119fps. **Accumulate instead**: `recordSteps` in
-  `e2e/groove/instrument.spec.ts` collects every step the LED strip lights via a MutationObserver
-  in the page, and the spec polls that set until most of the bar has been seen. A value that only
-  ever grows cannot be aliased by the poll interval. The threshold is 12 of 16 rather than all 16
-  because the engine's draw loop reports one step per frame, so a machine slower than 7.5fps
-  renders a bar with gaps: measured with CDP CPU throttling, 12 holds to a 50x slowdown, where all
-  16 would start failing at 50x and 13 of 16 at 30x. Throttle the renderer through CDP to check
-  that kind of thing - do not put load on the machine.
 
 Run one file while iterating: `npx playwright test e2e/crm/revenue.spec.ts --retries=0`.
 
@@ -142,7 +128,6 @@ Traps worth knowing:
 - Refs go stale after navigation - re-snapshot before clicking.
 - `snapshot -i` lists only interactive elements; a container with a role may not appear, which is
   not evidence that it is missing. Confirm against the source before reporting it as a defect.
-- Driving Groove with a visible browser **plays sound out loud**. Stop the transport when done.
 
 Record anything that automation cannot assert in [e2e/EXPLORATORY.md](../e2e/EXPLORATORY.md).
 
@@ -166,7 +151,8 @@ elements around it, above and below included.
 - **Do not state test counts in the docs.** They are stale by the next commit. `npx playwright
 test --list` answers it on demand.
 - When you deliberately leave something uncovered, say so in `e2e/EXPLORATORY.md` rather than
-  letting a green suite imply coverage it does not have. Groove's audio is the standing example.
+  letting a green suite imply coverage it does not have. Rolodex's circle drag is the standing
+  example - see EXPLORATORY.md.
 
 ## 6. Finishing
 
@@ -190,6 +176,35 @@ platform package - it does that when a dependency is added. Clear all three `nod
 just the root one, or a stale nested copy shadows the hoisted package inside that workspace:
 `rm -rf node_modules web/node_modules server/node_modules package-lock.json && npm install`. See
 [CONTROLS.md](./CONTROLS.md).
+
+**If `server/test/vault/watch.test.ts` times out waiting for a filesystem event, stop before
+retrying.** `server/vitest.config.ts` already runs that one file in its own sequenced project, so it
+never competes with the other 55 coverage-instrumented files for a CPU quantum at the exact moment
+its freshly registered watcher needs the OS to schedule its first native event - proven to be
+system-level scheduling starvation of the chokidar/fsevents callback under heavy CPU contention,
+reproduced even with coverage off, not a defect in the test or the watcher. That sequencing removes
+this suite's own contribution to that contention; it cannot remove contention from outside the run.
+The probable outside source, not proven but observed once: a second live watcher on the same vault.
+A manually started Bench server (`npm start`/`npm run dev`) left running against a real,
+`.env`-configured vault keeps its own chokidar watcher open, and one such server appeared to contend
+with this test's watcher for delivery during Phase 6 - the failure reproduced only while the server
+was up and passed cleanly the moment it was stopped. If the test times out, check for a Bench server
+still listening on 8100 or 8101, stop it, and rerun - not a `--maxWorkers=2` retry, which only waits
+out the contention rather than removing its likely cause. The `watch` project itself carries a
+single scoped `retry: 1` for that same proven external cause; a second consecutive failure of that
+project is no longer explained by it and is a real signal worth investigating, not another retry.
+
+**Never pipe a gate command through `tail` or `head`.** `npm run check | tail -150` reports the
+pipe's exit status, not the gate's - a Phase 3 session shipped past a real knip failure that way
+until a per-step foreground re-run caught it. Run each gate step plain and read its own exit code.
+
+**A long gate run that gets backgrounded is polled, not awaited.** Ending a turn "waiting for the
+run to finish" stalls the work - it happened three times in one phase. Poll the run's output until
+it exits, or re-run the gate piecewise in the foreground, each step with its own exit code.
+
+**Proving retry-safety of an e2e spec needs `--workers=1 --repeat-each=2`.** Plain
+`--repeat-each=2` can spread the repeats across workers with separate databases, passing while the
+same-worker re-entry the retry rule warns about still fails.
 
 See [CONTROLS.md](./CONTROLS.md) for what the checks are and how each layer is enforced.
 

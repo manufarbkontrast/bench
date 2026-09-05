@@ -1,0 +1,417 @@
+/* Projekte: the launcher's greys, orange as the one accent, dark first. */
+
+:root {
+  color-scheme: light;
+  /* The brand accent - stays the same value in both themes, unlike every other token here. */
+  --accent: #ff5c00;
+  --accent-ink: #b84200;
+  --accent-wash: rgba(255, 92, 0, 0.12);
+  --bg: #ffffff;
+  --bg-raised: #f2f4f6;
+  --bg-hover: rgba(28, 33, 40, 0.06);
+  --text: #1c2128;
+  --text-soft: #5b636e;
+  --text-faint: #868e99;
+  --border: #dfe3e8;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --accent-ink: #ff7a33;
+  --accent-wash: rgba(255, 92, 0, 0.16);
+  --bg: #14171c;
+  --bg-raised: #1c2128;
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --text: #e9edf2;
+  --text-soft: #9aa3ae;
+  --text-faint: #6f7884;
+  --border: #2b323b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Helvetica Neue", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* The nav strip takes 47px; the app fills what is left and the page itself scrolls. */
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+.projekte {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 28px 32px 60px;
+}
+
+.projekte-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.projekte-header h1 {
+  margin: 0 0 4px;
+  font-size: 24px;
+  letter-spacing: -0.01em;
+}
+
+.projekte-summary {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.projekte-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.projekte-view {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.projekte-view-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.projekte-view-btn:hover {
+  background: var(--bg-hover);
+}
+
+.projekte-view-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.projekte-view-btn[aria-pressed="true"] {
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+}
+
+.projekte-scan {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--bg-raised);
+}
+
+.projekte-scan:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.projekte-scan:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.projekte-scan:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.projekte-empty {
+  padding: 40px 0;
+  color: var(--text-soft);
+  text-align: center;
+}
+
+.projekte-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.projekte-table th {
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.projekte-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.projekte-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.projekte-name {
+  display: block;
+  font-weight: 600;
+  text-align: left;
+}
+
+.projekte-name:hover {
+  color: var(--accent-ink);
+}
+
+.projekte-name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.projekte-path {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.projekte-table a {
+  color: var(--accent-ink);
+}
+
+.projekte-table a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.projekte-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.projekte-badge {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.projekte-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.projekte-primary {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.projekte-board {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.projekte-board-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.projekte-board-brand {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.projekte-board-columns {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(220px, 1fr);
+  gap: 12px;
+  overflow-x: auto;
+}
+
+.projekte-board-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.projekte-board-status {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.projekte-board-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.projekte-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.projekte-card:hover {
+  background: var(--bg-hover);
+}
+
+.projekte-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.projekte-card-name {
+  font-weight: 600;
+}
+
+.projekte-card-delta {
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.projekte-detail {
+  flex-shrink: 0;
+  width: 320px;
+  padding: 16px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.projekte-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.projekte-detail-header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.projekte-detail-close {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.projekte-detail-close:hover {
+  background: var(--bg-hover);
+}
+
+.projekte-detail-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.projekte-detail-fields {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 12px;
+  margin: 0 0 16px;
+}
+
+.projekte-detail-fields dt {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.projekte-detail-fields dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.projekte-detail-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.projekte-detail-links a {
+  color: var(--accent-ink);
+}
+
+.projekte-detail-links a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.projekte-detail-duplicates h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.projekte-detail-duplicates ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.projekte-detail-duplicates li {
+  font-size: 12px;
+  color: var(--text-soft);
+  word-break: break-word;
+}
