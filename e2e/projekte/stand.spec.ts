@@ -6,13 +6,6 @@
  */
 import { test, expect } from "../fixtures";
 
-// server/src/vault/index/frontmatter.ts's titleOf names a note after its file, Obsidian's own
-// convention (see PROJECT.md) - not after its first heading, so the card title is the fixture
-// files' own basenames rather than the "Handoff: Leuchtturm" / "Handoff: Hafen" H1 text inside
-// them.
-const LEUCHTTURM_TITLE = "Handoff_leuchtturm";
-const HAFEN_TITLE = "Handoff_hafen";
-
 test("the Projekte view opens by default, shows the coupled handoff and leaves the rest in Ohne Projekt", async ({
   page,
 }) => {
@@ -25,8 +18,11 @@ test("the Projekte view opens by default, shows the coupled handoff and leaves t
   // Generous: a fresh worker's first list fetch also builds and scans the sample workshop, which
   // shells out to git several times, before any handoff can couple to a repo - the house pattern
   // from smoke.spec.ts's projekte addition.
+  //
+  // A project is named by its slug (server/src/projekte/handoffs.ts) - the card's heading is
+  // "leuchtturm", not the handoff note's own H1, which renders as the subtitle beneath it.
   const leuchtturmHeading = page.getByRole("heading", {
-    name: LEUCHTTURM_TITLE,
+    name: "leuchtturm",
     exact: true,
   });
   await expect(leuchtturmHeading).toBeVisible({ timeout: 20_000 });
@@ -34,6 +30,9 @@ test("the Projekte view opens by default, shows the coupled handoff and leaves t
   const leuchtturmCard = page
     .locator("article.projekte-stand-card")
     .filter({ has: leuchtturmHeading });
+  await expect(leuchtturmCard.locator(".projekte-stand-subtitle")).toHaveText(
+    "Handoff: Leuchtturm",
+  );
   await expect(leuchtturmCard).toContainText("Stand veraltet");
   await expect(leuchtturmCard.locator("pre.projekte-stand-text")).toHaveText(
     "Der Leuchtturm steht; die Lampe ist bestellt.",
@@ -64,12 +63,15 @@ test("the Projekte view opens by default, shows the coupled handoff and leaves t
   ).toBeVisible();
 
   const hafenHeading = page.getByRole("heading", {
-    name: HAFEN_TITLE,
+    name: "hafen",
     exact: true,
   });
   const hafenCard = page
     .locator("article.projekte-stand-card")
     .filter({ has: hafenHeading });
+  await expect(hafenCard.locator(".projekte-stand-subtitle")).toHaveText(
+    "Handoff: Hafen",
+  );
   await expect(hafenCard).not.toContainText("Stand veraltet");
   await expect(hafenCard.getByRole("button")).toHaveCount(0);
 

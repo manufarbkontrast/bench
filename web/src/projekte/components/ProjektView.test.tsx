@@ -31,7 +31,7 @@ function repo(overrides: Partial<ProjectDetail> = {}): ProjectDetail {
 function projekt(overrides: Partial<ProjektStand> = {}): ProjektStand {
   return {
     slug: "leuchtfeuer",
-    title: "Leuchtfeuer",
+    title: "Handoff: Leuchtfeuer",
     notePath: "50_Workflow/Handoffs/Handoff_a.md",
     updated: "2026-08-01",
     zustand: "Der Turm steht, die Fresnel-Linse fehlt noch.",
@@ -57,9 +57,12 @@ describe("ProjektView", () => {
     };
     render(<ProjektView stand={stand} today={TODAY} onSelect={vi.fn()} />);
 
+    // The card is named by its slug; the handoff's H1 is a subtitle beneath it, never the heading
+    // itself.
     expect(
-      screen.getByRole("heading", { name: "Leuchtfeuer" }),
+      screen.getByRole("heading", { name: "leuchtfeuer" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Handoff: Leuchtfeuer")).toBeInTheDocument();
     expect(
       screen.getByText("Handoff vom 01.08.2026 · vor 35 Tagen"),
     ).toBeInTheDocument();
@@ -98,6 +101,21 @@ describe("ProjektView", () => {
     };
     render(<ProjektView stand={stand} today={TODAY} onSelect={vi.fn()} />);
     expect(screen.getByText("Datum fehlt")).toBeInTheDocument();
+  });
+
+  it("omits the subtitle when the handoff's title equals its slug (the no-H1 fallback)", () => {
+    const stand: StandReply = {
+      projekte: [projekt({ title: "leuchtfeuer" })],
+      ohneProjekt: [],
+      warnings: [],
+    };
+    const { container } = render(
+      <ProjektView stand={stand} today={TODAY} onSelect={vi.fn()} />,
+    );
+    expect(
+      screen.getByRole("heading", { name: "leuchtfeuer" }),
+    ).toBeInTheDocument();
+    expect(container.querySelector(".projekte-stand-subtitle")).toBeNull();
   });
 
   it("omits the zustand block when it is empty", () => {

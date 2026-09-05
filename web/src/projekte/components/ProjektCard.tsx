@@ -42,7 +42,10 @@ export default function ProjektCard({
   const hints = standHints(projekt);
   return (
     <article className="projekte-stand-card">
-      <h2>{projekt.title}</h2>
+      <h2>{projekt.slug}</h2>
+      {projekt.title !== projekt.slug && (
+        <p className="projekte-stand-subtitle">{projekt.title}</p>
+      )}
       <p className="projekte-stand-meta">
         {headerLine(projekt.updated, today)}
       </p>

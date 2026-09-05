@@ -111,7 +111,7 @@ function ProjectPanel({ stand, now }: { stand: StandReply; now: number }) {
           {handoffs.map((row) => (
             <li key={row.slug}>
               <a className="home-row" href="/projekte/">
-                <span className="home-row-text">{row.title}</span>
+                <span className="home-row-text">{row.slug}</span>
                 <span className="home-row-meta">{handoffMeta(row, today)}</span>
               </a>
             </li>

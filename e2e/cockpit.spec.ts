@@ -69,13 +69,12 @@ test("the Cockpit surfaces overdue tasks, the session note and moving projects",
   //
   // e2e/fixtures.ts rewrites Handoff_leuchtturm.md's repos entry to this worker's own
   // leuchtfeuer checkout, so the handoff row shows instead of a bare leuchtfeuer row - the same
-  // coupling e2e/projekte/stand.spec.ts exercises. "Handoff_leuchtturm" is the note's own
-  // filename (server/src/vault/index/frontmatter.ts's titleOf), not the "Handoff: Leuchtturm"
-  // text inside it.
+  // coupling e2e/projekte/stand.spec.ts exercises. A project is named by its slug, so the row's
+  // own text is "leuchtturm".
   const projectsPanel = panel(page, "Projekte in Bewegung");
   const handoffRow = projectsPanel
     .locator("li")
-    .filter({ hasText: "Handoff_leuchtturm" });
+    .filter({ hasText: "leuchtturm" });
   await expect(handoffRow).toBeVisible({ timeout: 20_000 });
   await expect(handoffRow).toContainText("Stand veraltet");
   await expect(

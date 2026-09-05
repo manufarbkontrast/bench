@@ -76,11 +76,13 @@ describe("parseUpdated", () => {
 });
 
 describe("vaultHandoffs", () => {
-  it("reads slug, title, updated, repos and zustand from a handoff note", () => {
+  it("reads slug, title (the body's first H1, never the note's own filename-derived title), updated, repos and zustand from a handoff note", () => {
     const db = buildVault([
       {
         path: `${HANDOFF}/Handoff_leuchtturm.md`,
-        title: "Handoff: Leuchtturm",
+        // Deliberately NOT "Handoff: Leuchtturm" - proving title comes from the body's H1 below,
+        // never from the note row's own title column (Obsidian's filename-derived one).
+        title: "Handoff_leuchtturm",
         frontmatter: {
           projekt: " Leuchtturm ",
           updated: "2026-08-01",
@@ -101,6 +103,17 @@ describe("vaultHandoffs", () => {
     );
     expect(h.repos[1]).toBe(path.resolve("/abs/hafen"));
     expect(h.zustand).toBe("Steht.");
+  });
+  it("falls back to the slug when the body has no H1", () => {
+    const db = buildVault([
+      {
+        path: `${HANDOFF}/Handoff_hafen.md`,
+        frontmatter: { projekt: "hafen" },
+        body: "## Zustand\n\nKaimauer vermessen.\n",
+      },
+    ]);
+    const { handoffs } = vaultHandoffs(db);
+    expect(handoffs[0].title).toBe("hafen");
   });
   it("ignores notes outside the Handoffs folder, including a sibling with an underscore", () => {
     const db = buildVault([

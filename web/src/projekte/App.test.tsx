@@ -177,9 +177,11 @@ describe("Projekte App", () => {
       warnings: [],
     });
     render(<App />);
+    // The card is named by its slug; the handoff's title (its H1) is a subtitle beneath it.
     expect(
-      await screen.findByRole("heading", { name: "Leuchtfeuer" }),
+      await screen.findByRole("heading", { name: "leuchtfeuer" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Leuchtfeuer")).toBeInTheDocument();
   });
 
   it("scans again on demand and reloads the list and the stand", async () => {

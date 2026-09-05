@@ -118,10 +118,10 @@ export function movingProjects(projects: Project[], now: number): Project[] {
 
 /** Mirrors GET /api/projekte/stand's ProjektStand (server/src/projekte/stand.ts), narrowed to
     what the Cockpit's handoff row renders - not the repos or notePath, which the panel never
-    shows. */
+    shows. A project is named by its slug (the row's own text), so `title` - the handoff's H1,
+    only ever a subtitle in the Projekte app's own card - is not read here and stays out. */
 export interface HandoffRow {
   slug: string;
-  title: string;
   updated: string | null;
   missingRepos: string[];
   signals: { veraltet: boolean; dirtyRepos: number; offeneTasks: number };

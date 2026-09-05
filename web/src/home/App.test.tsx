@@ -92,7 +92,6 @@ function daysAgo(days: number): string {
 function handoffRow(overrides: Partial<HandoffRow> = {}): HandoffRow {
   return {
     slug: "leuchtturm",
-    title: "Leuchtturm",
     updated: daysAgo(0),
     missingRepos: [],
     signals: { veraltet: false, dirtyRepos: 0, offeneTasks: 0 },
@@ -305,12 +304,12 @@ describe("Cockpit", () => {
 
     render(<App />);
     const bewegung = panel("Projekte in Bewegung");
-    await within(bewegung).findByText("Leuchtturm");
+    await within(bewegung).findByText("leuchtturm");
     expect(
       within(bewegung).getByText("vor 3 Tagen · Stand veraltet"),
     ).toBeInTheDocument();
     expect(
-      within(bewegung).getByRole("link", { name: /Leuchtturm/ }),
+      within(bewegung).getByRole("link", { name: /leuchtturm/ }),
     ).toHaveAttribute("href", "/projekte/");
   });
 
@@ -321,32 +320,27 @@ describe("Cockpit", () => {
     vi.mocked(api.zahlenLast).mockResolvedValue({ run: null });
     vi.mocked(api.stand).mockResolvedValue({
       projekte: [
-        handoffRow({ slug: "quiet", title: "Ruhig" }),
-        handoffRow({ slug: "no-date", title: "Ohne Datum", updated: null }),
-        handoffRow({ slug: "one-day", title: "Ein Tag", updated: daysAgo(1) }),
+        handoffRow({ slug: "quiet" }),
+        handoffRow({ slug: "no-date", updated: null }),
+        handoffRow({ slug: "one-day", updated: daysAgo(1) }),
         handoffRow({
           slug: "dirty-one",
-          title: "Ein Repo",
           signals: { veraltet: false, dirtyRepos: 1, offeneTasks: 0 },
         }),
         handoffRow({
           slug: "dirty-many",
-          title: "Mehrere Repos",
           signals: { veraltet: false, dirtyRepos: 2, offeneTasks: 0 },
         }),
         handoffRow({
           slug: "task-one",
-          title: "Eine Aufgabe",
           signals: { veraltet: false, dirtyRepos: 0, offeneTasks: 1 },
         }),
         handoffRow({
           slug: "task-many",
-          title: "Mehrere Aufgaben",
           signals: { veraltet: false, dirtyRepos: 0, offeneTasks: 2 },
         }),
         handoffRow({
           slug: "missing-repo",
-          title: "Fehlendes Repo",
           missingRepos: ["kaputt"],
         }),
       ],
@@ -355,7 +349,7 @@ describe("Cockpit", () => {
 
     render(<App />);
     const bewegung = panel("Projekte in Bewegung");
-    await within(bewegung).findByText("Ruhig");
+    await within(bewegung).findByText("quiet");
     expect(within(bewegung).getByText("heute")).toBeInTheDocument();
     expect(within(bewegung).getByText("Datum fehlt")).toBeInTheDocument();
     expect(within(bewegung).getByText("vor 1 Tag")).toBeInTheDocument();
@@ -382,16 +376,16 @@ describe("Cockpit", () => {
     vi.mocked(api.sessionNote).mockResolvedValue(null);
     vi.mocked(api.zahlenLast).mockResolvedValue({ run: null });
     const rows = Array.from({ length: 10 }, (_, i) =>
-      handoffRow({ slug: `h${String(i)}`, title: `Handoff ${String(i)}` }),
+      handoffRow({ slug: `h${String(i)}` }),
     );
     vi.mocked(api.stand).mockResolvedValue({ projekte: rows, ohneProjekt: [] });
 
     render(<App />);
     const bewegung = panel("Projekte in Bewegung");
-    await within(bewegung).findByText("Handoff 0");
-    expect(within(bewegung).getByText("Handoff 7")).toBeInTheDocument();
-    expect(within(bewegung).queryByText("Handoff 8")).not.toBeInTheDocument();
-    expect(within(bewegung).queryByText("Handoff 9")).not.toBeInTheDocument();
+    await within(bewegung).findByText("h0");
+    expect(within(bewegung).getByText("h7")).toBeInTheDocument();
+    expect(within(bewegung).queryByText("h8")).not.toBeInTheDocument();
+    expect(within(bewegung).queryByText("h9")).not.toBeInTheDocument();
     const more = within(bewegung).getByText("… und 2 weitere");
     expect(more).toBeInTheDocument();
     expect(more.closest("a")).toHaveAttribute("href", "/projekte/");
@@ -409,7 +403,7 @@ describe("Cockpit", () => {
 
     render(<App />);
     const bewegung = panel("Projekte in Bewegung");
-    await within(bewegung).findByText("Leuchtturm");
+    await within(bewegung).findByText("leuchtturm");
     expect(within(bewegung).getByText("frei-schwebend")).toBeInTheDocument();
     expect(within(bewegung).getByText("1 geändert")).toBeInTheDocument();
     // One row for the handoff, one for the sole unattached repo - nothing coupled to the

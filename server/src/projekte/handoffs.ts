@@ -4,7 +4,7 @@ import { expandTilde } from "../config.js";
 
 export interface Handoff {
   slug: string;
-  title: string;
+  title: string; // the note's first H1, else the slug
   notePath: string;
   updated: string | null;
   repos: string[];
@@ -22,11 +22,11 @@ const HANDOFF_FOLDER = "50_Workflow/Handoffs";
 
 interface NoteRow {
   path: string;
-  title: string;
   frontmatter: string;
   body: string;
 }
 
+const isH1 = (line: string): boolean => line.startsWith("# ");
 const isH2 = (line: string): boolean => line.startsWith("## ");
 
 /** The body of `## Zustand`; absent, the first H2 section; absent, "". */
@@ -38,6 +38,15 @@ export function zustandSection(body: string): string {
   const rest = lines.slice(start + 1);
   const end = rest.findIndex(isH2);
   return (end === -1 ? rest : rest.slice(0, end)).join("\n").trim();
+}
+
+/** A project is named by its slug; a handoff's H1 is only ever a subtitle beneath it, so this
+    reads that H1 verbatim rather than the note's own filename-derived title. Falls back to the
+    slug when the body has none. Not exported: only vaultHandoffs below calls it, and both new
+    cases are covered through that function in handoffs.test.ts. */
+function handoffTitle(body: string, slug: string): string {
+  const h1 = body.split("\n").find(isH1);
+  return h1 === undefined ? slug : h1.slice(2).trim();
 }
 
 // gray-matter turns an unquoted date into a Date, which the index serialises as an ISO datetime;
@@ -66,7 +75,7 @@ function reposOf(
 export function vaultHandoffs(vaultDb: Database.Database): HandoffsResult {
   const rows = vaultDb
     .prepare(
-      "SELECT path, title, frontmatter, body FROM notes WHERE folder = ? ORDER BY path",
+      "SELECT path, frontmatter, body FROM notes WHERE folder = ? ORDER BY path",
     )
     .all(HANDOFF_FOLDER) as NoteRow[];
   const warnings: string[] = [];
@@ -89,7 +98,7 @@ export function vaultHandoffs(vaultDb: Database.Database): HandoffsResult {
     seen.add(slug);
     handoffs.push({
       slug,
-      title: row.title,
+      title: handoffTitle(row.body, slug),
       notePath: row.path,
       updated: parseUpdated(frontmatter.updated),
       repos: reposOf(frontmatter, file, warnings),
