@@ -44,3 +44,29 @@ export interface ProjectDetailReply {
   project: ProjectDetail;
   duplicates: ProjectDetail[];
 }
+
+/** GET /api/projekte/stand's shape - mirrors server/src/projekte/stand.ts's ProjektStand and
+    StandReply, with repos and ohneProjekt as this side's ProjectDetail rather than the server's
+    ProjectRow. */
+interface StandSignals {
+  veraltet: boolean;
+  dirtyRepos: number;
+  offeneTasks: number;
+}
+
+export interface ProjektStand {
+  slug: string;
+  title: string;
+  notePath: string;
+  updated: string | null;
+  zustand: string;
+  repos: ProjectDetail[];
+  missingRepos: string[];
+  signals: StandSignals;
+}
+
+export interface StandReply {
+  projekte: ProjektStand[];
+  ohneProjekt: ProjectDetail[];
+  warnings: string[];
+}

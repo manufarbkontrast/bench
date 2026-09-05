@@ -36,10 +36,12 @@ const APPS: {
     path: "/projekte/",
     title: "Projekte",
     tab: "Projekte",
-    // The first visit to a fresh worker database triggers a lazy scan of the sample workshop,
-    // which shells out to git several times and can take longer than the default 5s expect
-    // timeout - waited for at the call site instead of here.
-    ready: (p) => p.locator(".projekte-table tbody tr").first(),
+    // Projekte is the default view now (Task 4), rendered once both /list and /stand resolve;
+    // its Ohne Projekt heading is unconditional, unlike a table row that needs Tabelle clicked
+    // first. The first visit to a fresh worker database also triggers a lazy scan of the sample
+    // workshop, which shells out to git several times and can take longer than the default 5s
+    // expect timeout - waited for at the call site instead of here.
+    ready: (p) => p.getByRole("heading", { name: "Ohne Projekt" }),
   },
   {
     path: "/aufgaben/",

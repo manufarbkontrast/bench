@@ -1,4 +1,9 @@
-import type { ListReply, ProjectDetailReply, ScanSummary } from "./types";
+import type {
+  ListReply,
+  ProjectDetailReply,
+  ScanSummary,
+  StandReply,
+} from "./types";
 
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -28,4 +33,5 @@ export const api = {
     get<ProjectDetailReply>(
       `/api/projekte/project?path=${encodeURIComponent(path)}`,
     ),
+  stand: () => get<StandReply>("/api/projekte/stand"),
 };

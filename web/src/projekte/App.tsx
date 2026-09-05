@@ -4,10 +4,11 @@ import { api } from "./api";
 import Board from "./components/Board";
 import Detail from "./components/Detail";
 import ProjectsTable from "./components/ProjectsTable";
+import ProjektView from "./components/ProjektView";
 import { dateText } from "./format";
-import type { ListReply, ProjectDetailReply } from "./types";
+import type { ListReply, ProjectDetailReply, StandReply } from "./types";
 
-type View = "table" | "board";
+type View = "projekte" | "table" | "board";
 
 function summaryLine(list: ListReply): string {
   const repos = list.projects.filter((p) => p.kind === "git").length;
@@ -18,14 +19,52 @@ function summaryLine(list: ListReply): string {
     : `${base} · zuletzt ${dateText(list.scannedAt)}`;
 }
 
+/** The viewer's own calendar day, so a handoff's age never shifts by their UTC offset - the
+    getter-based counterpart to server/src/projekte/stand.ts's localDay. */
+function todayLocal(): string {
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${String(now.getFullYear())}-${mm}-${dd}`;
+}
+
+function Primary({
+  view,
+  list,
+  stand,
+  today,
+  onSelect,
+}: {
+  view: View;
+  list: ListReply;
+  stand: StandReply;
+  today: string;
+  onSelect: (path: string) => void;
+}) {
+  if (view === "projekte") {
+    return <ProjektView stand={stand} today={today} onSelect={onSelect} />;
+  }
+  if (list.projects.length === 0) {
+    return <p className="projekte-empty">Keine Projekte gefunden.</p>;
+  }
+  return view === "table" ? (
+    <ProjectsTable projects={list.projects} onSelect={onSelect} />
+  ) : (
+    <Board projects={list.projects} onSelect={onSelect} />
+  );
+}
+
 export default function App() {
   const [list, setList] = useState<ListReply | null>(null);
+  const [stand, setStand] = useState<StandReply | null>(null);
   const [scanning, setScanning] = useState(false);
-  const [view, setView] = useState<View>("table");
+  const [view, setView] = useState<View>("projekte");
   const [detail, setDetail] = useState<ProjectDetailReply | null>(null);
+  const today = todayLocal();
 
   useEffect(() => {
     void api.list().then(setList);
+    void api.stand().then(setStand);
   }, []);
 
   const rescan = async () => {
@@ -33,6 +72,7 @@ export default function App() {
     try {
       await api.scan();
       setList(await api.list());
+      setStand(await api.stand());
     } catch (err) {
       // A failed scan is a network or server problem the user can just retry - logged so it is
       // not silently dropped, without a banner for a request nothing else here reacts to.
@@ -62,6 +102,14 @@ export default function App() {
               <button
                 type="button"
                 className="projekte-view-btn"
+                aria-pressed={view === "projekte"}
+                onClick={() => setView("projekte")}
+              >
+                Projekte
+              </button>
+              <button
+                type="button"
+                className="projekte-view-btn"
                 aria-pressed={view === "table"}
                 onClick={() => setView("table")}
               >
@@ -87,17 +135,16 @@ export default function App() {
           </div>
         </header>
 
-        {list?.projects.length === 0 && (
-          <p className="projekte-empty">Keine Projekte gefunden.</p>
-        )}
-        {list && list.projects.length > 0 && (
+        {list && stand && (
           <div className="projekte-content">
             <div className="projekte-primary">
-              {view === "table" ? (
-                <ProjectsTable projects={list.projects} onSelect={openDetail} />
-              ) : (
-                <Board projects={list.projects} onSelect={openDetail} />
-              )}
+              <Primary
+                view={view}
+                list={list}
+                stand={stand}
+                today={today}
+                onSelect={openDetail}
+              />
             </div>
             {detail && (
               <Detail

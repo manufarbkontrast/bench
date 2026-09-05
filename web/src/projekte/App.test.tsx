@@ -8,6 +8,7 @@ import type {
   Project,
   ProjectDetailReply,
   ScanSummary,
+  StandReply,
 } from "./types";
 
 function project(overrides: Partial<Project> = {}): Project {
@@ -55,11 +56,21 @@ const projectDetail: ProjectDetailReply = {
   duplicates: [],
 };
 
+// leuchtfeuer sits in no handoff in this fixture, so it shows up under Ohne Projekt too - the
+// same row shape as the table's, which is what lets most of these tests find its button without
+// having to switch off the new default view first.
+const loadedStand: StandReply = {
+  projekte: [],
+  ohneProjekt: [project()],
+  warnings: [],
+};
+
 vi.mock("./api", () => ({
   api: {
     list: vi.fn(),
     scan: vi.fn(),
     project: vi.fn(),
+    stand: vi.fn(),
   },
 }));
 
@@ -68,6 +79,7 @@ beforeEach(() => {
   vi.mocked(api.list).mockResolvedValue(loadedList);
   vi.mocked(api.scan).mockResolvedValue(scanSummary);
   vi.mocked(api.project).mockResolvedValue(projectDetail);
+  vi.mocked(api.stand).mockResolvedValue(loadedStand);
 });
 
 describe("Projekte App", () => {
@@ -97,24 +109,68 @@ describe("Projekte App", () => {
     await screen.findByText("leuchtfeuer");
   });
 
-  it("shows an empty state once a scan finds nothing", async () => {
+  it("defaults to the Projekte view and loads the stand on mount", async () => {
+    render(<App />);
+    const projekteBtn = await screen.findByRole("button", {
+      name: "Projekte",
+    });
+    expect(projekteBtn).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Tabelle" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    await screen.findByText("leuchtfeuer");
+    expect(api.stand).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows an empty state in the table once a scan finds nothing", async () => {
     vi.mocked(api.list).mockResolvedValue({
       scannedAt: null,
       summary: null,
       projects: [],
     });
     render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: "Tabelle" }));
     expect(
       await screen.findByText("Keine Projekte gefunden."),
     ).toBeInTheDocument();
   });
 
-  it("scans again on demand and reloads the list", async () => {
+  it("still renders a card when the stand has a project but the list is empty", async () => {
+    vi.mocked(api.list).mockResolvedValue({
+      scannedAt: null,
+      summary: null,
+      projects: [],
+    });
+    vi.mocked(api.stand).mockResolvedValue({
+      projekte: [
+        {
+          slug: "leuchtfeuer",
+          title: "Leuchtfeuer",
+          notePath: "50_Workflow/Handoffs/Handoff_a.md",
+          updated: null,
+          zustand: "",
+          repos: [],
+          missingRepos: [],
+          signals: { veraltet: false, dirtyRepos: 0, offeneTasks: 0 },
+        },
+      ],
+      ohneProjekt: [],
+      warnings: [],
+    });
+    render(<App />);
+    expect(
+      await screen.findByRole("heading", { name: "Leuchtfeuer" }),
+    ).toBeInTheDocument();
+  });
+
+  it("scans again on demand and reloads the list and the stand", async () => {
     render(<App />);
     await screen.findByText("leuchtfeuer");
     await userEvent.click(screen.getByRole("button", { name: "Neu scannen" }));
     expect(api.scan).toHaveBeenCalledTimes(1);
     expect(api.list).toHaveBeenCalledTimes(2);
+    expect(api.stand).toHaveBeenCalledTimes(2);
   });
 
   it("disables the button and relabels it while a scan runs", async () => {
@@ -143,18 +199,26 @@ describe("Projekte App", () => {
     expect(screen.getByRole("button", { name: "Neu scannen" })).toBeEnabled();
   });
 
-  it("switches between table and board, moving aria-pressed", async () => {
+  it("switches to Tabelle and Board, moving aria-pressed, and back to Projekte", async () => {
     render(<App />);
     await screen.findByText("leuchtfeuer");
+    const projekteBtn = screen.getByRole("button", { name: "Projekte" });
     const tableBtn = screen.getByRole("button", { name: "Tabelle" });
     const boardBtn = screen.getByRole("button", { name: "Board" });
+    expect(projekteBtn).toHaveAttribute("aria-pressed", "true");
+
+    await userEvent.click(tableBtn);
     expect(tableBtn).toHaveAttribute("aria-pressed", "true");
-    expect(boardBtn).toHaveAttribute("aria-pressed", "false");
+    expect(projekteBtn).toHaveAttribute("aria-pressed", "false");
 
     await userEvent.click(boardBtn);
     expect(boardBtn).toHaveAttribute("aria-pressed", "true");
     expect(tableBtn).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByText("Ohne Marke")).toBeInTheDocument();
+
+    await userEvent.click(projekteBtn);
+    expect(projekteBtn).toHaveAttribute("aria-pressed", "true");
+    expect(boardBtn).toHaveAttribute("aria-pressed", "false");
   });
 
   it("loads and shows the detail when a project is selected, from either view", async () => {
