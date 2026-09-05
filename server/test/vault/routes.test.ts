@@ -50,13 +50,14 @@ afterEach(() => {
 describe("GET /api/vault/info and /tree", () => {
   it("names the vault and counts the notes", async () => {
     const res = await request(app).get("/api/vault/info");
-    expect(res.body).toEqual({ name: "fixture", notes: 13 });
+    // 13 plus the two 50_Workflow/Handoffs fixtures (Handoff_leuchtturm.md, Handoff_hafen.md).
+    expect(res.body).toEqual({ name: "fixture", notes: 15 });
   });
 
   it("lists every note sorted by path with its folder", async () => {
     const tree = (await request(app).get("/api/vault/tree"))
       .body as TreeEntry[];
-    expect(tree).toHaveLength(13);
+    expect(tree).toHaveLength(15);
     expect(tree[0]).toEqual({
       path: "00_Index/Cockpit.md",
       title: "Cockpit",

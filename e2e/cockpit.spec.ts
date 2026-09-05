@@ -66,11 +66,24 @@ test("the Cockpit surfaces overdue tasks, the session note and moving projects",
   // /stand (fix round 1), which on a fresh worker's first visit scans the sample workshop -
   // shelling out to git several times - before any row exists. Same 20s wait as
   // smoke.spec.ts and projekte/scan.spec.ts use for the same first-visit scan.
+  //
+  // e2e/fixtures.ts rewrites Handoff_leuchtturm.md's repos entry to this worker's own
+  // leuchtfeuer checkout, so the handoff row shows instead of a bare leuchtfeuer row - the same
+  // coupling e2e/projekte/stand.spec.ts exercises. "Handoff_leuchtturm" is the note's own
+  // filename (server/src/vault/index/frontmatter.ts's titleOf), not the "Handoff: Leuchtturm"
+  // text inside it.
+  const projectsPanel = panel(page, "Projekte in Bewegung");
+  const handoffRow = projectsPanel
+    .locator("li")
+    .filter({ hasText: "Handoff_leuchtturm" });
+  await expect(handoffRow).toBeVisible({ timeout: 20_000 });
+  await expect(handoffRow).toContainText("Stand veraltet");
   await expect(
-    panel(page, "Projekte in Bewegung").getByText("leuchtfeuer", {
-      exact: true,
-    }),
-  ).toBeVisible({ timeout: 20_000 });
+    projectsPanel.getByText("treibgut", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    projectsPanel.getByText("leuchtfeuer", { exact: true }),
+  ).toHaveCount(0);
 
   const link = session.getByRole("link", { name: "Im Vault öffnen" });
   await expect(link).toHaveAttribute(

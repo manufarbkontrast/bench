@@ -28,9 +28,10 @@ const count = (table: string) =>
   (db.prepare(`SELECT COUNT(*) AS c FROM ${table}`).get() as { c: number }).c;
 
 describe("listNotes", () => {
-  it("finds the thirteen notes and skips dot-folders", () => {
+  it("finds the fifteen notes and skips dot-folders", () => {
     const notes = listNotes(dir);
-    expect(notes).toHaveLength(13);
+    // 13 plus the two 50_Workflow/Handoffs fixtures (Handoff_leuchtturm.md, Handoff_hafen.md).
+    expect(notes).toHaveLength(15);
     expect(notes[0]).toBe("00_Index/Cockpit.md");
     expect(notes).toContain(
       "30_Projekte/Leuchtturm/Calls/2026-08-01 Call Hafen.md",
@@ -49,9 +50,10 @@ describe("listNotes", () => {
 describe("indexAll", () => {
   it("indexes every note with its folder, tags, links and tasks", () => {
     const summary = indexAll(db, dir);
-    expect(summary.notes).toBe(13);
-    expect(count("notes")).toBe(13);
-    expect(count("notes_fts")).toBe(13);
+    // 13 plus the two 50_Workflow/Handoffs fixtures (Handoff_leuchtturm.md, Handoff_hafen.md).
+    expect(summary.notes).toBe(15);
+    expect(count("notes")).toBe(15);
+    expect(count("notes_fts")).toBe(15);
     const start = db
       .prepare("SELECT folder, title FROM notes WHERE path = ?")
       .get("00_Index/Start.md");
@@ -122,7 +124,8 @@ describe("indexAll", () => {
       "# Persona\n\nNeu geschrieben, ohne Link.\n",
     );
     const summary = indexAll(db, dir);
-    expect(summary.notes).toBe(12);
+    // 15 fixture notes (13 plus the two 50_Workflow/Handoffs fixtures) minus the one just removed.
+    expect(summary.notes).toBe(14);
     expect(
       db
         .prepare("SELECT COUNT(*) AS c FROM notes WHERE path = ?")
@@ -189,6 +192,7 @@ describe("indexNote and removeNote", () => {
         .prepare("SELECT to_path FROM links WHERE target = ?")
         .get("Nicht vorhanden"),
     ).toEqual({ to_path: null });
-    expect(count("notes_fts")).toBe(13);
+    // 13 plus the two 50_Workflow/Handoffs fixtures (Handoff_leuchtturm.md, Handoff_hafen.md).
+    expect(count("notes_fts")).toBe(15);
   });
 });
