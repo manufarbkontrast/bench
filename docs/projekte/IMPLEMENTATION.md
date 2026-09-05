@@ -7,10 +7,12 @@ filesystem, `git` and `gh` are the truth; Bench never writes to any of them. Bac
 - Backend: `server/src/projekte/` - `scan.ts` (the directory walk), `git.ts` (state via
   `simple-git`), `remotes.ts` (normalisation and grouping), `couple.ts` (the vault side of the
   coupling), `gh.ts` (issue/PR counts), `pipeline.ts` (`scanProjects`, the whole scan in order),
-  `db.ts` (schema and queries), `routes.ts` (the three endpoints), `locate.ts` and `sample.ts`
-  (roots and the synthetic workshop)
+  `db.ts` (schema and queries), `handoffs.ts` (the project level: one handoff note per project),
+  `stand.ts` (assembles the project view from handoffs and scanned rows), `routes.ts` (the four
+  endpoints), `locate.ts` and `sample.ts` (roots and the synthetic workshop)
 - Frontend: `web/src/projekte/` - `App.tsx`, `components/` (`ProjectsTable`, `Board`, `Detail`,
-  `WarningBadges`), `api.ts`, `format.ts`, `types.ts`, `styles.css`
+  `WarningBadges`, `ProjektView`, `ProjektCard`), `api.ts`, `format.ts`, `stand.ts` (age and hint
+  text for a Stand card), `types.ts`, `styles.css`
 - Tests: `server/test/projekte/`, `web/src/projekte/**/*.test.{ts,tsx}`, `e2e/projekte/`
 
 ## Data model
@@ -23,6 +25,33 @@ an untracked directory counts once, matching plain `git status`), `ahead`, `behi
 `brand`, `status`, `issues`, `prs`, `group_key`, and `scanned_at`. `replaceProjects` deletes and
 reinserts the whole table inside one transaction on every scan, so a project gone from the roots
 also vanishes from the index - nothing here is reconciled row by row.
+
+### The project level, above the rows
+
+A `projects` row is a checkout; a **project** is a step up from that: a handoff note under
+`50_Workflow/Handoffs/` in the vault, with zero or more `projects` rows coupled to it. `handoffs.ts`
+reads the vault's `notes` table `WHERE folder = '50_Workflow/Handoffs'` (equality, not `LIKE
+'50_Workflow%'` - see "Things that will bite") and turns each row into a `Handoff`:
+
+| Field      | Source                                                                                  |
+| ---------- | --------------------------------------------------------------------------------------- |
+| `slug`     | frontmatter `projekt`, trimmed, lowercased - the card's own heading                     |
+| `title`    | the body's first `# ` line, trimmed, wherever it falls; falls back to `slug` with no H1 |
+| `notePath` | the note's vault-relative path, for the `Handoff im Vault` link                         |
+| `updated`  | frontmatter `updated` as `YYYY-MM-DD`, or `null` when missing or unparsable             |
+| `repos`    | frontmatter `repos`: an array of strings, each tilde-expanded and `path.resolve`d       |
+| `zustand`  | the body's `## Zustand` section; absent, the first `## ` section; absent, `""`          |
+
+A handoff without a string `projekt` becomes a warning line (`Handoff ohne projekt: <file>`) and is
+dropped; a second handoff claiming a slug already seen becomes `Doppelter Slug <slug>: <file>` and
+is dropped too - first note path (sorted) wins, the same dedupe rule `couple.ts` applies to
+duplicate project paths. `stand.ts`'s `projektStand` couples each handoff's `repos` entries to
+`projects` rows by lowercased path equality; entries that match nothing land in `missingRepos` as
+their basenames. Three signals are computed at read time, never stored: `veraltet` (the handoff's
+`updated` is earlier than the local calendar day of the newest coupled commit), `dirtyRepos` (how
+many coupled repos carry uncommitted changes), and `offeneTasks` (open vault tasks whose own
+`projekt` frontmatter matches the slug, outside `50_Workflow`/`Templates`/`90_Archive`). A
+`projects` row that no handoff's `repos` names at all lands in `ohneProjekt`.
 
 ## The scan pipeline
 
@@ -134,13 +163,23 @@ once per request that happened to trigger or join one.
 
 ## The API
 
-Mounted at `/api/projekte` (`routes.ts`), three routes:
+Mounted at `/api/projekte` (`routes.ts`), four routes:
 
 | Route                | Returns                                                                                                   |
 | -------------------- | --------------------------------------------------------------------------------------------------------- |
 | `GET /list`          | `{ scannedAt, summary, projects }` - runs a scan first if the table is empty; `summary` is null otherwise |
+| `GET /stand`         | `{ projekte, ohneProjekt, warnings }` - never scans, see below                                            |
 | `POST /scan`         | `{ summary }` - a full rebuild, joining an in-flight scan if one is already running                       |
 | `GET /project?path=` | `{ project, duplicates }` for one absolute path, or 400/404                                               |
+
+`GET /stand` calls `projektStand(vaultDb, listProjects(db))` and answers `{ projekte, ohneProjekt,
+warnings }`, each `projekte` entry the project-level shape above ("The project level, above the
+rows"). `projekte` is sorted `veraltet` first, then by `updated` ascending (oldest first, unknown
+dates last); `ohneProjekt` keeps the `projects` table's own order. It **never triggers a scan** -
+unlike `GET /list`, it reads `listProjects(db)` as it stands, so on an empty table (a fresh clone,
+or `data/projekte.sqlite` deleted) it answers immediately with every handoff's repos in
+`missingRepos` rather than blocking on a scan; the web app and the Cockpit both warm the table with
+`GET /list` first for exactly this reason (see "The web app" below).
 
 Only `GET /list` computes `isDuplicate` and `sameName`, via `withDerived` over the whole result set
 at request time rather than stored columns - a row's duplicate status depends on every other row,
@@ -174,12 +213,32 @@ translated for the paths, English commit subjects.
 ## The web app
 
 `App.tsx` (served at `/projekte` from its own HTML entry point; `main.tsx` renders `<App />`
-directly, with no `BrowserRouter` - the app has no client-side routes of its own to manage) fetches
-the list on load, offers `Neu scannen` (`POST /scan` then a re-fetch of `/list`, disabled and
-reading `Scannt …` while running - and re-enabled even if the scan fails), and toggles between
-`ProjectsTable` and `Board`. Selecting a row or card fetches
-`GET /project?path=` and opens `Detail`, a side panel closed by its own button or Escape.
+directly, with no `BrowserRouter` - the app has no client-side routes of its own to manage) offers
+three views - `Projekte`, `Tabelle`, `Board` - with `Projekte` the default. On mount it fetches
+`GET /list` first and `GET /stand` only once that resolves, not in parallel: `/list` is what
+performs the lazy first-visit scan on an empty table (see "The API" above), so firing `/stand`
+alongside it would show every handoff's repos as missing until the scan finishes - the list
+response itself is discarded, only its side effect matters. `Neu scannen` re-runs the same
+sequence (`POST /scan`, then `/list`, then `/stand`), disabled and reading `Scannt …` while running
 
+- and re-enabled even if the scan fails. Selecting a repository row or card fetches
+  `GET /project?path=` and opens `Detail`, a side panel closed by its own button or Escape.
+
+- **`ProjektView`** (`components/ProjektView.tsx`) renders `GET /stand`'s reply: `warnings` as
+  plain lines, one `ProjektCard` per project, then an `Ohne Projekt` section listing `ohneProjekt`
+  as compact repo rows (`RepoRow`, shared with the cards' own repo list). Empty states: `Keine
+Handoffs.` when `projekte` is empty, `Alle Repos sind einem Projekt zugeordnet.` when
+  `ohneProjekt` is empty.
+- **`ProjektCard`** (`components/ProjektCard.tsx`) is headed by the **slug** (`<h2>`), not the
+  handoff's own title - `handoffs.ts`'s `title` (the body's first H1) renders as a subtitle beneath
+  it, and only when it differs from the slug, so a handoff whose H1 happens to equal the slug shows
+  no redundant second line. Below that: `Handoff vom <date> · <age>` or `Datum fehlt`
+  (`web/src/projekte/stand.ts`'s `ageDays`/`ageText`/`dayText`, the browser-side counterpart to
+  `server/src/projekte/stand.ts`'s `localDay`); the badges `standHints` derives from the
+  `signals` and `missingRepos` (`Stand veraltet`, `<n> Repos ungesichert`, `<n> offene Aufgaben`,
+  one `Repo nicht gefunden: <name>` per missing entry); the `zustand` text verbatim in a `<pre>`
+  (empty ones render no block at all); the `Handoff im Vault` link; then the coupled repositories
+  as `RepoRow`s, each opening the same `Detail` panel as the other two views.
 - **`ProjectsTable`** sorts rows by `lastCommitAt` descending, nulls last; each row shows the
   project name (opens the detail), its path, brand, status, branch, last commit date, a change
   summary, issue/PR counts, its vault note link (if coupled), and `WarningBadges`.
@@ -210,13 +269,32 @@ does not notice the change by itself.
 **Unit** (`server/test/projekte/`) run each module in isolation against a shared sample built once
 per file in `beforeAll` (`scratchDir` in `tmp.ts`, cleaned up in `afterAll`), or against a scratch
 vault database built and inserted into directly for `couple.ts` and the routes' vault-reading
-paths. `gh.test.ts` never calls the real CLI - every case injects a fake `GhRunner`.
+paths. `gh.test.ts` never calls the real CLI - every case injects a fake `GhRunner`. `handoffs.test.ts`
+covers the frontmatter fields, tilde expansion, `Zustand` extraction (including the first-H2
+fallback and the no-H2 empty case), and the two warning shapes (missing `projekt`, duplicate slug).
+`stand.test.ts` covers coupling by lowercased path, `missingRepos`, each signal with a positive and
+a negative case, the sort order, and the `50_Workflow` task exclusion - `TZ=Europe/Berlin` is
+pinned for the whole suite in `server/vitest.config.ts` so its day-boundary cases actually
+discriminate a correct local-day comparison from a UTC one (see `docs/CONTROLS.md`). `routes.test.ts`
+covers `/stand`'s reply shape via supertest: a coupled handoff, a vault with no handoff notes at
+all (every row falls to `ohneProjekt`), and an empty `projects` table answered without triggering
+a scan.
+
+Web: `web/src/projekte/stand.test.ts` covers `ageDays`/`ageText`/`dayText`/`standHints` directly;
+`components/ProjektView.test.tsx` covers the cards, the badges, `Ohne Projekt`, both empty states,
+and the vault link's path encoding.
 
 **End to end** (`e2e/projekte/`) runs against the per-worker sample workshop, `BENCH_GH: "off"`:
 `table.spec.ts` and `board.spec.ts` assert the sample's known state (the duplicate pair, the
 remoteless repo, the em-dash issue cells) in each view; `scan.spec.ts` `git init`s a new repository
 directly into the worker's `projectsDir` fixture after the first scan, clicks `Neu scannen`, and
 waits for the new row without a reload - the "one scan finds it" criterion in miniature.
+`stand.spec.ts` opens `/projekte/` (asserting `Projekte` is the default, pressed view), and checks
+the fixture vault's two handoffs: `leuchtturm` - whose `repos:` entry `e2e/fixtures.ts` rewrites
+per worker to that worker's own sample-workshop checkout, so its card shows `Stand veraltet`, the
+open-task count, the coupled repo opening `Detail`, and the vault link - and `hafen`, which names
+no `repos:` and so shows no repo button at all; the scanned repository no handoff names still
+lands under `Ohne Projekt`.
 
 ## Things that will bite
 
@@ -245,6 +323,35 @@ waits for the new row without a reload - the "one scan finds it" criterion in mi
   `sample.ts`'s `buildSampleProjects` - without it, a retry would try to `git init` into a
   directory that already has a `.git`, and fail for a reason that has nothing to do with the
   behaviour under test.
+- **`updated` is a date, but it arrives as an ISO string from YAML.** `gray-matter` turns an
+  unquoted `updated: 2026-08-01` into a JS `Date`, which the vault indexer serialises into
+  `frontmatter` as an ISO datetime string; a quoted value stays a bare date string. Both start with
+  the same ten characters, which is all `handoffs.ts`'s `parseUpdated` reads - anything not
+  matching `^\d{4}-\d{2}-\d{2}` becomes `null` rather than a thrown parse error.
+- **The `50_Workflow`/`Templates`/`90_Archive` exclusion in `stand.ts` is mirrored by hand from
+  `server/src/aufgaben/tasks.ts`'s own `EXCLUDED` set**, not imported - the two apps never import
+  each other. Without it, a checkbox line inside a handoff note itself would count as an open task
+  against its own project. Keep the two sets in step by hand if either changes.
+- **Read-time coupling means a handoff edit needs no scan, while a new checkout still does.**
+  `GET /stand` reads the vault's `notes` table live and the `projects` table as last scanned, so
+  editing a handoff's `Zustand` text or its `repos:` list shows up on the next request with no
+  action - but a repository that did not exist at the last scan still shows as `missingRepos` until
+  `Neu scannen` or the next lazy scan runs.
+- **`folder = ?`, never `LIKE '50_Workflow/%'`.** The underscore in `LIKE` is a wildcard character,
+  not a literal one - a sibling folder like `50xWorkflow` would match a `LIKE` pattern built from
+  `50_Workflow` and silently pull in notes that were never handoffs.
+- **`veraltet` compares local calendar days, not instants**, and the whole server test suite pins
+  `TZ=Europe/Berlin` (`server/vitest.config.ts`) so that comparison's boundary cases actually run
+  against a non-UTC zone - GitHub's runners default to UTC, where a bug in `localDay` could pass
+  unnoticed. See `docs/CONTROLS.md`'s coverage section for why.
+- **A repository two handoffs both name lists under both projects.** `stand.ts` deliberately does
+  not split a coupled repo between the handoffs that claim it - a checkout can genuinely matter to
+  more than one project - it only tracks whether at least one handoff has claimed it, which is all
+  `ohneProjekt` needs to know.
+- **Hardlinks and symlinks are untouched by any of this.** `handoffs.ts` and `stand.ts` compare
+  resolved paths as plain strings; neither follows a symlink nor detects a hardlink to the same
+  inode under a different path, so either would couple, miss coupling, or double-count exactly as
+  the underlying string comparison dictates, with no special handling either way.
 
 ## Related documents
 

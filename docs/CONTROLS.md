@@ -199,6 +199,15 @@ vitest's built-in `coverage.thresholds`, **80% statements**, configured per work
 across every app: `server/vitest.config.ts` includes `src/**` and excludes `src/index.ts`;
 `web/vite.config.ts` includes `src/**` and excludes `main.tsx` and the test files.
 
+**`server/vitest.config.ts` pins `TZ=Europe/Berlin`** at the root-level `test.env`, which a
+vitest worker's env inherits ahead of the shell's own `TZ` and which reaches both of its `projects`
+(`unit` and the separately sequenced `watch`) without repeating it in either.
+`server/src/projekte/stand.ts`'s `veraltet` signal compares LOCAL calendar days, and
+`stand.test.ts`'s day-boundary cases only tell a correct `localDay` apart from a UTC-based one when
+local time actually differs from UTC - GitHub's runners are UTC with no zone set, so without this
+pin those tests would pass against a wrong implementation on the very runner that gates the merge.
+The pinned zone is the dev machine's own, so no local behaviour changes.
+
 Where it stands, from `npm run coverage` - one row per directory the tool's own report prints:
 
 | Scope                               | Statements |

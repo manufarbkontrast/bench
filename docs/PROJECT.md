@@ -12,7 +12,7 @@ what remain of the original four, and the new ones arrive one phase at a time.
 | App          | Path        | What it is                                                                                                                                                                                                                                       | Backend                                                     |
 | ------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
 | **Vault**    | `/vault`    | A window onto an Obsidian vault, writable only through Aufgaben's guarded task toggle and create: folder tree, rendered notes with wikilinks and backlinks, tags, full-text search                                                               | `data/vault.sqlite`                                         |
-| **Projekte** | `/projekte` | Read-only inventory of git checkouts and coupled working folders: branch, dirty/ahead/behind, duplicates, brand and status from the vault, issues and PRs via `gh`                                                                               | `data/projekte.sqlite`                                      |
+| **Projekte** | `/projekte` | Read-only inventory of git checkouts and coupled working folders, grouped under the handoff notes that own them: branch, dirty/ahead/behind, duplicates, brand and status from the vault, issues and PRs via `gh`                                | `data/projekte.sqlite`                                      |
 | **Aufgaben** | `/aufgaben` | One board over the vault's tasks (toggle and create), Plaud work items awaiting import, and GitHub issues read-only                                                                                                                              | `data/aufgaben.sqlite` (import ledger only)                 |
 | **Eingang**  | `/eingang`  | What arrived and is not yet processed: watched folders reconciled against the Plaud archive, fenced jobs against the local skills with a live log and a kill switch, scheduled launchd runs shown read-only                                      | `data/eingang.sqlite` (job log only)                        |
 | **Kontext**  | `/kontext`  | What the system knows about the user: profile and workflow rules from the vault, Claude Code's own rules and per-project memory, each registered project's `CLAUDE.md`/`AGENTS.md`, the skill catalogue, MCP server names - seven read-only tabs | none - reads `vault.sqlite` and Projekte's registered paths |
@@ -211,6 +211,11 @@ the rules above.
   to "one database per app", and a one-way dependency in each case. Kontext also reads Projekte's
   registered project paths through an injected getter, for its Repos tab - the same pattern,
   applied to a second sibling's data rather than a database.
+- **A project is a handoff note.** A git checkout is not a project on its own; a project is a
+  handoff note under the vault's `50_Workflow/Handoffs/`, coupled to zero or more checkouts through
+  the note's own `repos:` frontmatter and named by its `projekt:` slug. Bench never writes a
+  handoff - that stays the `/handoff` skill's job, run in the project's own session; Projekte only
+  reads what the vault already indexed.
 - **Zahlen resolves a controlling run by folder basename only.** `letzter-lauf.json`'s `ordner`,
   `bericht` and `zusammenfassung` fields are absolute paths written by the controlling skill on
   another machine; Zahlen reads only `path.basename(ordner)`, re-validated against
