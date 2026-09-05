@@ -97,8 +97,9 @@ seven headings, an overdue task under `Überfällig`, the Eingang panel's count 
 fixture's own two unprocessed files with its link into `/eingang/`, the session note's text under
 `Hier weitermachen` with a working link into Vault, and under `Projekte in Bewegung` both the
 `leuchtturm` handoff row (`Stand veraltet`, since `e2e/fixtures.ts` rewrites its `repos:` entry to
-this worker's own sample-workshop checkout) and the uncoupled `treibgut`/`leuchtfeuer` rows from
-`ohneProjekt` - the handoff assertion with a generous 20-second wait, because a fresh worker's
+this worker's own sample-workshop checkout) and the uncoupled `treibgut` row from `ohneProjekt`,
+with `leuchtfeuer` itself asserted absent from that list since it is coupled to the handoff row
+already shown - the handoff assertion with a generous 20-second wait, because a fresh worker's
 first `GET /api/projekte/list` can trigger the same lazy scan of the sample workshop that
 `/projekte/`'s own first visit does, which shells out to `git` several times before any row exists
 
