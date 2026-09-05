@@ -63,8 +63,18 @@ export default function App() {
   const today = todayLocal();
 
   useEffect(() => {
-    void api.list().then(setList);
-    void api.stand().then(setStand);
+    // Sequenced, not parallel: GET /list scans the sample workshop on an empty table (see
+    // server/src/projekte/routes.ts), but GET /stand never scans and just reads the table as it
+    // stands - fired in parallel, a cold start (a fresh clone, or data/projekte.sqlite deleted,
+    // which the architecture allows at any time) would show every handoff's repos as missing
+    // until Neu scannen or a reload. Waiting for list first means the scan has already run.
+    void api
+      .list()
+      .then((loadedList) => {
+        setList(loadedList);
+        return api.stand();
+      })
+      .then(setStand);
   }, []);
 
   const rescan = async () => {

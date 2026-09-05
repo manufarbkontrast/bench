@@ -109,6 +109,24 @@ describe("Projekte App", () => {
     await screen.findByText("leuchtfeuer");
   });
 
+  it("fetches the stand only after the list has resolved, so a cold start does not race the first scan", async () => {
+    // GET /list scans an empty table before answering (server/src/projekte/routes.ts); GET
+    // /stand never scans. Firing them in parallel on a fresh clone or a deleted
+    // data/projekte.sqlite would let /stand read the table before the scan has filled it in.
+    let resolveList!: (value: ListReply) => void;
+    vi.mocked(api.list).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveList = resolve;
+        }),
+    );
+    render(<App />);
+    expect(api.stand).not.toHaveBeenCalled();
+    resolveList(loadedList);
+    await screen.findByText("leuchtfeuer");
+    expect(api.stand).toHaveBeenCalledTimes(1);
+  });
+
   it("defaults to the Projekte view and loads the stand on mount", async () => {
     render(<App />);
     const projekteBtn = await screen.findByRole("button", {

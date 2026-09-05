@@ -74,6 +74,22 @@ describe("ProjektView", () => {
     ).toHaveAttribute("href", "/vault/n/50_Workflow/Handoffs/Handoff_a.md");
   });
 
+  it("encodes a vault link's segments, not just the path as a whole", () => {
+    const notePath = "50_Workflow/Handoffs/Handoff Übergabe.md";
+    const stand: StandReply = {
+      projekte: [projekt({ notePath })],
+      ohneProjekt: [],
+      warnings: [],
+    };
+    render(<ProjektView stand={stand} today={TODAY} onSelect={vi.fn()} />);
+    expect(
+      screen.getByRole("link", { name: "Handoff im Vault" }),
+    ).toHaveAttribute(
+      "href",
+      `/vault/n/${notePath.split("/").map(encodeURIComponent).join("/")}`,
+    );
+  });
+
   it("shows Datum fehlt in place of the header line when updated is null", () => {
     const stand: StandReply = {
       projekte: [projekt({ updated: null })],
