@@ -108,6 +108,9 @@ export function projektStand(
     const repos = handoff.repos.flatMap(
       (p) => byPath.get(p.toLowerCase()) ?? [],
     );
+    // Deliberate: a repo two handoffs both name ends up in both projekte[].repos, not split
+    // between them - a checkout can genuinely matter to two projects. claimed only tracks
+    // whether at least one handoff has it, which is all ohneProjekt needs to know.
     for (const r of repos) claimed.add(r.path);
     const missingRepos = handoff.repos
       .filter((p) => !byPath.has(p.toLowerCase()))
