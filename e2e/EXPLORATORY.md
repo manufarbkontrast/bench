@@ -371,3 +371,8 @@ on the pipeline, delete confirmation, deep links. Left to judgement:
   console errors anywhere, and the real vault, Plaud archive, repositories and controlling run all
   rendered live with no copies. This is a one-time confirmation, not something the suite re-runs -
   see the app sections above for what each Phase 6 task's own real-machine pass found.
+- **A render error shows the crash screen, not a white page.** Every document wraps its App in
+  the shared `ErrorBoundary`; the suite cannot make a page throw on purpose, so the unit test on
+  the boundary is the proof and the by-hand check is a temporary `throw` in one component under
+  the sample world: the strip stays, `Diese Seite ist abgestürzt.` and the message render,
+  `Neu laden` restores the page.

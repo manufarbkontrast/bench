@@ -63,7 +63,8 @@ web/                ONE Vite project, multi-page (MPA)
   eingang/index.html  -> src/eingang/main.tsx
   kontext/index.html  -> src/kontext/main.tsx
   zahlen/index.html   -> src/zahlen/main.tsx
-  src/shared/         the navigation strip and the theme - the only code all nine documents share
+  src/shared/         the navigation strip, the theme and the error boundary - the only code all
+                      nine documents share
 server/             ONE Express app
   src/index.ts        opens the six DBs, listens on :8100
   src/app.ts          mounts routers, serves web/dist with per-prefix SPA fallback
@@ -153,7 +154,9 @@ These are settled. Changing one is a project-level decision, not an implementati
   It loads into nine stylesheets that collide on `.brand` and `:root`, each app redefines its own
   palette under `[data-theme]` - so every class in `nav.css` is `bench-nav`-prefixed and every
   value is a literal, never a variable. The strip looks the same over all of them, which is the
-  point: it is chrome above the app, not part of it.
+  point: it is chrome above the app, not part of it. The error boundary (`ErrorBoundary.tsx`,
+  `crash.css`) follows the same rule for the same reason: when it renders, the app's own
+  stylesheet may be the thing that broke.
 - **One theme, chosen once.** `web/src/shared/theme.ts` writes `data-theme` on the document
   element and remembers the choice in `localStorage` under `bench.theme`; each entry point calls
   `initTheme()` **before it renders**, because setting it after the first paint flashes the wrong
