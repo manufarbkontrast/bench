@@ -100,6 +100,24 @@ describe("parseListFiles", () => {
     });
     expect(parseListFiles(text, 1).recordings[0].start).toBe("");
   });
+  it("collapses an interior newline in the name, so it can never inject a frontmatter line", () => {
+    const text = JSON.stringify({
+      type: "list",
+      data: [
+        {
+          id: "a",
+          name: "Titel\n---\naufnahme: x",
+          start_at: "2026-09-01T09:00:00",
+          duration: 5,
+        },
+      ],
+      page: 1,
+      page_size: 20,
+    });
+    expect(parseListFiles(text, 1).recordings[0].titel).toBe(
+      "Titel --- aufnahme: x",
+    );
+  });
 });
 
 describe("parseTranscriptPage / parseMarks / parseNote", () => {
@@ -171,6 +189,24 @@ describe("parseTranscriptPage / parseMarks / parseNote", () => {
     ).toEqual([]);
     expect(parseNote("[]")).toBeNull();
   });
+  it("skips a segment without a start_time and a mark without a timestamp", () => {
+    const page = JSON.stringify({
+      segments: [
+        { content: "no start", end_time: 10, speaker: "S" },
+        { content: "ok", start_time: 0, end_time: 1, speaker: "S" },
+      ],
+    });
+    expect(parseTranscriptPage(page).segments).toEqual([
+      { start: 0, end: 1, speaker: "S", text: "ok" },
+    ]);
+    const marks = JSON.stringify({
+      marks: [
+        { mark_content: "no timestamp" },
+        { timestamp: 1000, mark_content: "ok" },
+      ],
+    });
+    expect(parseMarks(marks)).toEqual([{ at: 1000, text: "ok" }]);
+  });
 });
 
 describe("fetchRecording", () => {
@@ -225,6 +261,7 @@ describe("naming and rendering", () => {
     );
     expect(slugify("  Übergabe: Q4 / 2026!  ")).toBe("uebergabe-q4-2026");
     expect(slugify("")).toBe("aufnahme");
+    expect(slugify("!!!")).toBe("aufnahme");
     expect(slugify("x".repeat(80))).toHaveLength(60);
   });
   it("formats durations and times", () => {
@@ -286,6 +323,23 @@ describe("naming and rendering", () => {
       "## KI-Notiz (Plaud)\n\n## Zusammenfassung\n\nText.\n",
     );
   });
+  it("omits datum and start entirely when start is blank, rather than writing them empty", () => {
+    const fetched: FetchedRecording = {
+      recording: { ...lampe, start: "" },
+      segments: [
+        { start: 1520, end: 4100, speaker: "Speaker 1", text: "Hallo" },
+      ],
+      marks: [],
+      note: null,
+    };
+    const text = renderFetchedFile(fetched, "2026-09-06");
+    expect(text.startsWith("---\naufnahme: fix-lampe-0901\n")).toBe(true);
+    expect(text).not.toContain("datum:");
+    expect(text).not.toContain("start:");
+    expect(text).toContain(
+      "titel: Lampe für den Leuchtturm\ndauer: 25m23s\ngeholt: 2026-09-06\n---\n",
+    );
+  });
 });
 
 describe("writeFetchedFile", () => {
@@ -322,6 +376,11 @@ describe("writeFetchedFile", () => {
     );
     expect(readdirSync(home)).not.toContain("evil-transkript.md");
     expect(readdirSync(path.dirname(home))).not.toContain("evil-transkript.md");
+  });
+  it("refuses a name of . or .., which path.basename lets through unchanged", () => {
+    const home = mkWorld();
+    expect(() => writeFetchedFile(home, ".", "x")).toThrow(/escapes inbox/);
+    expect(() => writeFetchedFile(home, "..", "x")).toThrow(/escapes inbox/);
   });
 });
 
@@ -397,7 +456,7 @@ describe("runPlaudFetch", () => {
 });
 
 describe("assembleFetch", () => {
-  it("refuses a recording without a transcript, so nothing gets written", async () => {
+  it("refuses a recording without a transcript", async () => {
     // The fake MCP transcribes all three fixture recordings, so the empty case uses the same
     // hand-written PlaudCall seam fetchRecording's own test uses.
     const listing = JSON.stringify({

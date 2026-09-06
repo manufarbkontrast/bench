@@ -39,6 +39,15 @@ describe("AufnahmenPanel", () => {
     await userEvent.click(button);
     expect(onFetch).toHaveBeenCalledWith("fix-lampe-0901");
   });
+  it("renders a row with a blank start without throwing", () => {
+    render(
+      <AufnahmenPanel
+        reply={reply({ recordings: [recording({ start: "" })] })}
+        {...noop}
+      />,
+    );
+    expect(screen.getByText(/Ohne Datum/)).toBeInTheDocument();
+  });
   it("disables Holen with the status as title for every other status", () => {
     render(
       <AufnahmenPanel

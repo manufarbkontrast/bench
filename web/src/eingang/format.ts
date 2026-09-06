@@ -139,7 +139,14 @@ export function dauerText(ms: number): string {
   return `${String(s)}s`;
 }
 
-/** The muted meta line under a recording's title: when it started, local, and how long it ran. */
+/** The muted meta line under a recording's title: when it started, local, and how long it ran.
+    plaud-fetch.ts's toRecording blanks a start_at it cannot trust, and Date.parse("") is NaN -
+    Intl.DateTimeFormat.format throws RangeError on that, which unmounts the whole page, so a
+    blank start renders as "Ohne Datum" instead of ever reaching dateTimeText. */
 export function recordingMetaText(recording: Recording): string {
-  return `${dateTimeText(Date.parse(recording.start))} · ${dauerText(recording.dauer)}`;
+  const when =
+    recording.start === ""
+      ? "Ohne Datum"
+      : dateTimeText(Date.parse(recording.start));
+  return `${when} · ${dauerText(recording.dauer)}`;
 }

@@ -7,6 +7,7 @@ import {
   fileMetaText,
   jobKindLabel,
   jobStatusLabel,
+  recordingMetaText,
   scheduledRunText,
   sizeText,
 } from "./format";
@@ -16,6 +17,7 @@ import type {
   JobRow,
   JobStatus,
   ListedEingangJobKind,
+  Recording,
   ScheduledRun,
 } from "./types";
 
@@ -159,6 +161,31 @@ describe("dauerText", () => {
 
   it("renders hours and minutes from an hour on", () => {
     expect(dauerText(3_900_000)).toBe("1h05m");
+  });
+});
+
+describe("recordingMetaText", () => {
+  function recording(overrides: Partial<Recording> = {}): Recording {
+    return {
+      id: "fix-lampe-0901",
+      titel: "Lampe für den Leuchtturm",
+      start: "2026-09-01T09:00:00",
+      dauer: 1_523_000,
+      status: "neu",
+      ...overrides,
+    };
+  }
+
+  it("renders Ohne Datum in place of the date-time when start is blank", () => {
+    expect(recordingMetaText(recording({ start: "" }))).toBe(
+      "Ohne Datum · 25m23s",
+    );
+  });
+
+  it("renders the parsed date-time when start is set", () => {
+    expect(recordingMetaText(recording())).toBe(
+      `${dateTimeText(Date.parse("2026-09-01T09:00:00"))} · 25m23s`,
+    );
   });
 });
 

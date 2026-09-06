@@ -38,6 +38,7 @@ function world(overrides: Partial<JobPaths> = {}): JobPaths {
   const controllingDir = path.join(base, "controlling");
   const skillsDir = path.join(base, "skills");
   mkdirSync(path.join(plaudHome, "inbox"), { recursive: true });
+  mkdirSync(path.join(plaudHome, "archiv"), { recursive: true });
   mkdirSync(path.join(plaudHome, "notizen"), { recursive: true });
   mkdirSync(vaultDir, { recursive: true });
   mkdirSync(controllingDir, { recursive: true });
@@ -363,14 +364,21 @@ describe("planJob - the fence", () => {
       ).toEqual({ error: "plaud is not configured" });
     });
     it("rejects an id already local in inbox, archiv or notizen", () => {
-      const ctx = world();
-      writeFileSync(
-        path.join(ctx.plaudHome!, "notizen", "n.md"),
-        "---\naufnahme: abc-1\n---\n",
-      );
-      expect(planJob("plaud-fetch", { id: "abc-1" }, ctx)).toEqual({
-        error: "recording already local: abc-1",
-      });
+      const folders: ["inbox" | "archiv" | "notizen", string][] = [
+        ["inbox", "abc-1"],
+        ["archiv", "abc-2"],
+        ["notizen", "abc-3"],
+      ];
+      for (const [folder, id] of folders) {
+        const ctx = world();
+        writeFileSync(
+          path.join(ctx.plaudHome!, folder, "n.md"),
+          `---\naufnahme: ${id}\n---\n`,
+        );
+        expect(planJob("plaud-fetch", { id }, ctx)).toEqual({
+          error: `recording already local: ${id}`,
+        });
+      }
     });
     it("plans an internal job carrying the id", () => {
       expect(planJob("plaud-fetch", { id: "abc-1" }, world())).toEqual({

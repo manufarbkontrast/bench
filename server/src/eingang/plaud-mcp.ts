@@ -45,6 +45,10 @@ const PLAUD_TIMEOUTS: PlaudTimeouts = {
 
 const PROTOCOL_VERSION = "2025-06-18";
 
+// The same grace period runner.ts's KILL_ESCALATION_MS gives a spawned job's child before
+// escalating SIGTERM to SIGKILL.
+const KILL_ESCALATION_MS = 5000;
+
 interface RpcReply {
   id?: unknown;
   result?: unknown;
@@ -168,6 +172,15 @@ function openSession(command: readonly string[], callMs: number): Session {
   const close = (): void => {
     lines.close();
     child.kill();
+    // A child that ignores SIGTERM would otherwise linger as an orphaned MCP process forever -
+    // the same escalation runner.ts's escalateKill applies to a spawned job's child, here against
+    // this session's own MCP process instead. unref so the timer never holds Bench's own process
+    // open once the child has already exited.
+    const killTimer = setTimeout(() => {
+      if (child.exitCode === null && child.signalCode === null)
+        child.kill("SIGKILL");
+    }, KILL_ESCALATION_MS);
+    killTimer.unref();
   };
   return { request, notify, fail, close };
 }

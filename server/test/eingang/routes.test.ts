@@ -258,6 +258,45 @@ describe("GET /api/eingang/plaud", () => {
     expect(byId.get("fix-werft-0825")?.status).toBe("im_eingang");
     expect(byId.get("fix-hafen-0820")?.status).toBe("notiz_vorhanden");
   });
+  it("caps an out-of-range page rather than crossing to the MCP for nothing, answering the same as page 1", async () => {
+    const first = await request(app).get("/api/eingang/plaud?page=1");
+    const capped = await request(app).get("/api/eingang/plaud?page=999");
+    expect(capped.body).toEqual(first.body);
+  });
+  it("answers off with an empty list for a null plaudHome in a configured world", async () => {
+    const nullPlaudDb = openEingangDb(":memory:");
+    const nullPlaudLocated: LocatedEingang = locateEingang(
+      { inboxWatch: [], controllingDir: undefined },
+      EINGANG_FIXTURE,
+    );
+    const nullPlaudPaths: JobPaths = {
+      plaudHome: null,
+      vaultDir: EINGANG_FIXTURE,
+      controllingDir: nullPlaudLocated.controllingDir,
+      skillsDir: EINGANG_FIXTURE,
+      sample: false,
+      projektSlugs: () => [],
+    };
+    const nullPlaudRunner = createRunner(
+      nullPlaudDb,
+      path.join(scratch.dir, `plaud-null-plaudhome-${n}`),
+      {
+        "vault-reindex": neverCalled,
+        "projekte-scan": neverCalled,
+        "plaud-fetch": neverCalled,
+      },
+    );
+    const nullPlaudApp = appWithEingang({
+      db: nullPlaudDb,
+      located: nullPlaudLocated,
+      plaud: { dir: AUFGABEN_NOTIZEN, source: "sample" },
+      mcp: "off",
+      runner: nullPlaudRunner,
+      paths: nullPlaudPaths,
+    });
+    const res = await request(nullPlaudApp).get("/api/eingang/plaud");
+    expect(res.body).toEqual({ source: "off", recordings: [], nextPage: null });
+  });
   it("answers off with an empty list when the command is off in a configured world", async () => {
     const res = await request(appWith({ sample: false, mcp: "off" })).get(
       "/api/eingang/plaud",
@@ -275,6 +314,54 @@ describe("GET /api/eingang/plaud", () => {
     );
     expect(body.recordings.find((r) => r.id === "fix-lampe-0901")?.status).toBe(
       "neu",
+    );
+  });
+  it("reconciles against the fence's own folders when notizen has not been created yet, not against the notes fallback", async () => {
+    const home = path.join(scratch.dir, "configured-no-notizen");
+    mkdirSync(path.join(home, "archiv"), { recursive: true });
+    writeFileSync(
+      path.join(home, "archiv", "x-transkript.md"),
+      "---\naufnahme: fix-werft-0825\n---\n",
+    );
+    const variantDb = openEingangDb(":memory:");
+    const located: LocatedEingang = locateEingang(
+      { inboxWatch: [], controllingDir: undefined },
+      EINGANG_FIXTURE,
+    );
+    const paths: JobPaths = {
+      plaudHome: home,
+      vaultDir: EINGANG_FIXTURE,
+      controllingDir: located.controllingDir,
+      skillsDir: EINGANG_FIXTURE,
+      sample: false,
+      projektSlugs: () => ["leuchtturm", "hafen"],
+    };
+    const runner = createRunner(
+      variantDb,
+      path.join(scratch.dir, "jobs-notizen-fallback"),
+      {
+        "vault-reindex": neverCalled,
+        "projekte-scan": neverCalled,
+        "plaud-fetch": neverCalled,
+      },
+    );
+    // The exact fallback shape locatePlaud (aufgaben/locate.ts) produces once PLAUD_HOME is set
+    // but <PLAUD_HOME>/notizen does not exist yet: plaud.dir stays the aufgaben fixture even
+    // though paths.plaudHome (this configured world's real home) is not null.
+    const ctx: EingangContext = {
+      db: variantDb,
+      located,
+      plaud: { dir: AUFGABEN_NOTIZEN, source: "sample" },
+      mcp: FAKE,
+      runner,
+      paths,
+    };
+    const res = await request(appWithEingang(ctx)).get(
+      "/api/eingang/plaud?page=1",
+    );
+    const body = res.body as PlaudResponse;
+    expect(body.recordings.find((r) => r.id === "fix-werft-0825")?.status).toBe(
+      "im_archiv",
     );
   });
   it("maps a 401 to source unauthenticated with 200", async () => {

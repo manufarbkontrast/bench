@@ -105,6 +105,32 @@ function archivDirOf(plaud: EingangContext["plaud"]): string {
 }
 
 /**
+ * The three folders "already local" reads for the Plaud-Aufnahmen panel - has to agree with
+ * jobs.ts's planPlaudFetch, the fence that refuses a plaud-fetch job for an id already local, or
+ * a recording could show "Neu" here while the fence refuses it. A configured world (paths.sample
+ * false) reads the same `<plaudHome>/{inbox,archiv,notizen}` the fence reads; the sample world
+ * keeps today's composition, since `plaud.dir` there is the aufgaben fixture's notizen, not a
+ * sibling of `paths.plaudHome`.
+ */
+function localFolders(
+  plaudHome: string,
+  sample: boolean,
+  plaud: EingangContext["plaud"],
+): { inboxDir: string; archivDir: string; notizenDir: string } {
+  if (sample)
+    return {
+      inboxDir: path.join(plaudHome, "inbox"),
+      archivDir: archivDirOf(plaud),
+      notizenDir: plaud.dir,
+    };
+  return {
+    inboxDir: path.join(plaudHome, "inbox"),
+    archivDir: path.join(plaudHome, "archiv"),
+    notizenDir: path.join(plaudHome, "notizen"),
+  };
+}
+
+/**
  * The file names a running plaud-process job is already working on, read back from the args
  * every start() recorded. listInbox stays pure and takes this as data, so the composition lives
  * here rather than in that module.
@@ -122,9 +148,13 @@ const FIXTURE_LISTING = fileURLToPath(
   new URL("./fixture/plaud-aufnahmen.json", import.meta.url),
 );
 
+// Capped rather than passed straight through: an unbounded page number would still cross to the
+// MCP for nothing, since a real Plaud account never carries anywhere near this many pages.
+const MAX_PAGE = 100;
+
 function pageOf(raw: unknown): number {
   const n = Number(raw);
-  return Number.isInteger(n) && n >= 1 ? n : 1;
+  return Number.isInteger(n) && n >= 1 && n <= MAX_PAGE ? n : 1;
 }
 
 /** The ids running plaud-fetch jobs carry, the inFlightFiles twin for recordings. */
@@ -188,11 +218,9 @@ export function eingangRouter(ctx: EingangContext): Router {
       res.json(empty("off"));
       return;
     }
-    const local = localRecordingIds({
-      inboxDir: path.join(paths.plaudHome, "inbox"),
-      archivDir: archivDirOf(plaud),
-      notizenDir: plaud.dir,
-    });
+    const local = localRecordingIds(
+      localFolders(paths.plaudHome, paths.sample, plaud),
+    );
     const inFlight = inFlightIds(db);
     const withStatus = (
       pageReply: RecordingPage,

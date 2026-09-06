@@ -65,7 +65,12 @@ const START_AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 function toRecording(value: unknown): Recording | null {
   const r = asRecord(value);
   if (r === null || typeof r.id !== "string" || r.id === "") return null;
-  const name = typeof r.name === "string" ? r.name.trim() : "";
+  // renderFetchedFile writes this straight into `titel: ${name}` inside YAML frontmatter - an
+  // interior newline could inject its own frontmatter line or a closing "---", so every run of
+  // whitespace collapses to one space, keeping the name on a single line before it ever reaches
+  // that write.
+  const name =
+    typeof r.name === "string" ? r.name.trim().replace(/\s+/g, " ") : "";
   // start becomes fetchedFileName's date component and so a path segment - checked against the
   // probed shape here, at the boundary, rather than trusted as MCP-supplied text.
   const start =
@@ -285,12 +290,18 @@ export function renderFetchedFile(
     marks.length === 0
       ? "Keine."
       : marks.map((m) => `- [${zeitText(m.at)}] ${m.text}`).join("\n");
+  // A blank start (the START_AT check rejected it) has no date to write - the file name already
+  // says "ohne-datum" (fetchedFileName), so datum/start stay out of the frontmatter rather than
+  // carrying an empty value.
+  const dateLines =
+    recording.start === ""
+      ? []
+      : [`datum: ${recording.start.slice(0, 10)}`, `start: ${recording.start}`];
   return [
     "---",
     `aufnahme: ${recording.id}`,
     `titel: ${recording.titel}`,
-    `datum: ${recording.start.slice(0, 10)}`,
-    `start: ${recording.start}`,
+    ...dateLines,
     `dauer: ${dauerText(recording.dauer)}`,
     `geholt: ${geholt}`,
     "---",
@@ -321,8 +332,10 @@ export function writeFetchedFile(
   // resolvesInsideFolder's own docstring (jobs.ts) states its precondition: it only ever inspects
   // the folder path itself, and trusts the caller to have already reduced `name` to a bare
   // basename - name is untrusted MCP data turned into a path component, so that reduction has to
-  // happen here, before it is ever joined onto inbox.
-  if (path.basename(name) !== name)
+  // happen here, before it is ever joined onto inbox. path.basename(".") and path.basename("..")
+  // both equal their own input, so the shape check alone lets both through even though joining
+  // either onto inbox names the inbox folder itself or its parent, never a file inside it.
+  if (name === "." || name === ".." || path.basename(name) !== name)
     throw new Error(`fetched file name escapes inbox: ${name}`);
   const inbox = path.join(plaudHome, "inbox");
   mkdirSync(inbox, { recursive: true });
