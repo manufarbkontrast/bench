@@ -124,7 +124,12 @@ export interface HandoffRow {
   slug: string;
   updated: string | null;
   missingRepos: string[];
-  signals: { veraltet: boolean; dirtyRepos: number; offeneTasks: number };
+  signals: {
+    veraltet: boolean;
+    dirtyRepos: number;
+    offeneTasks: number;
+    plaudNotizen: number;
+  };
 }
 
 /** Mirrors StandReply, minus `warnings` - the panel has nowhere to show them. */
@@ -168,6 +173,11 @@ function handoffHints(row: HandoffRow): string[] {
   if (row.signals.offeneTasks === 1) hints.push("1 offene Aufgabe");
   else if (row.signals.offeneTasks > 1)
     hints.push(`${String(row.signals.offeneTasks)} offene Aufgaben`);
+  if (row.signals.plaudNotizen === 1) hints.push("1 Plaud-Notiz seit Handoff");
+  else if (row.signals.plaudNotizen > 1)
+    hints.push(
+      `${String(row.signals.plaudNotizen)} Plaud-Notizen seit Handoff`,
+    );
   for (const name of row.missingRepos)
     hints.push(`Repo nicht gefunden: ${name}`);
   return hints;

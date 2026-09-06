@@ -170,7 +170,12 @@ describe("Projekte App", () => {
           zustand: "",
           repos: [],
           missingRepos: [],
-          signals: { veraltet: false, dirtyRepos: 0, offeneTasks: 0 },
+          signals: {
+            veraltet: false,
+            dirtyRepos: 0,
+            offeneTasks: 0,
+            plaudNotizen: 0,
+          },
         },
       ],
       ohneProjekt: [],

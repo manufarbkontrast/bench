@@ -49,7 +49,12 @@ function stand(overrides: Partial<ProjektStand> = {}): ProjektStand {
     zustand: "",
     repos: [],
     missingRepos: [],
-    signals: { veraltet: false, dirtyRepos: 0, offeneTasks: 0 },
+    signals: {
+      veraltet: false,
+      dirtyRepos: 0,
+      offeneTasks: 0,
+      plaudNotizen: 0,
+    },
     ...overrides,
   };
 }
@@ -62,7 +67,14 @@ describe("standHints", () => {
   it("flags a stale handoff", () => {
     expect(
       standHints(
-        stand({ signals: { veraltet: true, dirtyRepos: 0, offeneTasks: 0 } }),
+        stand({
+          signals: {
+            veraltet: true,
+            dirtyRepos: 0,
+            offeneTasks: 0,
+            plaudNotizen: 0,
+          },
+        }),
       ),
     ).toEqual(["Stand veraltet"]);
   });
@@ -70,12 +82,26 @@ describe("standHints", () => {
   it("keeps the singular for one dirty repo, pluralises above one", () => {
     expect(
       standHints(
-        stand({ signals: { veraltet: false, dirtyRepos: 1, offeneTasks: 0 } }),
+        stand({
+          signals: {
+            veraltet: false,
+            dirtyRepos: 1,
+            offeneTasks: 0,
+            plaudNotizen: 0,
+          },
+        }),
       ),
     ).toEqual(["1 Repo ungesichert"]);
     expect(
       standHints(
-        stand({ signals: { veraltet: false, dirtyRepos: 3, offeneTasks: 0 } }),
+        stand({
+          signals: {
+            veraltet: false,
+            dirtyRepos: 3,
+            offeneTasks: 0,
+            plaudNotizen: 0,
+          },
+        }),
       ),
     ).toEqual(["3 Repos ungesichert"]);
   });
@@ -83,21 +109,67 @@ describe("standHints", () => {
   it("keeps the singular for one open task, pluralises above one", () => {
     expect(
       standHints(
-        stand({ signals: { veraltet: false, dirtyRepos: 0, offeneTasks: 1 } }),
+        stand({
+          signals: {
+            veraltet: false,
+            dirtyRepos: 0,
+            offeneTasks: 1,
+            plaudNotizen: 0,
+          },
+        }),
       ),
     ).toEqual(["1 offene Aufgabe"]);
     expect(
       standHints(
-        stand({ signals: { veraltet: false, dirtyRepos: 0, offeneTasks: 2 } }),
+        stand({
+          signals: {
+            veraltet: false,
+            dirtyRepos: 0,
+            offeneTasks: 2,
+            plaudNotizen: 0,
+          },
+        }),
       ),
     ).toEqual(["2 offene Aufgaben"]);
+  });
+
+  it("keeps the singular for one Plaud note, pluralises above one", () => {
+    expect(
+      standHints(
+        stand({
+          signals: {
+            veraltet: false,
+            dirtyRepos: 0,
+            offeneTasks: 0,
+            plaudNotizen: 1,
+          },
+        }),
+      ),
+    ).toEqual(["1 Plaud-Notiz seit Handoff"]);
+    expect(
+      standHints(
+        stand({
+          signals: {
+            veraltet: false,
+            dirtyRepos: 0,
+            offeneTasks: 0,
+            plaudNotizen: 3,
+          },
+        }),
+      ),
+    ).toEqual(["3 Plaud-Notizen seit Handoff"]);
   });
 
   it("lists one line per missing repo, after the other hints", () => {
     expect(
       standHints(
         stand({
-          signals: { veraltet: true, dirtyRepos: 0, offeneTasks: 0 },
+          signals: {
+            veraltet: true,
+            dirtyRepos: 0,
+            offeneTasks: 0,
+            plaudNotizen: 0,
+          },
           missingRepos: ["repo-a", "repo-b"],
         }),
       ),
@@ -105,6 +177,28 @@ describe("standHints", () => {
       "Stand veraltet",
       "Repo nicht gefunden: repo-a",
       "Repo nicht gefunden: repo-b",
+    ]);
+  });
+
+  it("orders all hints together: stale, dirty, tasks, plaud notes, missing repos", () => {
+    expect(
+      standHints(
+        stand({
+          signals: {
+            veraltet: true,
+            dirtyRepos: 1,
+            offeneTasks: 2,
+            plaudNotizen: 1,
+          },
+          missingRepos: ["x"],
+        }),
+      ),
+    ).toEqual([
+      "Stand veraltet",
+      "1 Repo ungesichert",
+      "2 offene Aufgaben",
+      "1 Plaud-Notiz seit Handoff",
+      "Repo nicht gefunden: x",
     ]);
   });
 });

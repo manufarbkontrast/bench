@@ -52,6 +52,7 @@ interface StandSignals {
   veraltet: boolean;
   dirtyRepos: number;
   offeneTasks: number;
+  plaudNotizen: number;
 }
 
 export interface ProjektStand {
