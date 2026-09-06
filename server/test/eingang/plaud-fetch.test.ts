@@ -91,6 +91,15 @@ describe("parseListFiles", () => {
       "Ohne Titel",
     ]);
   });
+  it("blanks a start_at that does not match the probed shape, so it can never become a path segment", () => {
+    const text = JSON.stringify({
+      type: "list",
+      data: [{ id: "a", name: "Evil", start_at: "../../evil", duration: 5 }],
+      page: 1,
+      page_size: 20,
+    });
+    expect(parseListFiles(text, 1).recordings[0].start).toBe("");
+  });
 });
 
 describe("parseTranscriptPage / parseMarks / parseNote", () => {
@@ -237,6 +246,11 @@ describe("naming and rendering", () => {
       "2026-09-01_lampe-fuer-den-leuchtturm-3-transkript.md",
     );
   });
+  it("falls back to ohne-datum when start is blank", () => {
+    expect(fetchedFileName({ ...lampe, start: "" }, () => false)).toBe(
+      "ohne-datum_lampe-fuer-den-leuchtturm-transkript.md",
+    );
+  });
   it("renders frontmatter and the three sections, with Keine. for absent marks and note", () => {
     const fetched: FetchedRecording = {
       recording: lampe,
@@ -297,6 +311,17 @@ describe("writeFetchedFile", () => {
     expect(() => writeFetchedFile(home, "a-transkript.md", "x")).toThrow(
       /escapes/,
     );
+  });
+  it("refuses a fetched file name that would leave the inbox folder", () => {
+    const home = mkWorld();
+    expect(() => writeFetchedFile(home, "../evil-transkript.md", "x")).toThrow(
+      /escapes inbox/,
+    );
+    expect(readdirSync(path.join(home, "inbox"))).not.toContain(
+      "evil-transkript.md",
+    );
+    expect(readdirSync(home)).not.toContain("evil-transkript.md");
+    expect(readdirSync(path.dirname(home))).not.toContain("evil-transkript.md");
   });
 });
 

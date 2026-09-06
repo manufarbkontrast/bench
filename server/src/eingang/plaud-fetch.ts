@@ -60,14 +60,22 @@ function jsonOf(text: string): unknown {
   }
 }
 
+const START_AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
+
 function toRecording(value: unknown): Recording | null {
   const r = asRecord(value);
   if (r === null || typeof r.id !== "string" || r.id === "") return null;
   const name = typeof r.name === "string" ? r.name.trim() : "";
+  // start becomes fetchedFileName's date component and so a path segment - checked against the
+  // probed shape here, at the boundary, rather than trusted as MCP-supplied text.
+  const start =
+    typeof r.start_at === "string" && START_AT.test(r.start_at)
+      ? r.start_at
+      : "";
   return {
     id: r.id,
     titel: name === "" ? UNTITLED : name,
-    start: typeof r.start_at === "string" ? r.start_at : "",
+    start,
     dauer: typeof r.duration === "number" ? r.duration : 0,
   };
 }
@@ -248,7 +256,8 @@ export function fetchedFileName(
   recording: Recording,
   taken: (name: string) => boolean,
 ): string {
-  const day = recording.start.slice(0, 10);
+  const day =
+    recording.start === "" ? "ohne-datum" : recording.start.slice(0, 10);
   const base = `${day}_${slugify(recording.titel)}`;
   const first = `${base}-transkript.md`;
   if (!taken(first)) return first;
@@ -309,6 +318,12 @@ export function writeFetchedFile(
   name: string,
   content: string,
 ): string {
+  // resolvesInsideFolder's own docstring (jobs.ts) states its precondition: it only ever inspects
+  // the folder path itself, and trusts the caller to have already reduced `name` to a bare
+  // basename - name is untrusted MCP data turned into a path component, so that reduction has to
+  // happen here, before it is ever joined onto inbox.
+  if (path.basename(name) !== name)
+    throw new Error(`fetched file name escapes inbox: ${name}`);
   const inbox = path.join(plaudHome, "inbox");
   mkdirSync(inbox, { recursive: true });
   // The one write this app makes outside data/: inbox/ has to be a real folder inside plaudHome,
