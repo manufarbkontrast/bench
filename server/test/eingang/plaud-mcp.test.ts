@@ -86,6 +86,35 @@ describe("withPlaud", () => {
     }
   });
 
+  it("fails a call as unreachable when the session timer fires before the call timer", async () => {
+    process.env.BENCH_FAKE_PLAUD = "hang";
+    try {
+      const err = await failureOf(
+        withPlaud(FAKE, (call) => call("get_note", { file_id: "x" }), {
+          callMs: 5_000,
+          sessionMs: 500,
+        }),
+      );
+      expect(err.kind).toBe("unreachable");
+      expect(err.message).toContain("session timed out");
+    } finally {
+      delete process.env.BENCH_FAKE_PLAUD;
+    }
+  });
+
+  it("fails a pending call as unreachable when the MCP exits mid-session", async () => {
+    process.env.BENCH_FAKE_PLAUD = "exit";
+    try {
+      const err = await failureOf(
+        withPlaud(FAKE, (call) => call("list_files", {}), GENEROUS),
+      );
+      expect(err.kind).toBe("unreachable");
+      expect(err.message).toContain("exited");
+    } finally {
+      delete process.env.BENCH_FAKE_PLAUD;
+    }
+  });
+
   it("is unreachable on a non-JSON frame", async () => {
     process.env.BENCH_FAKE_PLAUD = "garbage";
     try {

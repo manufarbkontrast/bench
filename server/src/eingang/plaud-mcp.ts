@@ -35,8 +35,10 @@ export interface PlaudTimeouts {
   sessionMs: number;
 }
 
-/** @public the production defaults; a later task wires this into config, not consumed yet. */
-export const PLAUD_TIMEOUTS: PlaudTimeouts = {
+// Not exported: nothing outside this module names it directly, only withPlaud's own default
+// parameter reads it - a later task that needs the production values reaches them through that
+// default rather than through a second public constant.
+const PLAUD_TIMEOUTS: PlaudTimeouts = {
   callMs: 30_000,
   sessionMs: 120_000,
 };

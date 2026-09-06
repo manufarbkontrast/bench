@@ -4,7 +4,8 @@
 // report in the SDD workspace (2026-09-06): an untranscribed recording answers a bare [] for every
 // block, a transcribed one without marks answers a plain "not available" line, an unknown id is a
 // 500. Modes via BENCH_FAKE_PLAUD: "unauthenticated" fails every tools/call with the MCP's 401
-// text, "hang" never answers a tools/call, "garbage" prints one non-JSON line first.
+// text, "hang" never answers a tools/call, "garbage" prints one non-JSON line first, "exit" quits
+// mid-call on the first tools/call, so the client sees the process die with a call still pending.
 import { readFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -201,6 +202,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     return;
   }
   if (mode === "hang") return;
+  if (mode === "exit") process.exit(0);
   if (mode === "unauthenticated") {
     answer(msg.id, "Error: 401 Not authenticated", true);
     return;
