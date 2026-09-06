@@ -1,0 +1,119 @@
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+import {
+  classifyFailure,
+  PlaudError,
+  withPlaud,
+  type PlaudCommand,
+} from "../../src/eingang/plaud-mcp.js";
+
+const FAKE: PlaudCommand = [
+  process.execPath,
+  fileURLToPath(
+    new URL("../../src/eingang/fixture/fake-plaud-mcp.mjs", import.meta.url),
+  ),
+];
+const FAST = { callMs: 500, sessionMs: 5_000 };
+
+/** The PlaudError a withPlaud rejection carries, or a loud failure if it resolved or threw something else. */
+async function failureOf(promise: Promise<unknown>): Promise<PlaudError> {
+  try {
+    await promise;
+  } catch (err) {
+    if (err instanceof PlaudError) return err;
+    throw err;
+  }
+  throw new Error("expected withPlaud to reject");
+}
+
+describe("classifyFailure", () => {
+  it("maps the MCP's texts to the four kinds", () => {
+    expect(classifyFailure("Error: 401 Not authenticated")).toBe(
+      "unauthenticated",
+    );
+    expect(classifyFailure("Failed: 404 not found")).toBe("not_found");
+    expect(
+      classifyFailure(
+        "Failed to get file: Error: API error: 500 Internal Server Error",
+      ),
+    ).toBe("unreachable");
+  });
+});
+
+describe("withPlaud", () => {
+  it("performs the handshake and returns a tool call's text content", async () => {
+    const text = await withPlaud(
+      FAKE,
+      (call) => call("list_files", { page: 1, page_size: 20 }),
+      FAST,
+    );
+    const parsed = JSON.parse(text) as { data: { id: string }[] };
+    expect(parsed.data.map((r) => r.id)).toEqual([
+      "fix-lampe-0901",
+      "fix-werft-0825",
+      "fix-hafen-0820",
+    ]);
+  });
+
+  it("rejects an isError result as a PlaudError of the classified kind", async () => {
+    process.env.BENCH_FAKE_PLAUD = "unauthenticated";
+    try {
+      const err = await failureOf(
+        withPlaud(FAKE, (call) => call("list_files", {}), FAST),
+      );
+      expect(err.kind).toBe("unauthenticated");
+    } finally {
+      delete process.env.BENCH_FAKE_PLAUD;
+    }
+  });
+
+  it("times out a call the server never answers, as unreachable", async () => {
+    process.env.BENCH_FAKE_PLAUD = "hang";
+    try {
+      const err = await failureOf(
+        withPlaud(FAKE, (call) => call("get_note", { file_id: "x" }), FAST),
+      );
+      expect(err.kind).toBe("unreachable");
+      expect(err.message).toContain("timed out");
+    } finally {
+      delete process.env.BENCH_FAKE_PLAUD;
+    }
+  });
+
+  it("is unreachable on a non-JSON frame", async () => {
+    process.env.BENCH_FAKE_PLAUD = "garbage";
+    try {
+      const err = await failureOf(
+        withPlaud(FAKE, (call) => call("list_files", {}), FAST),
+      );
+      expect(err.kind).toBe("unreachable");
+      expect(err.message).toContain("malformed frame");
+    } finally {
+      delete process.env.BENCH_FAKE_PLAUD;
+    }
+  });
+
+  it("is unreachable when the binary does not exist, without throwing out of the process", async () => {
+    const err = await failureOf(
+      withPlaud(
+        ["/nonexistent/plaud-mcp"],
+        (call) => call("list_files", {}),
+        FAST,
+      ),
+    );
+    expect(err.kind).toBe("unreachable");
+  });
+
+  it("is off without spawning anything", async () => {
+    const err = await failureOf(
+      withPlaud("off", () => Promise.resolve("never"), FAST),
+    );
+    expect(err.kind).toBe("off");
+  });
+
+  it("rethrows a non-Plaud error from fn and still returns", async () => {
+    await expect(
+      withPlaud(FAKE, () => Promise.reject(new Error("mine")), FAST),
+    ).rejects.toThrow("mine");
+  });
+});
