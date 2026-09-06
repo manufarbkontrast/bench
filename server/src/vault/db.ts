@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS notes (
   title TEXT NOT NULL,
   folder TEXT NOT NULL,
   frontmatter TEXT NOT NULL DEFAULT '{}',
+  projekt TEXT,
   body TEXT NOT NULL,
   mtime INTEGER NOT NULL,
   size INTEGER NOT NULL
@@ -66,6 +67,7 @@ export interface NoteRow {
   title: string;
   folder: string;
   frontmatter: string;
+  projekt: string | null;
   body: string;
   mtime: number;
   size: number;
@@ -99,6 +101,16 @@ export interface TaskRow {
   done_at: string | null;
 }
 
+/** An index file created before the projekt column existed gets it added in place. No backfill:
+    indexAll runs at every start and rewrites every row, which fills it. */
+function migrate(db: Database.Database): void {
+  const columns = (
+    db.prepare("PRAGMA table_info(notes)").all() as { name: string }[]
+  ).map((c) => c.name);
+  if (!columns.includes("projekt"))
+    db.exec("ALTER TABLE notes ADD COLUMN projekt TEXT");
+}
+
 /** Open (creating if needed) the index database and ensure the schema exists. */
 export function openDb(dbPath: string): Database.Database {
   if (dbPath !== ":memory:")
@@ -107,5 +119,6 @@ export function openDb(dbPath: string): Database.Database {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.exec(SCHEMA);
+  migrate(db);
   return db;
 }

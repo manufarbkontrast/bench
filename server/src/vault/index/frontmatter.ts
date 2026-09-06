@@ -54,3 +54,18 @@ export function tagsOf(frontmatter: Record<string, unknown>): string[] {
     .map((t) => t.replace(/^#/, "").trim())
     .filter(Boolean);
 }
+
+// A slug's alphabet: lowercase letters, digits and single hyphens between them. It goes into a
+// `claude -p` prompt, a select option, an equality against a Plaud note's `projekt:` and a
+// heading unchanged, and this alphabet passes through every one of those as written.
+const PROJEKT_SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/** `projekt:` as the checked slug, or null: absent, not a string, or failing the rule after
+    trimming and lowercasing - the normalisation projekte's readers applied by hand before this
+    column existed, kept so `projekt: Bench` stays the project `bench`. */
+export function projektOf(frontmatter: Record<string, unknown>): string | null {
+  const raw = frontmatter.projekt;
+  if (typeof raw !== "string") return null;
+  const slug = raw.trim().toLowerCase();
+  return PROJEKT_SLUG.test(slug) ? slug : null;
+}

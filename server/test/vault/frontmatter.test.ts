@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  projektOf,
   splitNote,
   tagsOf,
   titleOf,
@@ -46,5 +47,39 @@ describe("tagsOf", () => {
     expect(tagsOf({ tags: ["a", "#b", 3] })).toEqual(["a", "b"]);
     expect(tagsOf({ tags: "solo" })).toEqual(["solo"]);
     expect(tagsOf({})).toEqual([]);
+  });
+});
+
+describe("projektOf", () => {
+  it("keeps a slug of lowercase letters, digits and single hyphens", () => {
+    expect(projektOf({ projekt: "bench" })).toBe("bench");
+    expect(projektOf({ projekt: "shoesplease-klaviyo" })).toBe(
+      "shoesplease-klaviyo",
+    );
+    expect(projektOf({ projekt: "q4-2026" })).toBe("q4-2026");
+  });
+
+  it("trims and lowercases before checking", () => {
+    expect(projektOf({ projekt: "  Bench " })).toBe("bench");
+  });
+
+  it("is null for anything outside the alphabet", () => {
+    for (const bad of [
+      "Nicht Gültig!",
+      "zwei worte",
+      "-vorn",
+      "hinten-",
+      "doppel--strich",
+      "ümlaut",
+      "",
+      "   ",
+    ])
+      expect(projektOf({ projekt: bad })).toBeNull();
+  });
+
+  it("is null when the key is absent or not a string", () => {
+    expect(projektOf({})).toBeNull();
+    expect(projektOf({ projekt: 42 })).toBeNull();
+    expect(projektOf({ projekt: ["bench"] })).toBeNull();
   });
 });

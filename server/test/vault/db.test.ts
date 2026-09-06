@@ -1,5 +1,7 @@
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
+import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import { openDb } from "../../src/vault/db.js";
 import { copyFixture } from "./fixture.js";
@@ -44,6 +46,23 @@ describe("vault db", () => {
     expect(db.prepare("SELECT COUNT(*) AS c FROM tasks").get()).toEqual({
       c: 0,
     });
+  });
+
+  it("adds the projekt column to an index file created before it existed", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "bench-vault-migrate-"));
+    const file = path.join(dir, "vault.sqlite");
+    const old = new Database(file);
+    old.exec(
+      "CREATE TABLE notes (path TEXT PRIMARY KEY, title TEXT NOT NULL, folder TEXT NOT NULL, frontmatter TEXT NOT NULL DEFAULT '{}', body TEXT NOT NULL, mtime INTEGER NOT NULL, size INTEGER NOT NULL)",
+    );
+    old.close();
+    const db = openDb(file);
+    const columns = (
+      db.prepare("PRAGMA table_info(notes)").all() as Name[]
+    ).map((c) => c.name);
+    expect(columns).toContain("projekt");
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
   });
 });
 
