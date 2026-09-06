@@ -301,6 +301,11 @@ Beside that name-based reconciliation sits a second one, by Plaud recording id, 
   `"neu"` - the id-based twin of `listInbox`'s own order, applied to recordings instead of watched
   files. `routes.ts`'s `inFlightIds` is `inFlightFiles`'s twin too, reading every running
   `plaud-fetch` job's `args.id` back out of its `argsJson`.
+- **`localFolders` (`routes.ts`) has to agree with `jobs.ts`'s `planPlaudFetch`, the fence that
+  refuses a fetch for an id already local.** In a configured world both read the same three real
+  folders under `PLAUD_HOME`. In the sample world the panel composes the fixture inbox, no archiv
+  and the aufgaben fixture notizen, while the fence sees only the fixture inbox - a mismatch that
+  is harmless there because the sample fetch (`runPlaudFetch`'s sample branch) writes nothing.
 
 ## The launchd reader
 
