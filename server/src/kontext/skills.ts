@@ -1,5 +1,6 @@
 import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { scanFrontmatter } from "../shared/frontmatter.js";
 import { directoryNames } from "./dirs.js";
 
 interface Skill {
@@ -25,25 +26,6 @@ interface CacheEntry extends SkillsResult {
  */
 const cache = new Map<string, CacheEntry>();
 
-/**
- * The tolerant first-": " line scan aufgaben/plaud.ts and eingang/inbox.ts already carry: a
- * skill's own description can contain its own ": " (e.g. "Sammelt A: ein Beispiel"), which a YAML
- * parser rejects as an incomplete mapping. Scanning each line up to its first ": " matches the
- * source without any YAML semantics.
- */
-function frontmatterField(text: string, key: string): string | null {
-  const lines = text.split("\n");
-  if (lines[0] !== "---") return null;
-  const closing = lines.indexOf("---", 1);
-  if (closing === -1) return null;
-  for (const line of lines.slice(1, closing)) {
-    const sep = line.indexOf(": ");
-    if (sep === -1) continue;
-    if (line.slice(0, sep) === key) return line.slice(sep + 2).trim();
-  }
-  return null;
-}
-
 function readSkill(skillDir: string): Skill | null {
   let text: string;
   try {
@@ -51,9 +33,10 @@ function readSkill(skillDir: string): Skill | null {
   } catch {
     return null;
   }
-  const name = frontmatterField(text, "name");
-  const description = frontmatterField(text, "description");
-  if (name === null || description === null) return null;
+  const { fields } = scanFrontmatter(text);
+  const name = fields.get("name");
+  const description = fields.get("description");
+  if (name === undefined || description === undefined) return null;
   return { name, description };
 }
 

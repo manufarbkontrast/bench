@@ -77,6 +77,7 @@ server/             ONE Express app
                       code, and to the MCP fetch, in-process
   src/kontext/        kontext routes over vault.sqlite (injected) and ~/.claude - no database
   src/zahlen/         zahlen routes over eingang's controlling dir (injected) - no database
+  src/shared/         the frontmatter line scanner - the only code the eight backends share
   test/{crm,rolodex,vault,projekte,aufgaben,eingang,kontext,zahlen}/   vitest suites
 data/                 crm.sqlite, rolodex.sqlite, vault.sqlite, projekte.sqlite, aufgaben.sqlite,
                       eingang.sqlite, eingang-jobs/*.log (gitignored, seeded/scanned on first run)

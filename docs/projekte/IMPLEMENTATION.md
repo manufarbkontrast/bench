@@ -62,10 +62,8 @@ folder, injected by the composition root the same way `ProjekteContext.notizenDi
 `routes.ts` (`index.ts` passes it `plaudLocation.dir`, the same value Aufgaben's own Plaud reading
 already uses). `plaudNotes` (`stand.ts`) reads every `.md` directly inside it once per `GET /stand`
 call - `null` or an unreadable directory contributes nothing rather than throwing - and
-`plaudNoteMeta` reads each one's `projekt` and `datum` frontmatter with a third, hand-rolled
-line scanner: the same tolerant colon-scan `server/src/eingang/inbox.ts`'s `frontmatterValue` and
-`server/src/aufgaben/plaud.ts`'s `splitFrontmatter` already use, written a third time here rather
-than imported, since the three apps never import each other. `plaudNotizenFor` then counts, per
+`plaudNoteMeta` reads each one's `projekt` and `datum` frontmatter through
+`server/src/shared/frontmatter.ts`'s `scanFrontmatter`. `plaudNotizenFor` then counts, per
 handoff, the notes whose `projekt` equals the slug and whose `datum` is a day **after** the
 handoff's `updated` - strictly later, not on the same day, so the meeting that produced the handoff
 note itself never counts against it - answering `0` when the handoff carries no `updated` at all.

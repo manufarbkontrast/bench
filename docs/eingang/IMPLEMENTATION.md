@@ -273,12 +273,9 @@ recursion - filtered and reconciled, newest first by `mtime`:
   against it - a job can be running for a file a previous run already turned into a note. Failing
   that, a file a running `plaud-process` job's own recorded `args.file` names is `in_arbeit`.
   Everything else is `unverarbeitet`.
-- **The `quelle` scan is a deliberate small duplicate of Aufgaben's tolerant frontmatter reader**,
-  not an import - `quelleOf` in `inbox.ts` scans each frontmatter line up to its first `": "`
-  rather than parsing YAML, because a note's own `titel` can carry a colon a YAML parser would
-  reject (see `server/src/aufgaben/plaud.ts`'s `splitFrontmatter` docstring for the shared
-  reasoning). Eingang never imports from `server/src/aufgaben/`, the same per-app boundary every
-  pair of apps follows.
+- **The `quelle` scan is `server/src/shared/frontmatter.ts`'s line scanner**, not YAML: a note's
+  own `titel` can carry a colon a YAML parser would reject; the module's docstring carries the
+  reasoning.
 - **The set of every note's `quelle` is built once per `listInbox` call**, in `noteQuellen`, not
   once per candidate file - this endpoint is polled, and re-reading every note for every inbox
   file would make the scan O(files × notes) instead of O(files + notes).
@@ -289,9 +286,8 @@ recursion - filtered and reconciled, newest first by `mtime`:
 Beside that name-based reconciliation sits a second one, by Plaud recording id, for the
 `Plaud-Aufnahmen` panel:
 
-- **`frontmatterValue(text, key)` generalises `quelleOf`'s colon-scan** to any frontmatter key, not
-  only `quelle` - the same tolerant line-by-line reader, now shared by `quelleOf(text)` (`quelle`)
-  and the id scan below (`aufnahme`).
+- **Both scans read `scanFrontmatter(text).fields`** - `quelleOf` for `quelle`, `localRecordingIds`
+  for `aufnahme`.
 - **`localRecordingIds(dirs)` reads every `.md` directly inside `inboxDir`, `archivDir` and
   `notizenDir` once**, collecting each folder's set of `aufnahme:` ids into a separate `Set` per
   folder (`LocalIds`) - the same once-per-listing-call shape `noteQuellen` already uses, not once
@@ -538,5 +534,5 @@ label carries the chosen slug.
 - [PROJECT.md](../PROJECT.md) - how the apps fit together
 - [PROCESS.md](../PROCESS.md) - how to make a change here
 - [aufgaben/IMPLEMENTATION.md](../aufgaben/IMPLEMENTATION.md) - the Plaud notes Eingang reconciles
-  against; the frontmatter scan `quelleOf` duplicates is reasoned about in
-  `server/src/aufgaben/plaud.ts`'s `splitFrontmatter` docstring, not in this doc
+  against; the frontmatter scan `quelleOf` uses is reasoned about in
+  `server/src/shared/frontmatter.ts`'s docstring, not in this doc

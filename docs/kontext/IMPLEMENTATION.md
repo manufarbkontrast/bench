@@ -98,10 +98,9 @@ since the last scan.
 - **A missing skills dir is `{ count: 0, skills: [] }`, and clears any stale cache entry** - a
   `claudeDir` that used to have skills and no longer does is not left showing its last scan.
 
-`frontmatterField`'s frontmatter reader is the same tolerant first-`": "` line scan
-`aufgaben/plaud.ts` and `eingang/inbox.ts` already carry, not a YAML parser: a skill's own
-description can contain its own `": "` (`"Sammelt A: ein Beispiel"`), which a real YAML parser
-would reject as an incomplete mapping.
+`readSkill` reads `name` and `description` through `server/src/shared/frontmatter.ts`'s
+`scanFrontmatter`, not a YAML parser: a skill's own description can contain its own `": "`
+(`"Sammelt A: ein Beispiel"`), which a real YAML parser would reject as an incomplete mapping.
 
 ## Memory directory names render undecoded
 
