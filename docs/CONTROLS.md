@@ -212,7 +212,7 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 
 | Scope                               | Statements |
 | ----------------------------------- | ---------- |
-| `server/src`                        | 93.08%     |
+| `server/src`                        | 93.4%      |
 | `web/src/aufgaben`                  | 79.43%     |
 | `web/src/aufgaben/components`       | 96.15%     |
 | `web/src/crm`                       | 100%       |
@@ -229,10 +229,11 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 | `web/src/rolodex/components/person` | 86.18%     |
 | `web/src/rolodex/components/today`  | 80%        |
 | `web/src/rolodex/pages`             | 77.65%     |
+| `web/src/shared`                    | 97.72%     |
 | `web/src/vault`                     | 85.49%     |
 | `web/src/vault/components`          | 81.88%     |
 | `web/src/zahlen`                    | 62.5%      |
-| **web overall**                     | **85.95%** |
+| **web overall**                     | **85.94%** |
 
 The last two decimals of `server/src` vary run to run - a few timeout-dependent tests settle
 differently from one run to the next.
