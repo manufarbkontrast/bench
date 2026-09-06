@@ -32,6 +32,13 @@ test("Profil, Regeln and Stand render the fixture vault notes and the Claude-sid
   await expect(
     page.getByRole("link", { name: "Testing", exact: true }),
   ).toBeVisible();
+  // The two fixture handoffs sit under 50_Workflow/Handoffs/ and are not rules.
+  await expect(
+    page.getByRole("link", { name: "Handoff_leuchtturm", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Handoff_hafen", exact: true }),
+  ).toHaveCount(0);
 
   await page.getByRole("button", { name: "Stand", exact: true }).click();
   await expect(

@@ -44,6 +44,15 @@ function buildVault(): Database.Database {
     0,
   );
   insert.run(
+    "50_Workflow/Handoffs/Handoff_hafen.md",
+    "Handoff_hafen",
+    "50_Workflow/Handoffs",
+    "{}",
+    "ein handoff, keine regel",
+    0,
+    0,
+  );
+  insert.run(
     "00_Index/Session_Context.md",
     "Session Context",
     "00_Index",

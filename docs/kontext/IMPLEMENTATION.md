@@ -45,19 +45,23 @@ would also match `10XProfile/...`.
 
 Mounted at `/api/kontext` (`routes.ts`):
 
-| Route         | Returns                                                                |
-| ------------- | ---------------------------------------------------------------------- |
-| `GET /profil` | `{ notes }` - the vault's `10_Profile/` notes                          |
-| `GET /regeln` | `{ claude, vault }` - `~/.claude/rules` and the vault's `50_Workflow/` |
-| `GET /stand`  | `{ note }` - the vault's `00_Index/Session_Context.md`, or `null`      |
-| `GET /memory` | `{ projects }` - Claude Code's per-project memory notes                |
-| `GET /repos`  | `{ repos }` - each registered project's `CLAUDE.md`/`AGENTS.md`        |
-| `GET /skills` | `{ count, skills }` - the local skill catalogue                        |
-| `GET /mcp`    | `{ servers }` - configured MCP server names, nothing else              |
+| Route         | Returns                                                                                               |
+| ------------- | ----------------------------------------------------------------------------------------------------- |
+| `GET /profil` | `{ notes }` - the vault's `10_Profile/` notes                                                         |
+| `GET /regeln` | `{ claude, vault }` - `~/.claude/rules` and the vault's `50_Workflow/`, minus `50_Workflow/Handoffs/` |
+| `GET /stand`  | `{ note }` - the vault's `00_Index/Session_Context.md`, or `null`                                     |
+| `GET /memory` | `{ projects }` - Claude Code's per-project memory notes                                               |
+| `GET /repos`  | `{ repos }` - each registered project's `CLAUDE.md`/`AGENTS.md`                                       |
+| `GET /skills` | `{ count, skills }` - the local skill catalogue                                                       |
+| `GET /mcp`    | `{ servers }` - configured MCP server names, nothing else                                             |
 
 None of the seven takes a client-supplied path, query parameter or body - each tab is its own
 closed route, so there is nothing for a request to parametrize and nowhere for a path-traversal
 attempt to land.
+
+Handoffs sit under `50_Workflow/` only so Aufgaben never counts their checkboxes (see `/handoff`'s
+own note); they are project state, not rules, so `/regeln` filters that one subfolder by a mirrored
+constant.
 
 ## The MCP file split
 
