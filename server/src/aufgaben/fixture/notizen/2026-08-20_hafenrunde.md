@@ -4,6 +4,8 @@ datum: 2026-08-20
 teilnehmer: [Jonas]
 quelle: 08-20_Besprechung_Hafenrunde-transcript.pdf
 zeitmarken: verfügbar
+aufnahme: fix-hafen-0820
+projekt: leuchtturm
 ---
 
 # Hafenrunde und Leuchtturm-Ausbau

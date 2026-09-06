@@ -221,13 +221,13 @@ function jobCount(): number {
 }
 
 describe("GET /api/eingang/inbox", () => {
-  it("lists the three fixture files, the Hafenrunde transcript matched to its note and the werkstattrunde one unprocessed", async () => {
+  it("lists the four fixture files, the Hafenrunde transcript matched to its note and the werkstattrunde and werftbegehung ones unprocessed", async () => {
     const res = await request(app).get("/api/eingang/inbox");
 
     expect(res.status).toBe(200);
     const body = res.body as InboxResponse;
     expect(body.source).toBe("sample");
-    expect(body.files).toHaveLength(3);
+    expect(body.files).toHaveLength(4);
     const byName = new Map(body.files.map((file) => [file.name, file]));
     expect(
       byName.get("08-20_Besprechung_Hafenrunde-transcript.pdf")?.status,
@@ -235,13 +235,14 @@ describe("GET /api/eingang/inbox", () => {
     expect(byName.get("2026-08-30_werkstattrunde-transcript.txt")?.status).toBe(
       "unverarbeitet",
     );
+    expect(byName.get("2026-08-25_werftbegehung-transkript.md")?.status).toBe(
+      "unverarbeitet",
+    );
   });
 });
 
 describe("GET /api/eingang/plaud", () => {
   it("lists the three fixture recordings with their marks under sample data", async () => {
-    // needs Task 9's fixture files for im_eingang/notiz_vorhanden; until then this asserts neu
-    // for all three
     const res = await request(app).get("/api/eingang/plaud");
     expect(res.status).toBe(200);
     const body = res.body as PlaudResponse;
@@ -252,6 +253,10 @@ describe("GET /api/eingang/plaud", () => {
       "fix-werft-0825",
       "fix-hafen-0820",
     ]);
+    const byId = new Map(body.recordings.map((r) => [r.id, r]));
+    expect(byId.get("fix-lampe-0901")?.status).toBe("neu");
+    expect(byId.get("fix-werft-0825")?.status).toBe("im_eingang");
+    expect(byId.get("fix-hafen-0820")?.status).toBe("notiz_vorhanden");
   });
   it("answers off with an empty list when the command is off in a configured world", async () => {
     const res = await request(appWith({ sample: false, mcp: "off" })).get(

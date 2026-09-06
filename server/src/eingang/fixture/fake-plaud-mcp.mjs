@@ -111,7 +111,7 @@ const MARKS = {
     "marks",
   ),
   "fix-werft-0825": NOT_AVAILABLE,
-  "fix-hafen-0820": [],
+  "fix-hafen-0820": NOT_AVAILABLE,
 };
 const NOTES = {
   "fix-lampe-0901": [

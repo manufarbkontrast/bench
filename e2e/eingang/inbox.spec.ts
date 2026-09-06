@@ -1,9 +1,10 @@
-/** The Eingang inbox listing: the three fixture files reconciled to their status - the
-    werkstattrunde transcript unprocessed, the Hafenrunde one already noted, and the audio file
-    filed rather than processed. Boot itself is smoke.spec.ts's job, not this file's. */
+/** The Eingang inbox listing: the four fixture files reconciled to their status - the
+    werkstattrunde and werftbegehung transcripts unprocessed, the Hafenrunde one already noted,
+    and the audio file filed rather than processed. Boot itself is smoke.spec.ts's job, not this
+    file's. */
 import { test, expect } from "../fixtures";
 
-test("/eingang/ lists the three fixture files with their reconciled status", async ({
+test("/eingang/ lists the four fixture files with their reconciled status", async ({
   page,
 }) => {
   await page.goto("/eingang/");
@@ -42,4 +43,15 @@ test("/eingang/ lists the three fixture files with their reconciled status", asy
     .filter({ hasText: "aufnahme-2026-08-28.m4a" });
   await expect(aufnahme).toContainText("Unverarbeitet");
   await expect(aufnahme).toContainText("Nur Ablage");
+
+  const werftbegehung = page
+    .getByRole("listitem")
+    .filter({ hasText: "2026-08-25_werftbegehung-transkript.md" });
+  await expect(werftbegehung).toContainText("Unverarbeitet");
+  await expect(
+    werftbegehung.getByRole("button", {
+      name: "Verarbeiten: 2026-08-25_werftbegehung-transkript.md",
+      exact: true,
+    }),
+  ).toBeEnabled();
 });
