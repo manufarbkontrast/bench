@@ -6,9 +6,11 @@
 
 .bench-crash {
   box-sizing: border-box;
-  max-width: 720px;
-  margin: 0 auto;
+  /* 47px is the strip's own height in nav.css; without it the crash screen's ground stops short
+     of the viewport and the body's colour - not the crash screen's - shows through below it. */
+  min-height: calc(100vh - 47px);
   padding: 48px 24px;
+  background: #ffffff;
   font-family:
     -apple-system, BlinkMacSystemFont, "Helvetica Neue", system-ui, sans-serif;
   font-size: 14px;
@@ -17,7 +19,13 @@
 }
 
 [data-theme="dark"] .bench-crash {
+  background: #1c2128;
   color: #e6e9ee;
+}
+
+.bench-crash-body {
+  max-width: 720px;
+  margin: 0 auto;
 }
 
 .bench-crash-title {

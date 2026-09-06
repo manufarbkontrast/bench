@@ -43,4 +43,21 @@ describe("ErrorBoundary", () => {
     expect(consoleError).toHaveBeenCalled();
     consoleError.mockRestore();
   });
+
+  it("shows a thrown non-Error value as text", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    function ThrowsString(): never {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- the branch under test is exactly a non-Error throw
+      throw "kaputt";
+    }
+    render(
+      <ErrorBoundary active="zahlen">
+        <ThrowsString />
+      </ErrorBoundary>,
+    );
+    expect(screen.getByText("kaputt")).toBeInTheDocument();
+    consoleError.mockRestore();
+  });
 });

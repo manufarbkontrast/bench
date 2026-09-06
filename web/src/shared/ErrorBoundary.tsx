@@ -35,18 +35,20 @@ export default class ErrorBoundary extends Component<Props, State> {
       <>
         <BenchNav active={this.props.active} />
         <main className="bench-crash">
-          <h1 className="bench-crash-title">Diese Seite ist abgestürzt.</h1>
-          <p className="bench-crash-text">
-            Die Bench-Leiste oben funktioniert weiter. Der Fehler:
-          </p>
-          <pre className="bench-crash-error">{this.state.message}</pre>
-          <button
-            type="button"
-            className="bench-crash-reload"
-            onClick={() => window.location.reload()}
-          >
-            Neu laden
-          </button>
+          <div className="bench-crash-body">
+            <h1 className="bench-crash-title">Diese Seite ist abgestürzt.</h1>
+            <p className="bench-crash-text">
+              Die Bench-Leiste oben funktioniert weiter. Der Fehler:
+            </p>
+            <pre className="bench-crash-error">{this.state.message}</pre>
+            <button
+              type="button"
+              className="bench-crash-reload"
+              onClick={() => window.location.reload()}
+            >
+              Neu laden
+            </button>
+          </div>
         </main>
       </>
     );

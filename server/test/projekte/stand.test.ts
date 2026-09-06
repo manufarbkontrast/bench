@@ -207,6 +207,23 @@ describe("projektStand", () => {
     expect(reply.projekte[0].signals.offeneTasks).toBe(1);
   });
 
+  it("ignores a task whose note has projekt in the frontmatter but not in the column", () => {
+    const db = buildVault([handoff("bench")]);
+    db.prepare(
+      "INSERT INTO notes (path, title, folder, frontmatter, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    ).run(
+      "30_Projekte/Roh.md",
+      "Roh",
+      "30_Projekte",
+      JSON.stringify({ projekt: "bench" }),
+      "",
+      0,
+      0,
+    );
+    insertTask(db, "30_Projekte/Roh.md", 1, 0);
+    expect(projektStand(db, [], null).projekte[0].signals.offeneTasks).toBe(0);
+  });
+
   it("sorts veraltet first, then oldest updated first, unknown dates last", () => {
     const db = buildVault([
       handoff("a", { updated: "2026-07-01", repos: ["/abs/a"] }),
