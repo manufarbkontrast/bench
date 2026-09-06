@@ -1,7 +1,14 @@
 import { mkdirSync, utimesSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { listInbox, quelleOf } from "../../src/eingang/inbox.js";
+import {
+  frontmatterValue,
+  isLocal,
+  listInbox,
+  localRecordingIds,
+  plaudStatus,
+  quelleOf,
+} from "../../src/eingang/inbox.js";
 import { scratchDir } from "./tmp.js";
 
 const scratch = scratchDir("bench-eingang-inbox-");
@@ -226,5 +233,43 @@ describe("quelleOf", () => {
       "\n",
     );
     expect(quelleOf(text)).toBeNull();
+  });
+});
+
+describe("frontmatterValue / localRecordingIds / plaudStatus", () => {
+  it("reads a key up to the first ': ' and ignores a titel with its own colon", () => {
+    const text =
+      "---\ntitel: 08-18 Besprechung: Q4\naufnahme: abc-1\n---\n# x\n";
+    expect(frontmatterValue(text, "aufnahme")).toBe("abc-1");
+    expect(frontmatterValue(text, "titel")).toBe("08-18 Besprechung: Q4");
+    expect(frontmatterValue("# no frontmatter", "aufnahme")).toBeNull();
+  });
+  it("collects ids per folder, skipping non-md files and missing folders", () => {
+    const { watch, notizenDir, archivDir } = world();
+    writeInboxFile(watch, "a-transkript.md", "---\naufnahme: id-inbox\n---\n");
+    writeInboxFile(watch, "b-transcript.txt", "---\naufnahme: id-txt\n---\n");
+    mkdirSync(notizenDir, { recursive: true });
+    writeFileSync(
+      path.join(notizenDir, "n.md"),
+      "---\naufnahme: id-note\n---\n",
+    );
+    const local = localRecordingIds({ inboxDir: watch, archivDir, notizenDir });
+    expect([...local.inbox]).toEqual(["id-inbox"]);
+    expect([...local.archiv]).toEqual([]);
+    expect([...local.notizen]).toEqual(["id-note"]);
+    expect(isLocal("id-note", local)).toBe(true);
+    expect(isLocal("id-txt", local)).toBe(false);
+  });
+  it("reconciles in the fixed order", () => {
+    const local = {
+      inbox: new Set(["x", "both"]),
+      archiv: new Set(["y", "both"]),
+      notizen: new Set(["z", "both"]),
+    };
+    expect(plaudStatus("both", local, new Set())).toBe("notiz_vorhanden");
+    expect(plaudStatus("y", local, new Set(["y"]))).toBe("im_archiv");
+    expect(plaudStatus("x", local, new Set())).toBe("im_eingang");
+    expect(plaudStatus("w", local, new Set(["w"]))).toBe("wird_geholt");
+    expect(plaudStatus("w", local, new Set())).toBe("neu");
   });
 });

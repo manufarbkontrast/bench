@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { mkdirSync, readdirSync, readFileSync, symlinkSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterAll, describe, expect, it } from "vitest";
 import {
+  assembleFetch,
   dauerText,
   fetchedFileName,
   fetchRecording,
@@ -8,12 +12,34 @@ import {
   parseNote,
   parseTranscriptPage,
   renderFetchedFile,
+  runPlaudFetch,
   slugify,
+  writeFetchedFile,
   zeitText,
   type FetchedRecording,
   type Recording,
 } from "../../src/eingang/plaud-fetch.js";
-import type { PlaudCall } from "../../src/eingang/plaud-mcp.js";
+import type { PlaudCall, PlaudCommand } from "../../src/eingang/plaud-mcp.js";
+import { scratchDir } from "./tmp.js";
+
+const scratch = scratchDir("bench-plaud-fetch-");
+afterAll(scratch.cleanup);
+
+let n = 0;
+/** A fresh scratch home with an `inbox/` already in place. */
+function mkWorld(): string {
+  n += 1;
+  const home = path.join(scratch.dir, `home-${String(n)}`);
+  mkdirSync(path.join(home, "inbox"), { recursive: true });
+  return home;
+}
+
+const FAKE: PlaudCommand = [
+  process.execPath,
+  fileURLToPath(
+    new URL("../../src/eingang/fixture/fake-plaud-mcp.mjs", import.meta.url),
+  ),
+];
 
 const lampe: Recording = {
   id: "fix-lampe-0901",
@@ -245,5 +271,127 @@ describe("naming and rendering", () => {
     expect(withAll).toContain(
       "## KI-Notiz (Plaud)\n\n## Zusammenfassung\n\nText.\n",
     );
+  });
+});
+
+describe("writeFetchedFile", () => {
+  it("creates the file under inbox and refuses to overwrite", () => {
+    const home = mkWorld();
+    const written = writeFetchedFile(home, "a-transkript.md", "x");
+    expect(readFileSync(written, "utf8")).toBe("x");
+    expect(() => writeFetchedFile(home, "a-transkript.md", "y")).toThrow(
+      /EEXIST/,
+    );
+  });
+  it("refuses an inbox that is a symlink out of plaudHome", () => {
+    // Brief's test builds the path from `n` directly rather than through mkWorld(), so it needs
+    // its own increment here - without it, this reuses the previous test's home-<n> directory,
+    // whose inbox/ is already a real folder, and symlinkSync fails with EEXIST before the
+    // refusal this test means to exercise ever runs.
+    n += 1;
+    const home = path.join(scratch.dir, `home-${String(n)}`);
+    const outside = path.join(scratch.dir, `outside-${String(n)}`);
+    mkdirSync(home, { recursive: true });
+    mkdirSync(outside, { recursive: true });
+    symlinkSync(outside, path.join(home, "inbox"));
+    expect(() => writeFetchedFile(home, "a-transkript.md", "x")).toThrow(
+      /escapes/,
+    );
+  });
+});
+
+describe("runPlaudFetch", () => {
+  it("logs the three calls and writes nothing under sample data", async () => {
+    const home = mkWorld();
+    const log: string[] = [];
+    await runPlaudFetch(
+      {
+        command: "off",
+        plaudHome: home,
+        sample: true,
+        today: () => "2026-09-06",
+      },
+      "fix-lampe-0901",
+      (l) => log.push(l),
+    );
+    expect(log).toEqual([
+      "list_files page 1",
+      "get_transcript fix-lampe-0901",
+      "get_note fix-lampe-0901",
+      "sample world: nothing written",
+    ]);
+    expect(readdirSync(path.join(home, "inbox"))).toEqual([]);
+  });
+  it("fetches through the fake MCP and writes the file", async () => {
+    const home = mkWorld();
+    const log: string[] = [];
+    await runPlaudFetch(
+      {
+        command: FAKE,
+        plaudHome: home,
+        sample: false,
+        today: () => "2026-09-06",
+      },
+      "fix-lampe-0901",
+      (l) => log.push(l),
+    );
+    const [name] = readdirSync(path.join(home, "inbox"));
+    expect(name).toBe("2026-09-01_lampe-fuer-den-leuchtturm-transkript.md");
+    const text = readFileSync(path.join(home, "inbox", name), "utf8");
+    expect(text).toContain("aufnahme: fix-lampe-0901");
+    expect(text).toContain("[00:00:01 - 00:00:04] Speaker 1: Die Lampe");
+    expect(text).toContain("- [00:00:04] Lampe bestellen");
+    expect(text).toContain("## KI-Notiz (Plaud)\n\n## Zusammenfassung");
+    expect(log.at(-1)).toBe(`written ${name}`);
+  });
+  it("fails without writing when no page lists the id", async () => {
+    const home = mkWorld();
+    await expect(
+      runPlaudFetch(
+        {
+          command: FAKE,
+          plaudHome: home,
+          sample: false,
+          today: () => "2026-09-06",
+        },
+        "fix-unknown-0000",
+        () => undefined,
+      ),
+    ).rejects.toMatchObject({ kind: "not_found" });
+    expect(readdirSync(path.join(home, "inbox"))).toEqual([]);
+  });
+  it("refuses a null plaudHome", async () => {
+    await expect(
+      runPlaudFetch(
+        { command: "off", plaudHome: null, sample: false, today: () => "x" },
+        "a",
+        () => undefined,
+      ),
+    ).rejects.toThrow("plaud is not configured");
+  });
+});
+
+describe("assembleFetch", () => {
+  it("refuses a recording without a transcript, so nothing gets written", async () => {
+    // The fake MCP transcribes all three fixture recordings, so the empty case uses the same
+    // hand-written PlaudCall seam fetchRecording's own test uses.
+    const listing = JSON.stringify({
+      type: "list",
+      data: [
+        {
+          id: "fix-leer-0000",
+          name: "Leer",
+          start_at: "2026-09-02T08:00:00",
+          duration: 1000,
+        },
+      ],
+      page: 1,
+      page_size: 20,
+    });
+    const call: PlaudCall = (tool) =>
+      Promise.resolve(tool === "list_files" ? listing : "[]");
+    await expect(
+      assembleFetch(call, "fix-leer-0000", () => undefined),
+    ).rejects.toThrow("no transcript yet for fix-leer-0000, nothing written");
   });
 });

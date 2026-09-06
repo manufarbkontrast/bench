@@ -1,5 +1,12 @@
-import type { PlaudCall } from "./plaud-mcp.js";
-import { PlaudError } from "./plaud-mcp.js";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { resolvesInsideFolder } from "./jobs.js";
+import {
+  PlaudError,
+  withPlaud,
+  type PlaudCall,
+  type PlaudCommand,
+} from "./plaud-mcp.js";
 
 export interface Recording {
   id: string;
@@ -32,8 +39,7 @@ export interface FetchedRecording {
   note: string | null;
 }
 
-/** @public routes.ts pages the listing by this size; not wired up until Task 3. */
-export const PAGE_SIZE = 20;
+const PAGE_SIZE = 20;
 const TRANSCRIPT_LIMIT = 500;
 const FIND_PAGES = 10;
 const SLUG_MAX = 60;
@@ -131,7 +137,7 @@ export function parseNote(text: string): string | null {
     : null;
 }
 
-/** @public routes.ts pages recordings through this; not wired up until Task 3. */
+/** @public routes.ts pages recordings through this; not wired up until Task 5. */
 export async function listRecordings(
   call: PlaudCall,
   page: number,
@@ -142,14 +148,8 @@ export async function listRecordings(
   );
 }
 
-/**
- * @public routes.ts resolves a fetch's id through this; not wired up until Task 3.
- * The listing is the only place a recording's title, start and duration come from (decision 5).
- */
-export async function findRecording(
-  call: PlaudCall,
-  id: string,
-): Promise<Recording> {
+/** The listing is the only place a recording's title, start and duration come from (decision 5). */
+async function findRecording(call: PlaudCall, id: string): Promise<Recording> {
   for (let page = 1; page <= FIND_PAGES; page += 1) {
     const { recordings, nextPage } = await listRecordings(call, page);
     const hit = recordings.find((r) => r.id === id);
@@ -301,4 +301,68 @@ export function renderFetchedFile(
     note ?? "Keine.",
     "",
   ].join("\n");
+}
+
+/** Creates `<plaudHome>/inbox/<name>` with the wx flag after the realpath check; returns the path. */
+export function writeFetchedFile(
+  plaudHome: string,
+  name: string,
+  content: string,
+): string {
+  const inbox = path.join(plaudHome, "inbox");
+  mkdirSync(inbox, { recursive: true });
+  // The one write this app makes outside data/: inbox/ has to be a real folder inside plaudHome,
+  // never a symlink pointing elsewhere - the same boundary planJob draws for a file argument.
+  if (!resolvesInsideFolder(plaudHome, inbox))
+    throw new Error("inbox folder escapes plaud home");
+  const target = path.join(inbox, name);
+  writeFileSync(target, content, { flag: "wx" });
+  return target;
+}
+
+/** @public its own test drives it directly, ahead of runPlaudFetch's write. */
+export async function assembleFetch(
+  call: PlaudCall,
+  id: string,
+  log: (line: string) => void,
+): Promise<FetchedRecording> {
+  const recording = await findRecording(call, id);
+  log(`list_files: found ${id} (${dauerText(recording.dauer)})`);
+  const fetched = await fetchRecording(call, recording, log);
+  if (fetched.segments.length === 0)
+    throw new Error(`no transcript yet for ${id}, nothing written`);
+  return fetched;
+}
+
+export interface PlaudFetchDeps {
+  command: PlaudCommand;
+  plaudHome: string | null;
+  sample: boolean;
+  today: () => string; // "YYYY-MM-DD", local
+}
+
+/** The plaud-fetch internal job: under sample data it logs the three calls and writes nothing. */
+export async function runPlaudFetch(
+  deps: PlaudFetchDeps,
+  id: string,
+  log: (line: string) => void,
+): Promise<void> {
+  if (deps.plaudHome === null) throw new Error("plaud is not configured");
+  if (deps.sample) {
+    log("list_files page 1");
+    log(`get_transcript ${id}`);
+    log(`get_note ${id}`);
+    log("sample world: nothing written");
+    return;
+  }
+  const home = deps.plaudHome;
+  const fetched = await withPlaud(deps.command, (call) =>
+    assembleFetch(call, id, log),
+  );
+  const taken = (name: string) =>
+    existsSync(path.join(home, "inbox", name)) ||
+    existsSync(path.join(home, "archiv", name));
+  const name = fetchedFileName(fetched.recording, taken);
+  writeFetchedFile(home, name, renderFetchedFile(fetched, deps.today()));
+  log(`written ${name}`);
 }

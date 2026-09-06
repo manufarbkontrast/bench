@@ -89,7 +89,7 @@ function fileNameOf(args: Record<string, unknown>): string | null {
  * exist by the existsSync/statSync check next to every call site, so there is no dangling-path
  * case to walk around: realpathSync resolves both sides outright.
  */
-function resolvesInsideFolder(folder: string, target: string): boolean {
+export function resolvesInsideFolder(folder: string, target: string): boolean {
   const folderReal = realpathSync(folder);
   const targetReal = realpathSync(target);
   return targetReal.startsWith(folderReal + path.sep);
