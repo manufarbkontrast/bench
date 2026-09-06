@@ -6,13 +6,16 @@ schedule. Backed by `data/eingang.sqlite`, which holds only the job log - one ro
 in-process run, never the watched files or the source folders themselves.
 
 - Backend: `server/src/eingang/` - `locate.ts` (finds the watch dirs, or falls back to the bundled
-  fixture), `inbox.ts` (lists and reconciles watched files), `jobs.ts` (the fence: what job kinds
-  exist, what arguments they take, what command each becomes), `runner.ts` (spawns or runs a job,
-  streams its log, kills it), `db.ts` (the jobs table), `schedule.ts` (reads launchd plists),
-  `routes.ts` (the six endpoints), `fixture/` (the sample inbox, controlling report and plists,
-  plus `fake-job.mjs`, the stand-in child process under sample data and in tests).
-- Frontend: `web/src/eingang/` - `App.tsx`, `components/` (`InboxList`, `JobsPanel`, `LogView`,
-  `SchedulePanel`), `api.ts`, `format.ts`, `types.ts`, `styles.css`
+  fixture), `inbox.ts` (lists and reconciles watched files, by name and by Plaud recording id),
+  `jobs.ts` (the fence: what job kinds exist, what arguments they take, what command each becomes),
+  `plaud-mcp.ts` (the stdio client for the Plaud MCP), `plaud-fetch.ts` (parses the MCP's reply
+  shapes and writes the fetched file), `runner.ts` (spawns or runs a job, streams its log, kills
+  it), `db.ts` (the jobs table), `schedule.ts` (reads launchd plists), `routes.ts` (the eight
+  endpoints), `fixture/` (the sample inbox, controlling report and plists, a bundled Plaud listing
+  and its stand-in MCP script, plus `fake-job.mjs`, the stand-in child process under sample data
+  and in tests).
+- Frontend: `web/src/eingang/` - `App.tsx`, `components/` (`AufnahmenPanel`, `InboxList`,
+  `JobsPanel`, `LogView`, `SchedulePanel`), `api.ts`, `format.ts`, `types.ts`, `styles.css`
 - Tests: `server/test/eingang/`, `web/src/eingang/**/*.test.{ts,tsx}`, `e2e/eingang/`
 
 ## Sample and configured worlds
@@ -32,10 +35,11 @@ fixture for either, real-or-null instead.
   the fixture's script against a real vault and a real `skillsDir`.
 - A configured `INBOX_WATCH` with no `PLAUD_HOME` is the same shape: `index.ts`'s wiring gives
   `JobPaths.plaudHome` the value `null` rather than the tracked fixture tree under
-  `server/src/eingang/fixture/`. `planJob`'s three plaud-facing kinds - `plaud-sync`,
-  `plaud-process`, `aufgaben-import` - each refuse with 400 ("plaud is not configured") before any
-  other check that would build a path from `plaudHome`, so a real watch folder can never end up
-  paired with the sample fixture as the target of a real `claude -p` or `plaud-sync.sh` run.
+  `server/src/eingang/fixture/`. `planJob`'s four plaud-facing kinds - `plaud-sync`,
+  `plaud-process`, `aufgaben-import`, `plaud-fetch` - each refuse with 400 ("plaud is not
+  configured") before any other check that would build a path from `plaudHome`, so a real watch
+  folder can never end up paired with the sample fixture as the target of a real `claude -p`,
+  `plaud-sync.sh` or MCP fetch.
 
 ## The fence
 
@@ -43,8 +47,8 @@ Every job Bench can run passes through `planJob` (`jobs.ts`) before anything is 
 check inside it runs **before any argv or cwd is built** - an unknown kind, a bad argument, or a
 missing target file never reaches a command:
 
-- **A closed catalog of six kinds** - `plaud-sync`, `plaud-process`, `aufgaben-import`,
-  `controlling`, `vault-reindex`, `projekte-scan`. Anything else answers
+- **A closed catalog of seven kinds** - `plaud-sync`, `plaud-process`, `aufgaben-import`,
+  `controlling`, `vault-reindex`, `projekte-scan`, `plaud-fetch`. Anything else answers
   `unknown job kind: <kind>`.
 - **A file argument must be a bare basename.** `fileNameOf` rejects a value that is not a string,
   contains `/` or `\`, or starts with `.` - the one check that is the whole fence for path
@@ -67,31 +71,53 @@ missing target file never reaches a command:
 - **A no-argument kind rejects extras.** `plaud-sync`, `vault-reindex` and `projekte-scan` all
   route through `rejectExtraArgs`, which fails on any key at all in `args` - there is nothing for
   these kinds to parametrize, so an extra key is refused rather than silently ignored.
+- **`plaud-fetch`'s `id` must match `^[A-Za-z0-9_-]{1,64}$`, and nothing else.** `planPlaudFetch`
+  rejects a missing or non-matching `id`, any second key in `args`, a null `plaudHome`, and - via
+  `localRecordingIds`/`isLocal` (`inbox.ts`) - an id already sitting in `inbox/`, `archiv/` or
+  `notizen/`, answering `recording already local: <id>` before a `plaud-fetch` job is ever planned.
+- **`plaud-process`'s optional `projekt` must name a real handoff.** `projektOf` lets an absent
+  `args.projekt` through as `null`, rejects a non-string one, and otherwise requires it to appear
+  in `ctx.projektSlugs()` - the vault's own handoff slugs, injected by the composition root -
+  answering `unknown projekt: <slug>` for anything else. This check runs after the file argument is
+  proven to exist but before `ctx.sample` is even looked at, so a bad `projekt` is refused in both
+  worlds alike, before any prompt is built.
 
 ## Real jobs, fixture jobs, internal jobs
 
 `JobPlan` is one of two shapes. `{ kind: "spawn", argv, cwd }` is a child process; the runner
-spawns `argv[0]` with the rest as arguments. `{ kind: "internal", name }` names
-`"vault-reindex"` or `"projekte-scan"`, which run **in-process**, always for real, regardless of
-sample or configured - there is no fixture stand-in for either, because both already have their
-own bundled sample data to run against (the fixture vault, the fixture workshop) and running them
-for real is cheap.
+spawns `argv[0]` with the rest as arguments. `{ kind: "internal", name, args }` names one of three
+kinds - `"vault-reindex"`, `"projekte-scan"`, `"plaud-fetch"` - which run **in-process**: the
+runner calls `internals[name](log, args)` directly instead of spawning anything, where `args` is
+exactly the plan's own object (`{}` for the first two, `{ id }` for `plaud-fetch`).
+
+`vault-reindex` and `projekte-scan` run **always for real, regardless of sample or configured** -
+there is no fixture stand-in for either, because both already have their own bundled sample data
+to run against (the fixture vault, the fixture workshop) and running them for real is cheap.
+`plaud-fetch` differs: `index.ts` wires it to the same `runPlaudFetch` (`plaud-fetch.ts`) in both
+worlds, but that function branches on `deps.sample` itself - under sample data it logs the three
+calls it would have made (`list_files page 1`, `get_transcript <id>`, `get_note <id>`) and returns
+without writing anything or ever reaching `withPlaud`. The sample stand-in lives inside the job
+function, not in a swapped-out `argv` the way the four spawn kinds get `fakeSpawn` below.
 
 `server/src/eingang/` itself never imports from `server/src/vault/` or `server/src/projekte/` -
-`RunnerInternals`' two functions are generic `(log) => Promise<void>` closures, and `index.ts`, the
-composition root, is what actually wires them to `indexAll` (vault) and `scanProjects` (projekte)
-when it builds the runner. This is different from Aufgaben and Projekte's own documented exception
-to "one database per app" (see `PROJECT.md`'s Bench OS decisions): those two import
-`server/src/vault/` directly inside their own route and db modules, where Eingang's own module
-graph stays as isolated from its siblings as every other pair of apps.
+`RunnerInternals`' three functions are generic `(log, args) => Promise<void>` closures, and
+`index.ts`, the composition root, is what actually wires them to `indexAll` (vault), `scanProjects`
+(projekte) and `runPlaudFetch` (Plaud, over `withPlaud`) when it builds the runner. This is
+different from Aufgaben and Projekte's own documented exception to "one database per app" (see
+`PROJECT.md`'s Bench OS decisions): those two import `server/src/vault/` directly inside their own
+route and db modules, where Eingang's own module graph stays as isolated from its siblings as
+every other pair of apps.
 
 The four remaining kinds spawn a real command only in the configured world - each script lives
 under `<skillsDir>`, but runs with its cwd set to the one folder its own work belongs in, never to
 `skillsDir` itself:
 
 - `plaud-sync` runs `<skillsDir>/plaud/scripts/plaud-sync.sh` with cwd `<plaudHome>`.
-- `plaud-process` runs `claude -p` with cwd `<plaudHome>`, a fixed prompt naming the target file
-  under `<plaudHome>/inbox`, a `--max-turns` ceiling and an explicit `--allowedTools` list.
+- `plaud-process` runs `claude -p` with cwd `<plaudHome>`, a prompt naming the target file under
+  `<plaudHome>/inbox`, a `--max-turns` ceiling and an explicit `--allowedTools` list; when the
+  request named a `projekt` (checked against the vault's handoff slugs, see `## The fence` above),
+  the prompt gains one more sentence, `Trage projekt: <slug> in das Frontmatter der Notiz ein.` -
+  so the prompt is no longer fixed once a project is chosen.
 - `aufgaben-import` also runs `claude -p`, with cwd `<vaultDir>`, a prompt naming the target Plaud
   note, the same `--max-turns`/`--allowedTools` shape, and `--add-dir <vaultDir>` - the one
   directory this run may write under.
@@ -140,15 +166,20 @@ requested (`EndReason`, first cause wins via `markEndReason`'s `??=`).
   could ever be observed.
 - **Per-kind timeouts** (`JOB_TIMEOUTS_MS` in `jobs.ts`): `plaud-sync` 5 minutes, `plaud-process`
   20 minutes, `aufgaben-import` 15 minutes, `controlling` 45 minutes, `vault-reindex` and
-  `projekte-scan` 10 minutes each. A timeout on a spawned job escalates the kill; a timeout on an
-  internal job cannot cut it short - there is no process to signal - so it can only relabel the
-  eventual outcome `"timeout"` once the function itself finishes.
+  `projekte-scan` 10 minutes each, `plaud-fetch` 5 minutes. A timeout on a spawned job escalates
+  the kill; a timeout on an internal job cannot cut it short - the runner itself tracks no process
+  for one - so it can only relabel the eventual outcome `"timeout"` once the function itself
+  finishes. `plaud-fetch` is the one internal kind that does own a process the runner never sees:
+  `withPlaud` (`plaud-mcp.ts`) spawns the MCP as its own child, over stdio, and ends the session
+  itself after 120 seconds (`PLAUD_TIMEOUTS.sessionMs`) if nothing else has settled it by then - a
+  hung fetch is cut short by that session timeout, well inside `plaud-fetch`'s own 5-minute ceiling,
+  not by `runner.ts` sending anything.
 - **`kill(id)` returns one of three outcomes** the route layer maps directly to HTTP: `"killed"` (a
   SIGTERM was sent, 200), `"not_running"` (the id is absent or already finished, 409 "not
-  running"), `"internal"` (the record exists but has no child process - internal jobs cannot be
-  cancelled, 409 "internal jobs cannot be cancelled"). The switch in `routes.ts` is on this string
-  union, deliberately, not truthiness - `"not_running"` and `"internal"` are both non-empty
-  strings and would otherwise read as success.
+  running"), `"internal"` (the record exists but has no child process the runner tracks - internal
+  jobs cannot be cancelled through this endpoint, 409 "internal jobs cannot be cancelled"). The
+  switch in `routes.ts` is on this string union, deliberately, not truthiness - `"not_running"` and
+  `"internal"` are both non-empty strings and would otherwise read as success.
 - **`failStaleRunning`** (`db.ts`), called once at boot in `index.ts` before any job can start,
   flips every row still `"running"` to `"failed"` with a null exit code - a server killed mid-job
   leaves its row stuck `"running"` forever otherwise, since nothing else ever calls `finishJob`
@@ -164,6 +195,63 @@ synchronously once the job row is inserted, but the log file's `createWriteStrea
 asynchronously, so a client polling this route immediately after the 201 - exactly what the UI
 does - can land in that window. `tailLog` catches only `ENOENT` for this; any other read failure
 (a permissions error, a path that turns out to be a directory) still throws.
+
+## The Plaud MCP
+
+`plaud-mcp.ts` is Bench's own stdio client for `npx -y @plaud-ai/mcp@latest` - about a hundred
+lines, no `@modelcontextprotocol/sdk` dependency, the same reasoning as running `gh` directly.
+`withPlaud(command, fn, timeouts?)` spawns the command, performs the handshake, hands `fn` a
+`call(tool, args)` closure, and kills the child once `fn` settles - **one process per listing or
+per fetch**, never a kept-open connection.
+
+- **The handshake** sends `initialize` (`protocolVersion: "2025-06-18"`, empty `capabilities`,
+  `clientInfo: { name: "bench", version: "1.0.0" }`), waits for its reply, then sends
+  `notifications/initialized` - a notification, carrying no id and expecting no reply - before
+  handing `fn` its `call`. `call(tool, args)` sends `tools/call`, joins the result's text content
+  blocks with `\n`, and throws a `PlaudError` when the result carries `isError: true`.
+- **Four failure kinds** (`PlaudFailure`), typed so a route answers a `source` rather than a 500:
+  `"off"` (`command === "off"` - `BENCH_PLAUD=off` or the sample world - thrown before anything is
+  spawned), `"unauthenticated"` (the failing text matches `/401|not authenticated/i`), `"not_found"`
+  (the text matches `/404|not found/i` - in practice this only ever fires from `findRecording`'s
+  own client-side search, not from the MCP: the probe found the MCP itself answers an unknown id
+  with a 500, not a 404, so that case classifies `"unreachable"` instead), and `"unreachable"` for
+  everything else - a spawn `error`, a malformed JSON-RPC frame, a call exceeding its 30-second
+  budget (`callMs`), the whole session exceeding 120 seconds (`sessionMs`), or the child exiting
+  mid-session. `classifyFailure` is the one function deciding between the first two and the
+  fallback; every other failure path constructs `"unreachable"` directly.
+- **stderr is discarded** (`stdio: ["pipe", "pipe", "ignore"]`) - it carries the MCP's own pino
+  JSON log, one line per tool call, nothing Bench reads.
+- **`BENCH_PLAUD=off`** is the e2e/sample switch, the `BENCH_GH=off` twin: `index.ts` sets
+  `plaudCommand` to the literal `"off"` when the env var is set or the sample world is active,
+  `REAL_PLAUD_COMMAND` (`["npx", "-y", "@plaud-ai/mcp@latest"]`) otherwise, and prints
+  `Plaud MCP: on | off` at boot either way.
+- **The reply shapes, as the probe found them** (`.superpowers/sdd/PLAN-plaud-mcp/probe-report.md`,
+  shapes only): `list_files` answers `{ type: "list", data: [...], page, page_size }`; Bench asks
+  `page_size: 20` (the MCP's own floor is 10) and sets `nextPage = page + 1` only when `data` holds
+  exactly 20 entries. Of an entry, `parseListFiles`/`toRecording` (`plaud-fetch.ts`) read `id`,
+  `name` (blank becomes `"Ohne Titel"`), `start_at` (kept only when it matches
+  `YYYY-MM-DDTHH:MM:SS`'s shape - it becomes a path segment in the fetched file's name, so an
+  unexpected value is blanked rather than trusted) and `duration` (milliseconds). A transcript page
+  (`block: "transaction"` or omitted) is `{ segments: [...], next_cursor }`, each segment carrying
+  `start_time`/`end_time` (milliseconds) and `speaker`/`content`; Bench asks `limit: 500` and
+  follows `next_cursor` until it is `null`. Three shapes mean "nothing here", not an error: a bare
+  `[]` (untranscribed recording, any block), the `mark_memo` block's plain-text
+  `Block "mark_memo" not available for this recording. ...` line for a transcribed recording
+  without marks, and an empty `get_note` array - `jsonOf` returns `null` for the plain-text line,
+  which the fetch logs verbatim (sliced to 120 characters) rather than as a mark count. `get_note`
+  answers an array of entries; only the one with `data_type: "auto_sum_note"` is read, and only
+  when its `data_content` is non-empty - the `high_light` entry is ignored, since highlights come
+  from the `mark_memo` block instead.
+- **The fetched file's name and text.** `fetchedFileName` picks
+  `<start's day, or "ohne-datum">_<slugify(titel)>-transkript.md`, trying `-2`, `-3`, ... against
+  whatever `taken` (a name already in `inbox/` or `archiv/`) reports. `slugify` lowercases, maps
+  the four German umlauts/`ß` to their ASCII digraphs, replaces everything else with hyphens, trims
+  the ends and caps the result at 60 characters, falling back to `"aufnahme"` if nothing is left.
+  `renderFetchedFile` writes the frontmatter (`aufnahme`, `titel`, `datum`, `start`, `dauer`,
+  `geholt`) and the three sections `## Transkript`, `## Markierungen`, `## KI-Notiz (Plaud)` -
+  the latter two rendering the line `Keine.` when there are no marks or no note; `## Transkript`
+  itself is never empty by the time this runs, since `assembleFetch` already refuses a recording
+  with no segments before `renderFetchedFile` is ever called.
 
 ## Inbox reconciliation
 
@@ -198,6 +286,22 @@ recursion - filtered and reconciled, newest first by `mtime`:
   job's `args.file` back out of its stored `argsJson`; `listInbox` itself stays pure and takes the
   resulting set as plain data.
 
+Beside that name-based reconciliation sits a second one, by Plaud recording id, for the
+`Plaud-Aufnahmen` panel:
+
+- **`frontmatterValue(text, key)` generalises `quelleOf`'s colon-scan** to any frontmatter key, not
+  only `quelle` - the same tolerant line-by-line reader, now shared by `quelleOf(text)` (`quelle`)
+  and the id scan below (`aufnahme`).
+- **`localRecordingIds(dirs)` reads every `.md` directly inside `inboxDir`, `archivDir` and
+  `notizenDir` once**, collecting each folder's set of `aufnahme:` ids into a separate `Set` per
+  folder (`LocalIds`) - the same once-per-listing-call shape `noteQuellen` already uses, not once
+  per recording. `isLocal(id, local)` is true when any of the three sets carries it.
+- **`plaudStatus(id, local, inFlight)` reconciles in one fixed order**: `notizen` beats `archiv`
+  beats `inbox` beats a running `plaud-fetch` job whose own recorded `args.id` names it, beats
+  `"neu"` - the id-based twin of `listInbox`'s own order, applied to recordings instead of watched
+  files. `routes.ts`'s `inFlightIds` is `inFlightFiles`'s twin too, reading every running
+  `plaud-fetch` job's `args.id` back out of its `argsJson`.
+
 ## The launchd reader
 
 `listScheduledRuns` (`schedule.ts`) is read-only over `~/Library/LaunchAgents` (or the fixture's
@@ -224,16 +328,27 @@ shows what a person already set up by hand.
 
 ## The API
 
-Mounted at `/api/eingang` (`routes.ts`), six routes:
+Mounted at `/api/eingang` (`routes.ts`), eight routes:
 
 | Route                 | Returns                                                                                                     |
 | --------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `GET /inbox`          | `{ source, files }` - every watched file, reconciled                                                        |
+| `GET /plaud?page=`    | `{ source, recordings, nextPage }` - the Plaud listing, reconciled by id; never a 500, see below            |
+| `GET /projekte`       | `{ slugs }` - the vault's handoff slugs, for the `Projekt` select                                           |
 | `GET /jobs`           | `{ jobs }` - the last 50 job rows, most recently started first                                              |
 | `GET /jobs/:id`       | `{ job, log }` - one job and its log tail; 404 for an unknown id                                            |
 | `POST /jobs`          | `{ kind, args? }` in, `{ job }` out (201); 400 a fenced kind or argument, 409 the same kind already running |
 | `POST /jobs/:id/kill` | `{ job }` (200) killed; 404 unknown id; 409 not running, or internal                                        |
 | `GET /schedule`       | `{ runs }` - the allowlisted launchd entries                                                                |
+
+`GET /plaud` answers `source: "mcp" | "sample" | "off" | "unauthenticated" | "unreachable"` with an
+always-200 `{ recordings: [], nextPage: null }` for every non-`mcp` source - a Plaud Bench cannot
+reach never breaks the page. Under sample data, page 1 answers the bundled
+`fixture/plaud-aufnahmen.json` (itself exactly a `list_files` reply, so the sample world runs
+through the same parser as the real one) and every later page answers empty. In a configured
+world, a `PlaudError` thrown out of `withPlaud` is caught here specifically - the same async-handler
+shape `projekteRouter`'s `POST /scan` uses, where Express 5 forwards any other rejection to its
+error middleware and still 500s.
 
 `POST /jobs` builds the child's environment as
 `{ ...process.env, PLAUD_HOME: paths.plaudHome ?? undefined }` - the one variable a spawned skill
@@ -244,9 +359,27 @@ any of the three plaud-facing kinds with a null `plaudHome` before a plan reache
 ## The web app
 
 `App.tsx` (served at `/eingang`, `main.tsx` renders it directly with no router) fetches the inbox,
-the jobs list and the schedule on load, and renders, in order: the inbox list, the jobs panel, an
-optional log view for whichever job's row was clicked, and the schedule panel.
+the jobs list, the schedule, the Plaud listing (`GET /plaud?page=1`) and the vault's handoff slugs
+(`GET /projekte`) on load, and renders, in order: the inbox list, `AufnahmenPanel`, the jobs panel,
+an optional log view for whichever job's row was clicked, and the schedule panel.
 
+- **`AufnahmenPanel`** (`components/AufnahmenPanel.tsx`; landmark
+  `<section aria-labelledby="eingang-aufnahmen">` /
+  `<h2 id="eingang-aufnahmen">Plaud-Aufnahmen</h2>`) sits between the inbox list and the jobs
+  panel: one row per recording (`titel`, `recordingMetaText` for `start`/`dauer`, and a status
+  chip - `Neu`, `Wird geholt`, `Im Eingang`, `Im Archiv`, `Notiz vorhanden`) and a `Holen` button,
+  enabled only while `status === "neu"`, disabled otherwise with the status label as its `title`,
+  `aria-label="Holen: <titel>"` either way. A non-`mcp` source renders one line in place of the
+  rows instead: `Beispieldaten` (`sample`), `Plaud ist nicht konfiguriert.` (`off`),
+  `Nicht angemeldet - im Terminal /plaud starten.` (`unauthenticated`), `Plaud nicht erreichbar.`
+  (`unreachable`); an empty `mcp` list reads `Keine Aufnahmen.`. `Neu laden` always shows;
+  `Mehr laden` only while `nextPage` is not `null`.
+- **The listing loads with the page, after `Neu laden`, and again right after a `plaud-fetch`
+  start** - `runJob` (`App.tsx`) only adds the Plaud refetch to its
+  `Promise.all` when `kind === "plaud-fetch"`, so starting any other kind does not pay for a
+  request nothing else here reacts to. The listing is otherwise **never polled**: a fetch that
+  finishes in the background only shows its recording as `Im Eingang` on the next `Neu laden` or
+  page load, the same way the jobs table only reflects a finished job on the next action.
 - **`isProcessable`** (`types.ts`) gates the inbox row's `Verarbeiten` button on three conditions
   at once: `kind === "text"`, `status === "unverarbeitet"`, and the file's own directory basename
   is literally `"inbox"`. The third condition is why a matched file sitting in a second watch
@@ -254,12 +387,20 @@ optional log view for whichever job's row was clicked, and the schedule panel.
   title `"Erst einsammeln"` even while `unverarbeitet` - `planPlaudProcess`'s fence only ever
   resolves a bare filename against `<plaudHome>/inbox`, so a working button has to mean the file is
   already there.
+- **A processable inbox row also gets a `<select aria-label="Projekt: <file>">`**
+  (`components/InboxList.tsx`'s `ProjektSelect`), offering `Kein Projekt` plus every slug
+  `GET /api/eingang/projekte` returns. `handleProcess` (`App.tsx`) passes the chosen slug, or
+  `null` for `Kein Projekt`, as `plaud-process`'s optional `args.projekt` - the same slug
+  `planPlaudProcess`'s fence checks against the vault's handoffs (`## The fence` above) before it
+  ever reaches the prompt. The button's own log label becomes `Verarbeiten: <file> (<slug>)` with a
+  project chosen, `Verarbeiten: <file>` without (`jobKindLabel`, `format.ts`).
 - **Audio files show `"Nur Ablage"`** instead of a button - Eingang lists audio, it never offers to
   process it; nothing in `jobs.ts` has a kind that takes an audio file.
-- **`JobsPanel`'s five start buttons** cover every kind except `plaud-process` and
-  `aufgaben-import`, which only start from a specific inbox row (`handleProcess` in `App.tsx`) or,
-  for `aufgaben-import`, are not wired into this UI at all yet - `jobKindLabel`'s
-  `aufgaben-import` entry exists for a job started outside this panel to still render correctly.
+- **`JobsPanel`'s five start buttons** cover every kind except `plaud-process`, `aufgaben-import`
+  and `plaud-fetch` - `plaud-process` and `plaud-fetch` only start from a specific inbox or
+  recording row (`handleProcess`/`handleFetch` in `App.tsx`), and `aufgaben-import` is not wired
+  into this UI at all yet; `jobKindLabel`'s `aufgaben-import` entry exists for a job started outside
+  this panel to still render correctly.
 - **`LogView` polls `GET /jobs/:id` every 2 seconds while the job is `running`**, and stops the
   moment a poll's own response reports a non-running status - a human-watchable tail, not a
   stream. A job already finished when the panel opens polls exactly once. Escape or the
@@ -276,17 +417,35 @@ optional log view for whichever job's row was clicked, and the schedule panel.
 ## Tests
 
 **Unit** (`server/test/eingang/`) covers `locateEingang`'s sample/configured switch and the
-`INBOX_WATCH`-without-`CONTROLLING_DIR` case, `planJob`'s whole fence one check at a time, the
-runner's spawn/internal/broken-stream/kill/timeout paths against the real fake-job fixture
-(`runner.test.ts`), the routes against an in-memory db and the sample fixture tree
-(`routes.test.ts`), the inbox reconciliation order (`inbox.test.ts`), and the plist scanner against
-both the bundled fixture plists and hand-written ones (`schedule.test.ts`).
+`INBOX_WATCH`-without-`CONTROLLING_DIR` case, `planJob`'s whole fence one check at a time including
+the `plaud-fetch` id and the `plaud-process` `projekt` cases (`jobs.test.ts`), the runner's
+spawn/internal/broken-stream/kill/timeout paths against the real fake-job fixture
+(`runner.test.ts`), the routes against an in-memory db and the sample fixture tree, including
+`GET /plaud`'s and `GET /projekte`'s reply for every source (`routes.test.ts`), the inbox
+reconciliation order by name and by id (`inbox.test.ts`), and the plist scanner against both the
+bundled fixture plists and hand-written ones (`schedule.test.ts`).
+
+`plaud-mcp.test.ts` runs the stdio client against `fixture/fake-plaud-mcp.mjs`: the handshake and a
+`tools/call` round trip, an `isError` result classified by kind, a call that times out unanswered,
+the session timeout firing ahead of a call's own timer, a pending call failing when the MCP exits
+mid-session, a malformed (non-JSON) frame, a missing binary failing without throwing out of the
+process, and `command: "off"` never spawning anything. `plaud-fetch.test.ts` covers the parsers
+against the probed shapes (an untitled recording, a `start_at` that fails the shape check and gets
+blanked), `fetchRecording` following `next_cursor` and logging each call, the naming/slugify/render
+helpers including the `Keine.` fallbacks, `writeFetchedFile`'s `wx` refusal and its realpath refusal
+on a symlinked `inbox/`, `runPlaudFetch` under sample data (logs the three calls, writes nothing)
+and against the fake MCP (writes the file), and `assembleFetch` refusing a recording with no
+transcript so nothing is written.
 
 **End to end** (`e2e/eingang/`) runs against the built sample fixture: `inbox.spec.ts` asserts the
-three fixture files' reconciled status and that only the unprocessed text file's button is
-enabled; `jobs.spec.ts` covers an internal job (`vault-reindex`) reaching `Fertig` without a
-reload and its log showing the real reindex line, and a spawned job (`plaud-sync`, over the fake
-runner) cancelled mid-run reaching `Abgebrochen` with its log intact, followed by the double-start 409.
+four fixture files' reconciled status, with both unprocessed text files' `Verarbeiten` buttons
+enabled and the already-noted one disabled; `jobs.spec.ts` covers an internal job
+(`vault-reindex`) reaching `Fertig` without a reload and its log showing the real reindex line, and
+a spawned job (`plaud-sync`, over the fake runner) cancelled mid-run reaching `Abgebrochen` with its
+log intact, followed by the double-start 409; `plaud.spec.ts` covers the sample listing's three
+recordings and their three marks, `Holen` on the new one reaching `Fertig` with its log reading
+`sample world: nothing written`, and `Verarbeiten` with a project chosen producing a job row whose
+label carries the chosen slug.
 
 ## Things that will bite
 
@@ -336,6 +495,37 @@ runner) cancelled mid-run reaching `Abgebrochen` with its log intact, followed b
   that is acted on afterwards; a path component swapped for a symlink in the gap between the two
   escapes the fence. Dismissed on the same ground as the hardlink above - exploiting it needs the
   same write access to the folder that already permits placing an ordinary file there.
+- **`npx -y @plaud-ai/mcp@latest` resolves `@latest` on every single spawn, and needs the network
+  for it.** Every listing and every fetch is its own process (`withPlaud` per call), so `npx`
+  re-checks the registry for the newest published version each time rather than reusing a resolved
+  version across calls - offline or slow to resolve, that resolution step fails or stalls before
+  the MCP itself has even started, ahead of `plaud-mcp.ts`'s own 30-second/120-second budgets.
+- **The first spawn after a new version is published is slow.** `npx` has to download and extract
+  the newer package into its cache the first time; the next listing or fetch after that runs
+  measurably slower than every one after it, which can look like a hung call rather than a one-time
+  cache fill.
+- **`wx` is the last-resort guard, not the primary one.** `fetchedFileName` is what actually avoids
+  a collision, by trying `-2`, `-3`, ... against names already in `inbox/` or `archiv/` before
+  `writeFetchedFile` ever runs; the `wx` flag on the write itself only matters for a race between
+  that name check and the write landing - it throws `EEXIST` rather than silently overwriting, it
+  does not pick the numeric suffix.
+- **A recording collected the old way carries no `aufnahme:` id.** `plaud-sync`'s hand exports, and
+  any note or archived file processed before this change, have no `aufnahme:` frontmatter, so
+  `localRecordingIds` never marks their id local - the same recording, later seen again in the MCP
+  listing, shows `Neu` even though a note or transcript for it already exists under a different
+  filename. Accepted by design, not guessed from a filename.
+- **The listing is not polled.** A recording fetched, or a newly appeared one, only shows its
+  updated mark on the next `Neu laden` or page load - see `## The web app` above.
+- **An unknown id answers `500`, not `404`.** The probe found the MCP itself returns
+  `isError: true` with `API error: 500 Internal Server Error` text for a `get_transcript`/`get_note`
+  call naming an id no page carries; `classifyFailure` only tells `401` and an explicit `404` apart,
+  so this classifies `"unreachable"`. `PlaudError`'s own `"not_found"` kind only ever comes from
+  `findRecording`'s client-side search failing to meet the id within `FIND_PAGES` (10) pages of
+  `list_files`.
+- **`list_files`'s `page_size` has a floor of 10.** The MCP refuses anything below that
+  (`"Input should be greater than or equal to 10"`); Bench always asks for the fixed `PAGE_SIZE`
+  (20) and never varies it, so the floor is dormant rather than actively avoided - a future change
+  lowering it below 10 would start failing every listing call.
 
 ## Related documents
 

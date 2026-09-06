@@ -34,7 +34,8 @@ export interface JobPaths {
   projektSlugs: () => string[]; // the handoff slugs the vault index knows, injected by the root
 }
 
-/** Per-kind ceiling the runner (Task 4) kills a job at; both internal kinds share one budget. */
+/** Per-kind ceiling the runner (Task 4) kills a job at; the three internal kinds get 10, 10 and
+    5 minutes respectively, not one shared budget. */
 export const JOB_TIMEOUTS_MS: Record<JobKind, number> = {
   "plaud-sync": 5 * 60 * 1000,
   "plaud-process": 20 * 60 * 1000,

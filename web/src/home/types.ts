@@ -183,8 +183,8 @@ function handoffHints(row: HandoffRow): string[] {
   return hints;
 }
 
-/** A handoff row's meta line - age first, then the same staleness/dirty-repo/open-task/missing
-    hints the Projekte app's own Stand card shows, joined the same way. */
+/** A handoff row's meta line - age first, then the same staleness/dirty-repo/open-task/
+    Plaud-note/missing hints the Projekte app's own Stand card shows, joined the same way. */
 export function handoffMeta(row: HandoffRow, today: string): string {
   return [ageText(ageDays(row.updated, today)), ...handoffHints(row)].join(
     " · ",

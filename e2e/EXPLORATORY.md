@@ -195,14 +195,18 @@ rather than realistic breadth:
 
 ## Eingang
 
-Covered by specs against the built sample fixture (`e2e/eingang/{inbox,jobs}.spec.ts`): the three
-fixture inbox files reconciled to their status with the audio file correctly unbuttoned, an
+Covered by specs against the built sample fixture (`e2e/eingang/{inbox,jobs,plaud}.spec.ts`): the
+four fixture inbox files reconciled to their status with the audio file correctly unbuttoned, an
 internal job (`vault-reindex`) reaching `Fertig` without a reload and its log showing the real
-reindex line, and a spawned job (`plaud-sync`, over the fake runner) cancelled mid-run reaching
-`Abgebrochen` with its log intact, followed by the double-start 409. The unit suite
-(`server/test/eingang/`) covers the whole write fence one check at a time, against hostile
-arguments, and the runner's spawn/internal/broken-stream/kill/timeout paths against the real
-fake-job fixture.
+reindex line, a spawned job (`plaud-sync`, over the fake runner) cancelled mid-run reaching
+`Abgebrochen` with its log intact followed by the double-start 409, and the sample
+`Plaud-Aufnahmen` panel - its three recordings and their three marks, `Holen` on the new one
+reaching `Fertig` against the sample fetch that writes nothing, and `Verarbeiten` with a project
+chosen carrying the chosen slug into the job's own label. The unit suite (`server/test/eingang/`)
+covers the whole write fence one check at a time - including the `plaud-fetch` id and
+`plaud-process` `projekt` cases - against hostile arguments, the stdio client against
+`fixture/fake-plaud-mcp.mjs`, the fetch's parsers and file writer, and the runner's
+spawn/internal/broken-stream/kill/timeout paths against the real fake-job fixture.
 
 Left to judgement, because a real `claude -p` invocation, a real skill script and a real machine's
 `~/Library/LaunchAgents` have no place in an automated suite:
@@ -234,6 +238,19 @@ Left to judgement, because a real `claude -p` invocation, a real skill script an
   also check then act, and a path component swapped for a symlink in the gap between the two
   escapes - the same dismissal applies: the swap needs the same write access to the folder that
   already permits placing a file there.
+- **The real Plaud MCP.** Every e2e worker and every unit test talks to
+  `fixture/fake-plaud-mcp.mjs`, never the real `npx -y @plaud-ai/mcp@latest` - a listing against a
+  real, populated library, paging past the first page, the 401/not-authenticated path, and a real
+  `Holen` actually writing a `.md` under `~/Plaud/inbox` are none of them exercised by the suite;
+  checked by hand instead, against the real account, in this change's own real-machine gate.
+- **The real `/plaud` skill run with a project.** `Verarbeiten` with a `projekt` chosen only ever
+  starts `fixture/fake-job.mjs` in the suite - whether the real skill actually writes
+  `projekt: <slug>` into the finished note's frontmatter the way the fence's prompt tells it to is
+  confirmed by hand, not by an automated spec.
+- **The listing is not polled, by design** (see `docs/eingang/IMPLEMENTATION.md`'s "The web app").
+  `plaud.spec.ts` never leaves the panel open across a background fetch finishing - the sample
+  fetch settles inside the same test before anything asserts on it - so a recording's mark actually
+  going stale until the next `Neu laden` or page load is reasoned about, not watched happen.
 
 ## Kontext
 

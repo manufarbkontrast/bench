@@ -53,7 +53,8 @@ apps behind them use.
 /api/projekte/stand`, already sorted staleness-first) renders one row per project - its slug, then
   age and the same badge wording `standHints` produces in the Projekte app itself (`Stand
 veraltet`, `1 Repo ungesichert` / `<n> Repos ungesichert`, `1 offene Aufgabe` / `<n> offene
-Aufgaben`, `Repo nicht gefunden: <name>` - `handoffMeta`/`handoffHints` in `types.ts`, written
+Aufgaben`, `1 Plaud-Notiz seit Handoff` / `<n> Plaud-Notizen seit Handoff`, `Repo nicht gefunden:
+<name>` - `handoffMeta`/`handoffHints` in `types.ts`, written
   again here rather than imported), capped at
   `HANDOFF_ROWS` (8) with a trailing `… und <n> weitere` row linking to `/projekte/` once there are
   more. Below that, `movingProjects` renders repositories - but only from `stand.ohneProjekt`, the

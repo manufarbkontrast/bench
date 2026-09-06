@@ -47,12 +47,32 @@ becomes a warning line (`Handoff ohne projekt: <file>`) and is dropped; a second
 slug already seen becomes `Doppelter Slug <slug>: <file>` and is dropped too - first note path
 (sorted) wins, the same dedupe rule `couple.ts` applies to duplicate project paths. `stand.ts`'s
 `projektStand` couples each handoff's `repos` entries to `projects` rows by lowercased path
-equality; entries that match nothing land in `missingRepos` as their basenames. Three signals are
+equality; entries that match nothing land in `missingRepos` as their basenames. Four signals are
 computed at read time, never stored: `veraltet` (the handoff's `updated` is earlier than the local
 calendar day of the newest coupled commit), `dirtyRepos` (how many coupled repos carry uncommitted
-changes), and `offeneTasks` (open vault tasks whose _containing note's_ `projekt` frontmatter
-matches the slug, outside `50_Workflow`/`Templates`/`90_Archive`). A `projects` row that no
+changes), `offeneTasks` (open vault tasks whose _containing note's_ `projekt` frontmatter
+matches the slug, outside `50_Workflow`/`Templates`/`90_Archive`), and `plaudNotizen` (Plaud notes
+dated after the handoff - see "The fourth signal" below). A `projects` row that no
 handoff's `repos` names at all lands in `ohneProjekt`.
+
+### The fourth signal: Plaud notes since the handoff
+
+`projektStand` takes a third parameter, `notizenDir: string | null` - the located Plaud notes
+folder, injected by the composition root the same way `ProjekteContext.notizenDir` reaches
+`routes.ts` (`index.ts` passes it `plaudLocation.dir`, the same value Aufgaben's own Plaud reading
+already uses). `plaudNotes` (`stand.ts`) reads every `.md` directly inside it once per `GET /stand`
+call - `null` or an unreadable directory contributes nothing rather than throwing - and
+`plaudNoteMeta` reads each one's `projekt` and `datum` frontmatter with a third, hand-rolled
+line scanner: the same tolerant colon-scan `server/src/eingang/inbox.ts`'s `frontmatterValue` and
+`server/src/aufgaben/plaud.ts`'s `splitFrontmatter` already use, written a third time here rather
+than imported, since the three apps never import each other. `plaudNotizenFor` then counts, per
+handoff, the notes whose `projekt` equals the slug and whose `datum` is a day **after** the
+handoff's `updated` - strictly later, not on the same day, so the meeting that produced the handoff
+note itself never counts against it - answering `0` when the handoff carries no `updated` at all.
+
+Only `.md` regular files are read: `plaudNotes` filters on `Dirent.isFile()` the same way
+`listInbox`/`noteQuellen` do in Eingang, so a symlinked note is silently excluded here too (see
+Eingang's own "Things that will bite" for the same gap on that side).
 
 ## The scan pipeline
 
@@ -173,7 +193,7 @@ Mounted at `/api/projekte` (`routes.ts`), four routes:
 | `POST /scan`         | `{ summary }` - a full rebuild, joining an in-flight scan if one is already running                       |
 | `GET /project?path=` | `{ project, duplicates }` for one absolute path, or 400/404                                               |
 
-`GET /stand` calls `projektStand(vaultDb, listProjects(db))` and answers `{ projekte, ohneProjekt,
+`GET /stand` calls `projektStand(vaultDb, listProjects(db), ctx.notizenDir)` and answers `{ projekte, ohneProjekt,
 warnings }`, each `projekte` entry the project-level shape above ("The project level, above the
 rows"). `projekte` is sorted `veraltet` first, then by `updated` ascending (oldest first, unknown
 dates last); `ohneProjekt` keeps `listProjects`'s own order, `ORDER BY path` - path-ascending, not
@@ -236,10 +256,11 @@ Handoffs.` when `projekte` is empty, `Alle Repos sind einem Projekt zugeordnet.`
   no redundant second line. Below that: `Handoff vom <date> · <age>` or `Datum fehlt`
   (`web/src/projekte/stand.ts`'s `ageDays`/`ageText`/`dayText`, the browser-side counterpart to
   `server/src/projekte/stand.ts`'s `localDay`); the badges `standHints` derives from the
-  `signals` and `missingRepos` (`Stand veraltet`, `1 Repo ungesichert` / `<n> Repos ungesichert`,
-  `1 offene Aufgabe` / `<n> offene Aufgaben`, one `Repo nicht gefunden: <name>` per missing entry -
-  keyed by index, since two missing entries under different parents can share a basename); the
-  `zustand` text verbatim in a `<pre>`
+  `signals` and `missingRepos`, in order: `Stand veraltet`, `1 Repo ungesichert` /
+  `<n> Repos ungesichert`, `1 offene Aufgabe` / `<n> offene Aufgaben`,
+  `1 Plaud-Notiz seit Handoff` / `<n> Plaud-Notizen seit Handoff`, one `Repo nicht gefunden: <name>`
+  per missing entry - keyed by index, since two missing entries under different parents can share a
+  basename; the `zustand` text verbatim in a `<pre>`
   (empty ones render no block at all); the `Handoff im Vault` link; then the coupled repositories
   as `RepoRow`s, each opening the same `Detail` panel as the other two views.
 - **`ProjectsTable`** sorts rows by `lastCommitAt` descending, nulls last; each row shows the
@@ -280,7 +301,9 @@ duplicate slug, a non-string `repos` entry, and a `repos` value present but not 
 `stand.test.ts` covers coupling by lowercased path, `missingRepos`, each signal with a positive and
 a negative case, the sort order, and the `50_Workflow` task exclusion - `TZ=Europe/Berlin` is
 pinned for the whole suite in `server/vitest.config.ts` so its day-boundary cases actually
-discriminate a correct local-day comparison from a UTC one (see `docs/CONTROLS.md`). `routes.test.ts`
+discriminate a correct local-day comparison from a UTC one (see `docs/CONTROLS.md`).
+`plaudNotizen` gets its own positive and negative cases, a note dated the same day as the handoff's
+`updated` (not counted - strictly after, not on), and a `null`/missing `notizenDir`. `routes.test.ts`
 covers `/stand`'s reply shape via supertest: a coupled handoff, a vault with no handoff notes at
 all (every row falls to `ohneProjekt`), and an empty `projects` table answered without triggering
 a scan.

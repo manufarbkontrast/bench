@@ -57,6 +57,16 @@ it). Every job passes through one fence before anything is spawned:
 - **The scheduled runs already configured on this machine**, shown for visibility only; Bench
   never creates, edits or removes one.
 
+## Plaud über den MCP
+
+Eingang also lists the newest Plaud recordings straight from the Plaud MCP - the same local-CLI
+pattern as `gh` - marks per recording id what already sits in `inbox/`, `archiv/` or `notizen/`,
+and fetches one transcript, its highlights and Plaud's own AI note into one Markdown file under
+`<plaudHome>/inbox` on a click. A processed note carries the id it was fetched from and the
+project the person picked in Eingang, which is what lets Projekte count the meetings a handoff
+does not know about yet. Full design in
+[changes/plaud-mcp/SPEC.md](../changes/plaud-mcp/SPEC.md).
+
 ## Not in scope
 
 Deliberately left out of this phase:
@@ -67,7 +77,7 @@ Deliberately left out of this phase:
   job kind takes an audio file as its target in this phase.
 - **Editing or retrying a finished job.** A job's row is a historical record; starting the same
   work again means clicking the button again, which starts a new row.
-- **Any job kind beyond the fixed six.** The catalog is closed; adding a new kind is a
+- **Any job kind beyond the fixed seven.** The catalog is closed; adding a new kind is a
   code change, not a runtime configuration.
 
 ## Success criteria

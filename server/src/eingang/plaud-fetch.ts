@@ -11,7 +11,7 @@ import {
 export interface Recording {
   id: string;
   titel: string; // list_files name, "Ohne Titel" when empty
-  start: string; // list_files start_at as given, "YYYY-MM-DDTHH:MM:SS", local
+  start: string; // list_files start_at if it matches "YYYY-MM-DDTHH:MM:SS", else "" - local
   dauer: number; // milliseconds
 }
 
