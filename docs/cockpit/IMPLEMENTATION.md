@@ -98,7 +98,8 @@ first `## ` heading and stops at the next one or end of body, and that the Proje
 
 **End to end** (`e2e/cockpit.spec.ts`) loads `/` against the built sample data and asserts all
 seven headings, an overdue task under `Überfällig`, the Eingang panel's count against the sample
-fixture's own two unprocessed files with its link into `/eingang/`, the session note's text under
+fixture's own three unprocessed files - the werkstattrunde and werftbegehung transcripts and the
+m4a recording - with its link into `/eingang/`, the session note's text under
 `Hier weitermachen` with a working link into Vault, and under `Projekte in Bewegung` both the
 `leuchtturm` handoff row (`Stand veraltet`, since `e2e/fixtures.ts` rewrites its `repos:` entry to
 this worker's own sample-workshop checkout) and the uncoupled `treibgut` row from `ohneProjekt`,

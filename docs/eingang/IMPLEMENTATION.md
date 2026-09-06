@@ -198,7 +198,7 @@ does - can land in that window. `tailLog` catches only `ENOENT` for this; any ot
 
 ## The Plaud MCP
 
-`plaud-mcp.ts` is Bench's own stdio client for `npx -y @plaud-ai/mcp@latest` - about a hundred
+`plaud-mcp.ts` is Bench's own stdio client for `npx -y @plaud-ai/mcp@latest` - about two hundred
 lines, no `@modelcontextprotocol/sdk` dependency, the same reasoning as running `gh` directly.
 `withPlaud(command, fn, timeouts?)` spawns the command, performs the handshake, hands `fn` a
 `call(tool, args)` closure, and kills the child once `fn` settles - **one process per listing or
@@ -354,7 +354,7 @@ error middleware and still 500s.
 `{ ...process.env, PLAUD_HOME: paths.plaudHome ?? undefined }` - the one variable a spawned skill
 script or `claude -p` invocation needs beyond what the parent process already carries. The `?? undefined`
 only matters for a kind that never reads `plaudHome` in the first place - `planJob` already refused
-any of the three plaud-facing kinds with a null `plaudHome` before a plan reaches this line.
+any of the four plaud-facing kinds with a null `plaudHome` before a plan reaches this line.
 
 ## The web app
 
