@@ -8,6 +8,7 @@ import * as scanModule from "../../src/projekte/scan.js";
 import { listProjects, openProjekteDb } from "../../src/projekte/db.js";
 import type { ProjekteContext } from "../../src/projekte/routes.js";
 import { openDb as openVaultDb } from "../../src/vault/db.js";
+import { projektOf } from "../../src/vault/index/frontmatter.js";
 import type { VaultContext } from "../../src/vault/routes/index.js";
 import { appWithProjekte, buildSampleContext } from "./app.js";
 import { initGitRepo, scratchDir } from "./tmp.js";
@@ -273,13 +274,14 @@ function insertHandoff(
 ): void {
   vaultDb
     .prepare(
-      "INSERT INTO notes (path, title, folder, frontmatter, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO notes (path, title, folder, frontmatter, projekt, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .run(
       "50_Workflow/Handoffs/Handoff_bench.md",
       "Bench",
       "50_Workflow/Handoffs",
       JSON.stringify(frontmatter),
+      projektOf(frontmatter),
       "",
       0,
       0,

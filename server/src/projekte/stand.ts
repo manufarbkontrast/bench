@@ -35,7 +35,7 @@ const EXCLUDED_FOLDERS = new Set(["50_Workflow", "Templates", "90_Archive"]);
 
 interface TaskRow {
   path: string;
-  frontmatter: string;
+  projekt: string;
 }
 
 export function localDay(ms: number): string {
@@ -48,18 +48,14 @@ export function localDay(ms: number): string {
 function openTaskCounts(vaultDb: Database.Database): Map<string, number> {
   const rows = vaultDb
     .prepare(
-      "SELECT t.path AS path, n.frontmatter AS frontmatter FROM tasks t JOIN notes n ON n.path = t.path WHERE t.done = 0",
+      "SELECT t.path AS path, n.projekt AS projekt FROM tasks t JOIN notes n ON n.path = t.path WHERE t.done = 0 AND n.projekt IS NOT NULL",
     )
     .all() as TaskRow[];
   const counts = new Map<string, number>();
   for (const row of rows) {
     if (row.path.split("/").some((segment) => EXCLUDED_FOLDERS.has(segment)))
       continue;
-    const projekt = (JSON.parse(row.frontmatter) as Record<string, unknown>)
-      .projekt;
-    if (typeof projekt !== "string") continue;
-    const slug = projekt.trim().toLowerCase();
-    counts.set(slug, (counts.get(slug) ?? 0) + 1);
+    counts.set(row.projekt, (counts.get(row.projekt) ?? 0) + 1);
   }
   return counts;
 }

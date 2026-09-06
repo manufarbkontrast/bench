@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import path from "node:path";
 import type Database from "better-sqlite3";
 import { openDb as openVaultDb } from "../../src/vault/db.js";
+import { projektOf } from "../../src/vault/index/frontmatter.js";
 import {
   parseUpdated,
   vaultHandoffs,
@@ -27,7 +28,7 @@ function buildVault(notes: NoteFixture[]): Database.Database {
     path.join(scratch.dir, `vault-${String(dbCount++)}.sqlite`),
   );
   const insert = db.prepare(
-    "INSERT INTO notes (path, title, folder, frontmatter, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO notes (path, title, folder, frontmatter, projekt, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
   );
   for (const note of notes) {
     insert.run(
@@ -35,6 +36,7 @@ function buildVault(notes: NoteFixture[]): Database.Database {
       note.title ?? path.posix.basename(note.path, ".md"),
       path.posix.dirname(note.path),
       JSON.stringify(note.frontmatter),
+      projektOf(note.frontmatter),
       note.body ?? "",
       0,
       0,
@@ -207,5 +209,17 @@ describe("vaultHandoffs", () => {
     const { handoffs, warnings } = vaultHandoffs(db);
     expect(handoffs[0].repos).toEqual([]);
     expect(warnings).toEqual([]);
+  });
+  it("warns about a projekt that fails the slug rule and drops the handoff", () => {
+    const db = buildVault([
+      {
+        path: `${HANDOFF}/Handoff_kaputt.md`,
+        frontmatter: { projekt: "Nicht Gültig!" },
+      },
+      { path: `${HANDOFF}/Handoff_ok.md`, frontmatter: { projekt: " Ok " } },
+    ]);
+    const { handoffs, warnings } = vaultHandoffs(db);
+    expect(handoffs.map((h) => h.slug)).toEqual(["ok"]);
+    expect(warnings).toEqual(["Ungültiger Slug in Handoff_kaputt.md"]);
   });
 });
