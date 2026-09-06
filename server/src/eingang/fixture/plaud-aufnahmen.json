@@ -1,0 +1,31 @@
+{
+  "type": "list",
+  "data": [
+    {
+      "id": "fix-lampe-0901",
+      "name": "Lampe für den Leuchtturm",
+      "created_at": "2026-09-01T09:02:11",
+      "serial_number": "FIXTURE00000001",
+      "start_at": "2026-09-01T09:00:00",
+      "duration": 1523000
+    },
+    {
+      "id": "fix-werft-0825",
+      "name": "Werftbegehung",
+      "created_at": "2026-08-25T14:31:00",
+      "serial_number": "FIXTURE00000001",
+      "start_at": "2026-08-25T14:00:00",
+      "duration": 600000
+    },
+    {
+      "id": "fix-hafen-0820",
+      "name": "Hafenrunde und Leuchtturm-Ausbau",
+      "created_at": "2026-08-20T10:06:40",
+      "serial_number": "FIXTURE00000001",
+      "start_at": "2026-08-20T10:00:00",
+      "duration": 300000
+    }
+  ],
+  "page": 1,
+  "page_size": 20
+}

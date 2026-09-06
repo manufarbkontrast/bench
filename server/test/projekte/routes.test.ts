@@ -1,3 +1,4 @@
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
 import type express from "express";
@@ -229,6 +230,7 @@ describe("sameName", () => {
       roots: [dir],
       source: "sample",
       gh: "off",
+      notizenDir: null,
     };
     const vault: VaultContext = {
       db: openVaultDb(":memory:"),
@@ -252,7 +254,12 @@ interface StandResponse {
   projekte: {
     slug: string;
     repos: { path: string }[];
-    signals: { veraltet: boolean; dirtyRepos: number; offeneTasks: number };
+    signals: {
+      veraltet: boolean;
+      dirtyRepos: number;
+      offeneTasks: number;
+      plaudNotizen: number;
+    };
   }[];
   ohneProjekt: { path: string }[];
   warnings: string[];
@@ -313,6 +320,34 @@ describe("GET /api/projekte/stand", () => {
         .sort((a, b) => Number(a > b) - Number(a < b)),
     );
     expect(body.warnings).toEqual([]);
+  });
+
+  it("counts a Plaud note dated after the handoff's updated, in the reply's signals", async () => {
+    const ctx = buildSampleContext(path.join(scratch.dir, "stand-plaud"));
+    const notizen = path.join(scratch.dir, "stand-plaud-notizen");
+    mkdirSync(notizen, { recursive: true });
+    writeFileSync(
+      path.join(notizen, "note.md"),
+      "---\nprojekt: bench\ndatum: 2020-01-02\n---\n",
+    );
+    const standApp = appWithProjekte(
+      { ...ctx.projekte, notizenDir: notizen },
+      ctx.vault,
+    );
+    await request(standApp).post("/api/projekte/scan");
+    const rows = listProjects(ctx.projekte.db);
+    const target = rows[0];
+
+    insertHandoff(ctx.vault.db, {
+      projekt: "bench",
+      updated: "2020-01-01",
+      repos: [target.path],
+    });
+
+    const res = await request(standApp).get("/api/projekte/stand");
+    expect(res.status).toBe(200);
+    const body = res.body as StandResponse;
+    expect(body.projekte[0].signals.plaudNotizen).toBe(1);
   });
 
   it("puts every row in ohneProjekt when the vault has no handoff notes", async () => {

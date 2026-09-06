@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { readdirSync, readFileSync, type Dirent } from "node:fs";
 import path from "node:path";
 import type { ProjectRow } from "./db.js";
 import { type Handoff, vaultHandoffs } from "./handoffs.js";
@@ -7,6 +8,7 @@ export interface Signals {
   veraltet: boolean;
   dirtyRepos: number;
   offeneTasks: number;
+  plaudNotizen: number;
 }
 
 export interface ProjektStand {
@@ -61,6 +63,66 @@ function openTaskCounts(vaultDb: Database.Database): Map<string, number> {
   return counts;
 }
 
+// The Plaud notes are machine-written from the /plaud skill's template, whose titel line can
+// carry its own ": " - the same line scanner server/src/eingang/inbox.ts's frontmatterValue and
+// server/src/aufgaben/plaud.ts's splitFrontmatter use, written a third time here because the
+// three apps never import each other.
+export function plaudNoteMeta(
+  text: string,
+): { projekt: string; datum: string } | null {
+  const lines = text.split("\n");
+  if (lines[0] !== "---") return null;
+  const closing = lines.indexOf("---", 1);
+  if (closing === -1) return null;
+  let projekt: string | null = null;
+  let datum: string | null = null;
+  for (const line of lines.slice(1, closing)) {
+    const sep = line.indexOf(": ");
+    if (sep === -1) continue;
+    const key = line.slice(0, sep);
+    const value = line.slice(sep + 2).trim();
+    if (key === "projekt") projekt = value.toLowerCase();
+    else if (key === "datum") datum = value.slice(0, 10);
+  }
+  return projekt !== null &&
+    projekt !== "" &&
+    datum !== null &&
+    /^\d{4}-\d{2}-\d{2}$/.test(datum)
+    ? { projekt, datum }
+    : null;
+}
+
+function plaudNotes(
+  notizenDir: string | null,
+): { projekt: string; datum: string }[] {
+  if (notizenDir === null) return [];
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(notizenDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  return entries
+    .filter((e) => e.isFile() && e.name.endsWith(".md"))
+    .flatMap(
+      (e) =>
+        plaudNoteMeta(readFileSync(path.join(notizenDir, e.name), "utf8")) ??
+        [],
+    );
+}
+
+// handoff.updated is narrowed here, in a local const, rather than asserted non-null inside the
+// filter callback below - a property access does not stay narrowed across a closure boundary.
+function plaudNotizenFor(
+  handoff: Handoff,
+  notes: { projekt: string; datum: string }[],
+): number {
+  const updated = handoff.updated;
+  if (updated === null) return 0;
+  return notes.filter((n) => n.projekt === handoff.slug && n.datum > updated)
+    .length;
+}
+
 function newestCommit(repos: ProjectRow[]): number | null {
   return repos.reduce<number | null>(
     (max, r) =>
@@ -75,6 +137,7 @@ function signalsFor(
   handoff: Handoff,
   repos: ProjectRow[],
   tasks: Map<string, number>,
+  notes: { projekt: string; datum: string }[],
 ): Signals {
   const newest = newestCommit(repos);
   return {
@@ -84,6 +147,7 @@ function signalsFor(
       handoff.updated < localDay(newest),
     dirtyRepos: repos.filter((r) => r.dirty > 0).length,
     offeneTasks: tasks.get(handoff.slug) ?? 0,
+    plaudNotizen: plaudNotizenFor(handoff, notes),
   };
 }
 
@@ -99,10 +163,12 @@ function byStaleness(a: ProjektStand, b: ProjektStand): number {
 export function projektStand(
   vaultDb: Database.Database,
   rows: ProjectRow[],
+  notizenDir: string | null,
 ): StandReply {
   const { handoffs, warnings } = vaultHandoffs(vaultDb);
   const byPath = new Map(rows.map((r) => [r.path.toLowerCase(), r] as const));
   const tasks = openTaskCounts(vaultDb);
+  const notes = plaudNotes(notizenDir);
   const claimed = new Set<string>();
   const projekte = handoffs.map((handoff) => {
     const repos = handoff.repos.flatMap(
@@ -119,7 +185,7 @@ export function projektStand(
       ...handoff,
       repos,
       missingRepos,
-      signals: signalsFor(handoff, repos, tasks),
+      signals: signalsFor(handoff, repos, tasks, notes),
     };
   });
   return {

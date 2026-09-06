@@ -38,6 +38,7 @@ function world(overrides: Partial<JobPaths> = {}): JobPaths {
   const controllingDir = path.join(base, "controlling");
   const skillsDir = path.join(base, "skills");
   mkdirSync(path.join(plaudHome, "inbox"), { recursive: true });
+  mkdirSync(path.join(plaudHome, "archiv"), { recursive: true });
   mkdirSync(path.join(plaudHome, "notizen"), { recursive: true });
   mkdirSync(vaultDir, { recursive: true });
   mkdirSync(controllingDir, { recursive: true });
@@ -47,6 +48,7 @@ function world(overrides: Partial<JobPaths> = {}): JobPaths {
     controllingDir,
     skillsDir,
     sample: false,
+    projektSlugs: () => ["leuchtturm", "hafen"],
     ...overrides,
   };
 }
@@ -242,6 +244,7 @@ describe("planJob - the fence", () => {
       expect(planJob("vault-reindex", {}, ctx)).toEqual({
         kind: "internal",
         name: "vault-reindex",
+        args: {},
       });
     });
 
@@ -250,6 +253,7 @@ describe("planJob - the fence", () => {
       expect(planJob("projekte-scan", {}, ctx)).toEqual({
         kind: "internal",
         name: "projekte-scan",
+        args: {},
       });
     });
   });
@@ -326,10 +330,12 @@ describe("planJob - the fence", () => {
       expect(planJob("vault-reindex", {}, ctx)).toEqual({
         kind: "internal",
         name: "vault-reindex",
+        args: {},
       });
       expect(planJob("projekte-scan", {}, ctx)).toEqual({
         kind: "internal",
         name: "projekte-scan",
+        args: {},
       });
     });
 
@@ -337,6 +343,80 @@ describe("planJob - the fence", () => {
       const ctx = world({ sample: true });
       const result = planJob("plaud-process", { file: "../x" }, ctx);
       expect(result).toEqual({ error: expect.any(String) as string });
+    });
+  });
+
+  describe("plaud-fetch", () => {
+    const hostileIds = ["", "a/b", "a b", "x".repeat(65), 123, "../x"];
+    for (const id of hostileIds) {
+      it(`rejects id: ${JSON.stringify(id)}`, () => {
+        expect(planJob("plaud-fetch", { id }, world())).toEqual({
+          error: expect.any(String) as string,
+        });
+      });
+    }
+    it("rejects an extra key and a null plaudHome", () => {
+      expect(planJob("plaud-fetch", { id: "abc", x: 1 }, world())).toEqual({
+        error: expect.any(String) as string,
+      });
+      expect(
+        planJob("plaud-fetch", { id: "abc" }, world({ plaudHome: null })),
+      ).toEqual({ error: "plaud is not configured" });
+    });
+    it("rejects an id already local in inbox, archiv or notizen", () => {
+      const folders: ["inbox" | "archiv" | "notizen", string][] = [
+        ["inbox", "abc-1"],
+        ["archiv", "abc-2"],
+        ["notizen", "abc-3"],
+      ];
+      for (const [folder, id] of folders) {
+        const ctx = world();
+        writeFileSync(
+          path.join(ctx.plaudHome!, folder, "n.md"),
+          `---\naufnahme: ${id}\n---\n`,
+        );
+        expect(planJob("plaud-fetch", { id }, ctx)).toEqual({
+          error: `recording already local: ${id}`,
+        });
+      }
+    });
+    it("plans an internal job carrying the id", () => {
+      expect(planJob("plaud-fetch", { id: "abc-1" }, world())).toEqual({
+        kind: "internal",
+        name: "plaud-fetch",
+        args: { id: "abc-1" },
+      });
+    });
+  });
+
+  describe("plaud-process with projekt", () => {
+    it("accepts a known slug into the prompt and refuses an unknown or non-string one", () => {
+      const ctx = world();
+      writeFileSync(path.join(ctx.plaudHome!, "inbox", "a-transkript.md"), "x");
+      const plan = expectSpawn(
+        planJob(
+          "plaud-process",
+          { file: "a-transkript.md", projekt: "leuchtturm" },
+          ctx,
+        ),
+      );
+      expect(plan.argv[2]).toContain(
+        "Trage projekt: leuchtturm in das Frontmatter der Notiz ein.",
+      );
+      expect(
+        expectSpawn(planJob("plaud-process", { file: "a-transkript.md" }, ctx))
+          .argv[2],
+      ).not.toContain("projekt:");
+      expect(
+        planJob(
+          "plaud-process",
+          { file: "a-transkript.md", projekt: "nope" },
+          ctx,
+        ),
+      ).toEqual({ error: "unknown projekt: nope" });
+      expect(
+        planJob("plaud-process", { file: "a-transkript.md", projekt: 7 }, ctx),
+      ).toEqual({ error: expect.any(String) as string });
     });
   });
 });
@@ -354,6 +434,7 @@ describe("JOB_TIMEOUTS_MS", () => {
       controlling: 45,
       "vault-reindex": 10,
       "projekte-scan": 10,
+      "plaud-fetch": 5,
     });
   });
 });

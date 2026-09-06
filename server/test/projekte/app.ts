@@ -31,6 +31,7 @@ function emptyEingang(): EingangContext {
       missing: [],
     },
     plaud: { dir: "/nonexistent", source: "sample" },
+    mcp: "off",
     runner: {
       start: () => {
         throw new Error("emptyEingang's runner is never meant to start a job");
@@ -44,6 +45,7 @@ function emptyEingang(): EingangContext {
       controllingDir: null,
       skillsDir: "/nonexistent",
       sample: true,
+      projektSlugs: () => [],
     },
   };
 }
@@ -55,6 +57,7 @@ export function emptyProjekte(): ProjekteContext {
     roots: [],
     source: "sample",
     gh: "off",
+    notizenDir: null,
   };
 }
 
@@ -138,6 +141,7 @@ export function buildSampleContext(
       roots: [sampleDir],
       source: "sample",
       gh,
+      notizenDir: null,
     },
     vault: { db: vaultDb, dir: sampleDir, name: "sample" },
     sampleDir,

@@ -38,17 +38,21 @@ function matches(name: string, dirBasename: string, ext: string): boolean {
  * Besprechung: Q4-Planungslogik"), which a YAML parser rejects as an incomplete mapping. Scanning
  * each line up to its first ": " is what actually matches the source and needs no YAML semantics.
  */
-export function quelleOf(noteText: string): string | null {
-  const lines = noteText.split("\n");
+export function frontmatterValue(text: string, key: string): string | null {
+  const lines = text.split("\n");
   if (lines[0] !== "---") return null;
   const closing = lines.indexOf("---", 1);
   if (closing === -1) return null;
   for (const line of lines.slice(1, closing)) {
     const sep = line.indexOf(": ");
     if (sep === -1) continue;
-    if (line.slice(0, sep) === "quelle") return line.slice(sep + 2).trim();
+    if (line.slice(0, sep) === key) return line.slice(sep + 2).trim();
   }
   return null;
+}
+
+export function quelleOf(noteText: string): string | null {
+  return frontmatterValue(noteText, "quelle");
 }
 
 /** Names directly inside `dir`, files only, no recursion; [] when `dir` does not exist. */
@@ -134,4 +138,55 @@ export function listInbox(
       .map((name) => inboxFile(dir, name, plaud.archivDir, quellen, inFlight));
   });
   return files.toSorted((a, b) => b.mtime - a.mtime);
+}
+
+export interface LocalIds {
+  inbox: Set<string>;
+  archiv: Set<string>;
+  notizen: Set<string>;
+}
+
+/** Every `aufnahme:` id a `.md` file directly inside `dir` carries; [] for a missing `dir`. */
+function recordingIdsIn(dir: string): Set<string> {
+  const ids = new Set<string>();
+  for (const name of fileNames(dir)) {
+    if (!name.endsWith(".md")) continue;
+    const text = readFileSync(path.join(dir, name), "utf8");
+    const id = frontmatterValue(text, "aufnahme");
+    if (id !== null) ids.add(id);
+  }
+  return ids;
+}
+
+/** The `aufnahme:` ids every `.md` directly inside the three folders carries; a missing folder contributes nothing. */
+export function localRecordingIds(dirs: {
+  inboxDir: string;
+  archivDir: string;
+  notizenDir: string;
+}): LocalIds {
+  return {
+    inbox: recordingIdsIn(dirs.inboxDir),
+    archiv: recordingIdsIn(dirs.archivDir),
+    notizen: recordingIdsIn(dirs.notizenDir),
+  };
+}
+
+export function isLocal(id: string, local: LocalIds): boolean {
+  return local.inbox.has(id) || local.archiv.has(id) || local.notizen.has(id);
+}
+
+export type RecordingStatus =
+  "neu" | "wird_geholt" | "im_eingang" | "im_archiv" | "notiz_vorhanden";
+
+/** notizen beats archiv beats inbox beats a running fetch beats neu - listInbox's order, applied to ids. */
+export function plaudStatus(
+  id: string,
+  local: LocalIds,
+  inFlight: Set<string>,
+): RecordingStatus {
+  if (local.notizen.has(id)) return "notiz_vorhanden";
+  if (local.archiv.has(id)) return "im_archiv";
+  if (local.inbox.has(id)) return "im_eingang";
+  if (inFlight.has(id)) return "wird_geholt";
+  return "neu";
 }

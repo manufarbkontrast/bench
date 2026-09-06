@@ -36,11 +36,12 @@ test("the Cockpit surfaces overdue tasks, the session note and moving projects",
     panel(page, "Überfällig").getByText("Prototyp bauen"),
   ).toBeVisible();
 
-  // The sample eingang fixture (server/src/eingang/fixture/inbox) has three files: the
-  // werkstattrunde transcript and the m4a recording are unprocessed, the Hafenrunde transcript
-  // reconciles to a note - see server/test/eingang/routes.test.ts for the same derivation.
+  // The sample eingang fixture (server/src/eingang/fixture/inbox) has four files: the
+  // werkstattrunde and werftbegehung transcripts and the m4a recording are unprocessed, the
+  // Hafenrunde transcript reconciles to a note - see server/test/eingang/routes.test.ts for the
+  // same derivation.
   const eingang = panel(page, "Eingang");
-  await expect(eingang.getByText("2 unverarbeitet")).toBeVisible();
+  await expect(eingang.getByText("3 unverarbeitet")).toBeVisible();
   await expect(
     eingang.getByRole("link", { name: "Verarbeiten" }),
   ).toHaveAttribute("href", "/eingang/");
@@ -77,6 +78,9 @@ test("the Cockpit surfaces overdue tasks, the session note and moving projects",
     .filter({ hasText: "leuchtturm" });
   await expect(handoffRow).toBeVisible({ timeout: 20_000 });
   await expect(handoffRow).toContainText("Stand veraltet");
+  // The Hafenrunde note (server/src/aufgaben/fixture/notizen/2026-08-20_hafenrunde.md) now names
+  // projekt: leuchtturm and postdates the handoff's own updated: 2020-01-01.
+  await expect(handoffRow).toContainText("1 Plaud-Notiz seit Handoff");
   await expect(
     projectsPanel.getByText("treibgut", { exact: true }),
   ).toBeVisible();

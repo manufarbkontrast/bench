@@ -94,7 +94,12 @@ function handoffRow(overrides: Partial<HandoffRow> = {}): HandoffRow {
     slug: "leuchtturm",
     updated: daysAgo(0),
     missingRepos: [],
-    signals: { veraltet: false, dirtyRepos: 0, offeneTasks: 0 },
+    signals: {
+      veraltet: false,
+      dirtyRepos: 0,
+      offeneTasks: 0,
+      plaudNotizen: 0,
+    },
     ...overrides,
   };
 }
@@ -296,7 +301,12 @@ describe("Cockpit", () => {
       projekte: [
         handoffRow({
           updated: daysAgo(3),
-          signals: { veraltet: true, dirtyRepos: 0, offeneTasks: 0 },
+          signals: {
+            veraltet: true,
+            dirtyRepos: 0,
+            offeneTasks: 0,
+            plaudNotizen: 0,
+          },
         }),
       ],
       ohneProjekt: [],
@@ -325,22 +335,48 @@ describe("Cockpit", () => {
         handoffRow({ slug: "one-day", updated: daysAgo(1) }),
         handoffRow({
           slug: "dirty-one",
-          signals: { veraltet: false, dirtyRepos: 1, offeneTasks: 0 },
+          signals: {
+            veraltet: false,
+            dirtyRepos: 1,
+            offeneTasks: 0,
+            plaudNotizen: 0,
+          },
         }),
         handoffRow({
           slug: "dirty-many",
-          signals: { veraltet: false, dirtyRepos: 2, offeneTasks: 0 },
+          signals: {
+            veraltet: false,
+            dirtyRepos: 2,
+            offeneTasks: 0,
+            plaudNotizen: 0,
+          },
         }),
         handoffRow({
           slug: "task-one",
-          signals: { veraltet: false, dirtyRepos: 0, offeneTasks: 1 },
+          signals: {
+            veraltet: false,
+            dirtyRepos: 0,
+            offeneTasks: 1,
+            plaudNotizen: 0,
+          },
         }),
         handoffRow({
           slug: "task-many",
-          signals: { veraltet: false, dirtyRepos: 0, offeneTasks: 2 },
+          signals: {
+            veraltet: false,
+            dirtyRepos: 0,
+            offeneTasks: 2,
+            plaudNotizen: 0,
+          },
         }),
         handoffRow({
           slug: "missing-repo",
+          signals: {
+            veraltet: false,
+            dirtyRepos: 0,
+            offeneTasks: 0,
+            plaudNotizen: 1,
+          },
           missingRepos: ["kaputt"],
         }),
       ],
@@ -366,7 +402,9 @@ describe("Cockpit", () => {
       within(bewegung).getByText("heute · 2 offene Aufgaben"),
     ).toBeInTheDocument();
     expect(
-      within(bewegung).getByText("heute · Repo nicht gefunden: kaputt"),
+      within(bewegung).getByText(
+        "heute · 1 Plaud-Notiz seit Handoff · Repo nicht gefunden: kaputt",
+      ),
     ).toBeInTheDocument();
   });
 

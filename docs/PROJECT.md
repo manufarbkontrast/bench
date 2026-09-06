@@ -9,16 +9,16 @@ repositories and controlling reports. The plan is in [changes/bench-os/](./chang
 `SPEC.md` for what, `PLAN.md` for the phases. Groove was removed in Phase 0; the apps below are
 what remain of the original four, and the new ones arrive one phase at a time.
 
-| App          | Path        | What it is                                                                                                                                                                                                                                       | Backend                                                     |
-| ------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| **Vault**    | `/vault`    | A window onto an Obsidian vault, writable only through Aufgaben's guarded task toggle and create: folder tree, rendered notes with wikilinks and backlinks, tags, full-text search                                                               | `data/vault.sqlite`                                         |
-| **Projekte** | `/projekte` | Read-only inventory of git checkouts and coupled working folders, grouped under the handoff notes that own them: branch, dirty/ahead/behind, duplicates, brand and status from the vault, issues and PRs via `gh`                                | `data/projekte.sqlite`                                      |
-| **Aufgaben** | `/aufgaben` | One board over the vault's tasks (toggle and create), Plaud work items awaiting import, and GitHub issues read-only                                                                                                                              | `data/aufgaben.sqlite` (import ledger only)                 |
-| **Eingang**  | `/eingang`  | What arrived and is not yet processed: watched folders reconciled against the Plaud archive, fenced jobs against the local skills with a live log and a kill switch, scheduled launchd runs shown read-only                                      | `data/eingang.sqlite` (job log only)                        |
-| **Kontext**  | `/kontext`  | What the system knows about the user: profile and workflow rules from the vault, Claude Code's own rules and per-project memory, each registered project's `CLAUDE.md`/`AGENTS.md`, the skill catalogue, MCP server names - seven read-only tabs | none - reads `vault.sqlite` and Projekte's registered paths |
-| **Zahlen**   | `/zahlen`   | The last controlling run and its archive: the parsed KPI table and break-even bullets, the rendered report and raw files, deep links into myCrafton                                                                                              | none - reads Eingang's controlling dir                      |
-| **CRM**      | `/crm`      | Personal sales CRM: organizations, contacts, deals, drag-and-drop pipeline, activities, dashboard                                                                                                                                                | `data/crm.sqlite`                                           |
-| **Rolodex**  | `/rolodex`  | Personal CRM for your own people: check-in cadences, circles, birthdays, a timeline of every conversation, CSV and vCard import                                                                                                                  | `data/rolodex.sqlite`                                       |
+| App          | Path        | What it is                                                                                                                                                                                                                                                                        | Backend                                                     |
+| ------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| **Vault**    | `/vault`    | A window onto an Obsidian vault, writable only through Aufgaben's guarded task toggle and create: folder tree, rendered notes with wikilinks and backlinks, tags, full-text search                                                                                                | `data/vault.sqlite`                                         |
+| **Projekte** | `/projekte` | Read-only inventory of git checkouts and coupled working folders, grouped under the handoff notes that own them: branch, dirty/ahead/behind, duplicates, brand and status from the vault, issues and PRs via `gh`                                                                 | `data/projekte.sqlite`                                      |
+| **Aufgaben** | `/aufgaben` | One board over the vault's tasks (toggle and create), Plaud work items awaiting import, and GitHub issues read-only                                                                                                                                                               | `data/aufgaben.sqlite` (import ledger only)                 |
+| **Eingang**  | `/eingang`  | What arrived and is not yet processed: watched folders reconciled against the Plaud archive, the newest Plaud recordings listed and fetched through the Plaud MCP, fenced jobs against the local skills with a live log and a kill switch, scheduled launchd runs shown read-only | `data/eingang.sqlite` (job log only)                        |
+| **Kontext**  | `/kontext`  | What the system knows about the user: profile and workflow rules from the vault, Claude Code's own rules and per-project memory, each registered project's `CLAUDE.md`/`AGENTS.md`, the skill catalogue, MCP server names - seven read-only tabs                                  | none - reads `vault.sqlite` and Projekte's registered paths |
+| **Zahlen**   | `/zahlen`   | The last controlling run and its archive: the parsed KPI table and break-even bullets, the rendered report and raw files, deep links into myCrafton                                                                                                                               | none - reads Eingang's controlling dir                      |
+| **CRM**      | `/crm`      | Personal sales CRM: organizations, contacts, deals, drag-and-drop pipeline, activities, dashboard                                                                                                                                                                                 | `data/crm.sqlite`                                           |
+| **Rolodex**  | `/rolodex`  | Personal CRM for your own people: check-in cadences, circles, birthdays, a timeline of every conversation, CSV and vCard import                                                                                                                                                   | `data/rolodex.sqlite`                                       |
 
 The Cockpit at `/` replaces the old card-grid launcher: seven panels onto tasks, the watched
 inbox, projects and the moving repositories no handoff claims, the vault's own session note and
@@ -72,8 +72,9 @@ server/             ONE Express app
   src/vault/          vault routes + db + indexer, and the one write path (write.ts)
   src/projekte/       projekte routes + db + scan pipeline, reads vault.sqlite for handoffs + tasks
   src/aufgaben/       aufgaben routes + import ledger db, reads vault.sqlite
-  src/eingang/        eingang routes + jobs db + runner; index.ts wires its two internal job
-                      kinds to the vault and projekte modules' own indexing code, in-process
+  src/eingang/        eingang routes + jobs db + runner + the Plaud MCP client; index.ts wires its
+                      three internal job kinds to the vault and projekte modules' own indexing
+                      code, and to the MCP fetch, in-process
   src/kontext/        kontext routes over vault.sqlite (injected) and ~/.claude - no database
   src/zahlen/         zahlen routes over eingang's controlling dir (injected) - no database
   test/{crm,rolodex,vault,projekte,aufgaben,eingang,kontext,zahlen}/   vitest suites
@@ -191,12 +192,17 @@ the rules above.
   from `.env`, never from code.
 - **The vault index is derived.** `data/vault.sqlite` can be deleted at any time; the next start
   rebuilds it from the markdown.
-- **Two write paths into the vault, guarded.** Toggling or creating a task, and importing a Plaud
-  work item - both go through the single write surface in `server/src/vault/write.ts`. Nothing
-  else writes to a source. "Inside the vault" is realpath-enforced: a symlink whose target resolves
-  outside the vault is refused, once every symlink on the way is followed.
-- **Local CLIs are fair game.** `git`, `gh` and `claude` run as processes on this machine, the way
-  Bench already runs `gitleaks`. No cloud call is made directly and no token is held.
+- **Three write paths, guarded.** Toggling or creating a task, and importing a Plaud work item -
+  both go through the single write surface in `server/src/vault/write.ts`; nothing else writes to a
+  vault source, and "inside the vault" is realpath-enforced: a symlink whose target resolves
+  outside the vault is refused, once every symlink on the way is followed. The third path writes
+  outside the vault entirely: a fetched Plaud recording becomes a new file under
+  `<plaudHome>/inbox`, created with `wx` so it can never overwrite, only from a clicked
+  `plaud-fetch` job, only after the same kind of realpath check proves `inbox/` resolves inside
+  `plaudHome`.
+- **Local CLIs are fair game.** `git`, `gh`, `claude` and `npx @plaud-ai/mcp` run as processes on
+  this machine, the way Bench already runs `gitleaks`. No cloud call is made directly; the MCP
+  holds its own OAuth login in its own file, and Bench holds no token of its own.
 - **A job runs on click, through a fence, never on its own schedule.** `eingang` starts a skill
   script or a `claude -p` run only when a person clicks a button, and only after `planJob`
   (`server/src/eingang/jobs.ts`) has checked the job's kind against a closed catalog and any file

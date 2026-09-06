@@ -18,7 +18,7 @@ function file(overrides: Partial<InboxFile> = {}): InboxFile {
 
 describe("InboxList", () => {
   it("shows the empty state when there are no files", () => {
-    render(<InboxList files={[]} onProcess={vi.fn()} />);
+    render(<InboxList files={[]} slugs={[]} onProcess={vi.fn()} />);
     expect(screen.getByText("Nichts Neues.")).toBeInTheDocument();
   });
 
@@ -30,6 +30,7 @@ describe("InboxList", () => {
           file({ name: "b.txt", status: "in_arbeit" }),
           file({ name: "c.txt", status: "notiz_vorhanden" }),
         ]}
+        slugs={[]}
         onProcess={vi.fn()}
       />,
     );
@@ -40,7 +41,7 @@ describe("InboxList", () => {
 
   it("enables Verarbeiten, named after the file, for an unverarbeitet inbox file", async () => {
     const onProcess = vi.fn();
-    render(<InboxList files={[file()]} onProcess={onProcess} />);
+    render(<InboxList files={[file()]} slugs={[]} onProcess={onProcess} />);
     const button = screen.getByRole("button", {
       name: /Verarbeiten.*werkstattrunde/,
     });
@@ -48,6 +49,7 @@ describe("InboxList", () => {
     await userEvent.click(button);
     expect(onProcess).toHaveBeenCalledWith(
       "2026-08-30_werkstattrunde-transcript.txt",
+      null,
     );
   });
 
@@ -55,6 +57,7 @@ describe("InboxList", () => {
     render(
       <InboxList
         files={[file({ dir: "/plaud/archiv" })]}
+        slugs={[]}
         onProcess={vi.fn()}
       />,
     );
@@ -72,6 +75,7 @@ describe("InboxList", () => {
             name: "agenda.pdf",
           }),
         ]}
+        slugs={[]}
         onProcess={vi.fn()}
       />,
     );
@@ -82,7 +86,11 @@ describe("InboxList", () => {
 
   it("disables Verarbeiten for a file already in arbeit", () => {
     render(
-      <InboxList files={[file({ status: "in_arbeit" })]} onProcess={vi.fn()} />,
+      <InboxList
+        files={[file({ status: "in_arbeit" })]}
+        slugs={[]}
+        onProcess={vi.fn()}
+      />,
     );
     expect(screen.getByRole("button", { name: /Verarbeiten/ })).toBeDisabled();
   });
@@ -91,6 +99,7 @@ describe("InboxList", () => {
     render(
       <InboxList
         files={[file({ status: "notiz_vorhanden" })]}
+        slugs={[]}
         onProcess={vi.fn()}
       />,
     );
@@ -101,6 +110,7 @@ describe("InboxList", () => {
     render(
       <InboxList
         files={[file({ name: "aufnahme.m4a", kind: "audio" })]}
+        slugs={[]}
         onProcess={vi.fn()}
       />,
     );
@@ -115,10 +125,44 @@ describe("InboxList", () => {
           file({ name: "a.txt" }),
           file({ name: "b.txt", kind: "audio" }),
         ]}
+        slugs={[]}
         onProcess={vi.fn()}
       />,
     );
     expect(screen.getByText("a.txt")).toBeInTheDocument();
     expect(screen.getByText("b.txt")).toBeInTheDocument();
+  });
+
+  it("selects a project and passes its slug to onProcess for a processable row", async () => {
+    const onProcess = vi.fn();
+    render(
+      <InboxList
+        files={[file()]}
+        slugs={["leuchtturm", "hafen"]}
+        onProcess={onProcess}
+      />,
+    );
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", {
+        name: "Projekt: 2026-08-30_werkstattrunde-transcript.txt",
+      }),
+      "leuchtturm",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Verarbeiten/ }));
+    expect(onProcess).toHaveBeenCalledWith(
+      "2026-08-30_werkstattrunde-transcript.txt",
+      "leuchtturm",
+    );
+  });
+
+  it("shows no project select on a non-processable row", () => {
+    render(
+      <InboxList
+        files={[file({ status: "in_arbeit" })]}
+        slugs={["leuchtturm"]}
+        onProcess={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 });

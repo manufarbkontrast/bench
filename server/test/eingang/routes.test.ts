@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type express from "express";
@@ -15,7 +15,9 @@ import {
   locateEingang,
   type LocatedEingang,
 } from "../../src/eingang/locate.js";
-import type { EingangContext } from "../../src/eingang/routes.js";
+import { runPlaudFetch } from "../../src/eingang/plaud-fetch.js";
+import type { PlaudCommand } from "../../src/eingang/plaud-mcp.js";
+import type { EingangContext, PlaudSource } from "../../src/eingang/routes.js";
 import { createRunner } from "../../src/eingang/runner.js";
 import { appWithEingang } from "./app.js";
 import { scratchDir } from "./tmp.js";
@@ -27,8 +29,25 @@ const AUFGABEN_NOTIZEN = fileURLToPath(
   new URL("../../src/aufgaben/fixture/notizen", import.meta.url),
 );
 
+const FAKE: PlaudCommand = [
+  process.execPath,
+  fileURLToPath(
+    new URL("../../src/eingang/fixture/fake-plaud-mcp.mjs", import.meta.url),
+  ),
+];
+
 const scratch = scratchDir("bench-eingang-routes-");
 afterAll(scratch.cleanup);
+
+// A configured world for the MCP-reaching tests: an empty inbox/, and a note in notizen/ that
+// already names fix-hafen-0820, so the reconciliation test has a local id to find.
+const scratchHome = path.join(scratch.dir, "configured-home");
+mkdirSync(path.join(scratchHome, "inbox"), { recursive: true });
+mkdirSync(path.join(scratchHome, "notizen"), { recursive: true });
+writeFileSync(
+  path.join(scratchHome, "notizen", "hafenrunde.md"),
+  "---\naufnahme: fix-hafen-0820\n---\n\nHafenrunde.\n",
+);
 
 interface InboxFileReply {
   name: string;
@@ -40,6 +59,11 @@ interface InboxResponse {
 }
 interface JobResponse {
   job: JobRow;
+}
+interface PlaudResponse {
+  source: PlaudSource;
+  recordings: { id: string; status: string }[];
+  nextPage: number | null;
 }
 interface JobsResponse {
   jobs: JobRow[];
@@ -78,20 +102,97 @@ beforeEach(() => {
     controllingDir: located.controllingDir,
     skillsDir: EINGANG_FIXTURE,
     sample: true,
+    projektSlugs: () => ["leuchtturm", "hafen"],
   };
+  const mcp: PlaudCommand = "off";
   const runner = createRunner(db, path.join(scratch.dir, `jobs-${n}`), {
     "vault-reindex": neverCalled,
     "projekte-scan": neverCalled,
+    // The real runner, bound to this test's paths - the sample world's early return means it
+    // never touches mcp, so the sample-run test is a real exercise of runPlaudFetch rather than
+    // a stand-in that only proves the plumbing.
+    "plaud-fetch": (log, args) =>
+      runPlaudFetch(
+        {
+          command: mcp,
+          plaudHome: paths.plaudHome,
+          sample: paths.sample,
+          today: () => "2026-09-06",
+        },
+        args.id as string,
+        log,
+      ),
   });
   const ctx: EingangContext = {
     db,
     located,
     plaud: { dir: AUFGABEN_NOTIZEN, source: "sample" },
+    mcp,
     runner,
     paths,
   };
   app = appWithEingang(ctx);
 });
+
+interface AppWithOverrides {
+  sample?: boolean;
+  mcp?: PlaudCommand;
+  plaudHome?: string;
+}
+
+let variantN = 0;
+
+/** A variant EingangContext for the tests that need a non-default sample/mcp/plaudHome. */
+function appWith(overrides: AppWithOverrides = {}): express.Express {
+  variantN += 1;
+  const sample = overrides.sample ?? true;
+  const mcp = overrides.mcp ?? "off";
+  const plaudHome = overrides.plaudHome ?? EINGANG_FIXTURE;
+  const variantDb = openEingangDb(":memory:");
+  const located: LocatedEingang = locateEingang(
+    { inboxWatch: [], controllingDir: undefined },
+    EINGANG_FIXTURE,
+  );
+  const paths: JobPaths = {
+    plaudHome,
+    vaultDir: EINGANG_FIXTURE,
+    controllingDir: located.controllingDir,
+    skillsDir: EINGANG_FIXTURE,
+    sample,
+    projektSlugs: () => ["leuchtturm", "hafen"],
+  };
+  const runner = createRunner(
+    variantDb,
+    path.join(scratch.dir, `jobs-variant-${String(variantN)}`),
+    {
+      "vault-reindex": neverCalled,
+      "projekte-scan": neverCalled,
+      "plaud-fetch": (log, args) =>
+        runPlaudFetch(
+          {
+            command: mcp,
+            plaudHome: paths.plaudHome,
+            sample: paths.sample,
+            today: () => "2026-09-06",
+          },
+          args.id as string,
+          log,
+        ),
+    },
+  );
+  const ctx: EingangContext = {
+    db: variantDb,
+    located,
+    // The way index.ts derives it: a configured world's notes sit at <plaudHome>/notizen.
+    plaud: sample
+      ? { dir: AUFGABEN_NOTIZEN, source: "sample" }
+      : { dir: path.join(plaudHome, "notizen"), source: "configured" },
+    mcp,
+    runner,
+    paths,
+  };
+  return appWithEingang(ctx);
+}
 
 /**
  * The runner has no completion callback for the caller, so a test polls the row until it leaves
@@ -120,13 +221,13 @@ function jobCount(): number {
 }
 
 describe("GET /api/eingang/inbox", () => {
-  it("lists the three fixture files, the Hafenrunde transcript matched to its note and the werkstattrunde one unprocessed", async () => {
+  it("lists the four fixture files, the Hafenrunde transcript matched to its note and the werkstattrunde and werftbegehung ones unprocessed", async () => {
     const res = await request(app).get("/api/eingang/inbox");
 
     expect(res.status).toBe(200);
     const body = res.body as InboxResponse;
     expect(body.source).toBe("sample");
-    expect(body.files).toHaveLength(3);
+    expect(body.files).toHaveLength(4);
     const byName = new Map(body.files.map((file) => [file.name, file]));
     expect(
       byName.get("08-20_Besprechung_Hafenrunde-transcript.pdf")?.status,
@@ -134,6 +235,168 @@ describe("GET /api/eingang/inbox", () => {
     expect(byName.get("2026-08-30_werkstattrunde-transcript.txt")?.status).toBe(
       "unverarbeitet",
     );
+    expect(byName.get("2026-08-25_werftbegehung-transkript.md")?.status).toBe(
+      "unverarbeitet",
+    );
+  });
+});
+
+describe("GET /api/eingang/plaud", () => {
+  it("lists the three fixture recordings with their marks under sample data", async () => {
+    const res = await request(app).get("/api/eingang/plaud");
+    expect(res.status).toBe(200);
+    const body = res.body as PlaudResponse;
+    expect(body.source).toBe("sample");
+    expect(body.nextPage).toBeNull();
+    expect(body.recordings.map((r) => r.id)).toEqual([
+      "fix-lampe-0901",
+      "fix-werft-0825",
+      "fix-hafen-0820",
+    ]);
+    const byId = new Map(body.recordings.map((r) => [r.id, r]));
+    expect(byId.get("fix-lampe-0901")?.status).toBe("neu");
+    expect(byId.get("fix-werft-0825")?.status).toBe("im_eingang");
+    expect(byId.get("fix-hafen-0820")?.status).toBe("notiz_vorhanden");
+  });
+  it("caps an out-of-range page rather than crossing to the MCP for nothing, answering the same as page 1", async () => {
+    const first = await request(app).get("/api/eingang/plaud?page=1");
+    const capped = await request(app).get("/api/eingang/plaud?page=999");
+    expect(capped.body).toEqual(first.body);
+  });
+  it("answers off with an empty list for a null plaudHome in a configured world", async () => {
+    const nullPlaudDb = openEingangDb(":memory:");
+    const nullPlaudLocated: LocatedEingang = locateEingang(
+      { inboxWatch: [], controllingDir: undefined },
+      EINGANG_FIXTURE,
+    );
+    const nullPlaudPaths: JobPaths = {
+      plaudHome: null,
+      vaultDir: EINGANG_FIXTURE,
+      controllingDir: nullPlaudLocated.controllingDir,
+      skillsDir: EINGANG_FIXTURE,
+      sample: false,
+      projektSlugs: () => [],
+    };
+    const nullPlaudRunner = createRunner(
+      nullPlaudDb,
+      path.join(scratch.dir, `plaud-null-plaudhome-${n}`),
+      {
+        "vault-reindex": neverCalled,
+        "projekte-scan": neverCalled,
+        "plaud-fetch": neverCalled,
+      },
+    );
+    const nullPlaudApp = appWithEingang({
+      db: nullPlaudDb,
+      located: nullPlaudLocated,
+      plaud: { dir: AUFGABEN_NOTIZEN, source: "sample" },
+      mcp: "off",
+      runner: nullPlaudRunner,
+      paths: nullPlaudPaths,
+    });
+    const res = await request(nullPlaudApp).get("/api/eingang/plaud");
+    expect(res.body).toEqual({ source: "off", recordings: [], nextPage: null });
+  });
+  it("answers off with an empty list when the command is off in a configured world", async () => {
+    const res = await request(appWith({ sample: false, mcp: "off" })).get(
+      "/api/eingang/plaud",
+    );
+    expect(res.body).toEqual({ source: "off", recordings: [], nextPage: null });
+  });
+  it("reaches the fake MCP in a configured world and reconciles by id", async () => {
+    const res = await request(
+      appWith({ sample: false, mcp: FAKE, plaudHome: scratchHome }),
+    ).get("/api/eingang/plaud?page=1");
+    const body = res.body as PlaudResponse;
+    expect(body.source).toBe("mcp");
+    expect(body.recordings.find((r) => r.id === "fix-hafen-0820")?.status).toBe(
+      "notiz_vorhanden",
+    );
+    expect(body.recordings.find((r) => r.id === "fix-lampe-0901")?.status).toBe(
+      "neu",
+    );
+  });
+  it("reconciles against the fence's own folders when notizen has not been created yet, not against the notes fallback", async () => {
+    const home = path.join(scratch.dir, "configured-no-notizen");
+    mkdirSync(path.join(home, "archiv"), { recursive: true });
+    writeFileSync(
+      path.join(home, "archiv", "x-transkript.md"),
+      "---\naufnahme: fix-werft-0825\n---\n",
+    );
+    const variantDb = openEingangDb(":memory:");
+    const located: LocatedEingang = locateEingang(
+      { inboxWatch: [], controllingDir: undefined },
+      EINGANG_FIXTURE,
+    );
+    const paths: JobPaths = {
+      plaudHome: home,
+      vaultDir: EINGANG_FIXTURE,
+      controllingDir: located.controllingDir,
+      skillsDir: EINGANG_FIXTURE,
+      sample: false,
+      projektSlugs: () => ["leuchtturm", "hafen"],
+    };
+    const runner = createRunner(
+      variantDb,
+      path.join(scratch.dir, "jobs-notizen-fallback"),
+      {
+        "vault-reindex": neverCalled,
+        "projekte-scan": neverCalled,
+        "plaud-fetch": neverCalled,
+      },
+    );
+    // The exact fallback shape locatePlaud (aufgaben/locate.ts) produces once PLAUD_HOME is set
+    // but <PLAUD_HOME>/notizen does not exist yet: plaud.dir stays the aufgaben fixture even
+    // though paths.plaudHome (this configured world's real home) is not null.
+    const ctx: EingangContext = {
+      db: variantDb,
+      located,
+      plaud: { dir: AUFGABEN_NOTIZEN, source: "sample" },
+      mcp: FAKE,
+      runner,
+      paths,
+    };
+    const res = await request(appWithEingang(ctx)).get(
+      "/api/eingang/plaud?page=1",
+    );
+    const body = res.body as PlaudResponse;
+    expect(body.recordings.find((r) => r.id === "fix-werft-0825")?.status).toBe(
+      "im_archiv",
+    );
+  });
+  it("maps a 401 to source unauthenticated with 200", async () => {
+    process.env.BENCH_FAKE_PLAUD = "unauthenticated";
+    try {
+      const res = await request(
+        appWith({ sample: false, mcp: FAKE, plaudHome: scratchHome }),
+      ).get("/api/eingang/plaud");
+      expect(res.status).toBe(200);
+      expect((res.body as PlaudResponse).source).toBe("unauthenticated");
+    } finally {
+      delete process.env.BENCH_FAKE_PLAUD;
+    }
+  });
+  it("maps everything else to source unreachable with 200", async () => {
+    // "exit" quits mid-call, so the client sees the process die with a call still pending -
+    // classifyFailure's fallback, exercised here rather than only in plaud-mcp.test.ts's own unit
+    // test of that function.
+    process.env.BENCH_FAKE_PLAUD = "exit";
+    try {
+      const res = await request(
+        appWith({ sample: false, mcp: FAKE, plaudHome: scratchHome }),
+      ).get("/api/eingang/plaud");
+      expect(res.status).toBe(200);
+      expect((res.body as PlaudResponse).source).toBe("unreachable");
+    } finally {
+      delete process.env.BENCH_FAKE_PLAUD;
+    }
+  });
+});
+
+describe("GET /api/eingang/projekte", () => {
+  it("answers the injected slugs", async () => {
+    const res = await request(app).get("/api/eingang/projekte");
+    expect(res.body).toEqual({ slugs: ["leuchtturm", "hafen"] });
   });
 });
 
@@ -191,6 +454,28 @@ describe("POST /api/eingang/jobs", () => {
       delete process.env.BENCH_FAKE_JOB;
     }
   }, 10_000);
+});
+
+describe("POST /api/eingang/jobs - plaud-fetch", () => {
+  it("runs the sample fetch to done with the four log lines", async () => {
+    const res = await request(app)
+      .post("/api/eingang/jobs")
+      .send({ kind: "plaud-fetch", args: { id: "fix-lampe-0901" } });
+    expect(res.status).toBe(201);
+    const finished = await waitForTerminal((res.body as JobResponse).job.id);
+    expect(finished.status).toBe("done");
+    const log = (
+      await request(app).get(`/api/eingang/jobs/${String(finished.id)}`)
+    ).body as JobLogResponse;
+    expect(log.log).toContain("sample world: nothing written");
+  }, 10_000);
+  it("400s a hostile id and leaves the table empty", async () => {
+    const res = await request(app)
+      .post("/api/eingang/jobs")
+      .send({ kind: "plaud-fetch", args: { id: "../x" } });
+    expect(res.status).toBe(400);
+    expect(jobCount()).toBe(0);
+  });
 });
 
 describe("GET /api/eingang/jobs", () => {
@@ -302,16 +587,22 @@ describe("POST /api/eingang/jobs - a null plaudHome", () => {
       controllingDir: nullPlaudLocated.controllingDir,
       skillsDir: EINGANG_FIXTURE,
       sample: false,
+      projektSlugs: () => [],
     };
     const nullPlaudRunner = createRunner(
       nullPlaudDb,
       path.join(scratch.dir, `jobs-null-plaud-${n}`),
-      { "vault-reindex": neverCalled, "projekte-scan": neverCalled },
+      {
+        "vault-reindex": neverCalled,
+        "projekte-scan": neverCalled,
+        "plaud-fetch": neverCalled,
+      },
     );
     const nullPlaudApp = appWithEingang({
       db: nullPlaudDb,
       located: nullPlaudLocated,
       plaud: { dir: AUFGABEN_NOTIZEN, source: "sample" },
+      mcp: "off",
       runner: nullPlaudRunner,
       paths: nullPlaudPaths,
     });

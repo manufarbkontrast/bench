@@ -9,20 +9,24 @@ import {
   type JobRow,
   type JobStatus,
 } from "./db.js";
-import type { JobKind, JobPlan } from "./jobs.js";
+import type { InternalName, JobKind, JobPlan } from "./jobs.js";
 
-type InternalJobFn = (log: (line: string) => void) => Promise<void>;
+type InternalJobFn = (
+  log: (line: string) => void,
+  args: Record<string, unknown>,
+) => Promise<void>;
 
-export interface RunnerInternals {
-  "vault-reindex": InternalJobFn;
-  "projekte-scan": InternalJobFn;
-}
+export type RunnerInternals = Record<InternalName, InternalJobFn>;
 
 /**
  * `killed` - a SIGTERM was actually sent. `not_running` - the id is absent or already finished.
- * `internal` - the record exists but has no child process: internal jobs cannot be cancelled,
- * only relabelled if they time out (see runInternal). The route layer maps `internal` to its own
- * 409 rather than the runner deciding what an unkillable job means for an HTTP caller.
+ * `internal` - the record has no child process this runner tracks, so it cannot be cancelled
+ * through this call, only relabelled if it times out (see runInternal). True for vault-reindex and
+ * projekte-scan, which run in-process with nothing to signal at all; plaud-fetch does spawn a
+ * process (the Plaud MCP, over stdio), but that child belongs to plaud-mcp.ts's own session, not
+ * to this runner, and a hung fetch is ended by that session's own 120-second timeout rather than
+ * by anything here. The route layer maps `internal` to its own 409 rather than the runner deciding
+ * what an unkillable job means for an HTTP caller.
  */
 type KillOutcome = "killed" | "not_running" | "internal";
 
@@ -208,13 +212,15 @@ export function createRunner(
     });
   }
 
-  function runInternal(
-    id: number,
-    name: keyof RunnerInternals,
-    logPath: string,
-    timeoutMs: number,
-    record: InFlightJob,
-  ): void {
+  function runInternal(internalJob: {
+    id: number;
+    name: keyof RunnerInternals;
+    args: Record<string, unknown>;
+    logPath: string;
+    timeoutMs: number;
+    record: InFlightJob;
+  }): void {
+    const { id, name, args, logPath, timeoutMs, record } = internalJob;
     const out = createWriteStream(logPath);
     const settle = createLogSettler(record, out, (status, exitCode) =>
       finish(id, status, exitCode),
@@ -223,21 +229,25 @@ export function createRunner(
       out.write(`${new Date().toISOString()} ${line}\n`);
     };
 
-    // Same reasoning as the spawn path: a broken log file must not crash the server. There is no
-    // child process to kill here, so this only ends the row - the internal function keeps running
-    // in the background, but its own eventual settle becomes a no-op via the settler's guard.
+    // Same reasoning as the spawn path: a broken log file must not crash the server. This runner
+    // tracks no child process for an internal job (plaud-fetch's own MCP child belongs to
+    // plaud-mcp.ts's session, not to this record), so this only ends the row - the internal
+    // function keeps running in the background, but its own eventual settle becomes a no-op via
+    // the settler's guard.
     out.on("error", () => {
       settle.immediate("failed", null);
     });
 
-    // There is no process to signal here, so a timeout cannot cut an internal job short - it can
-    // only relabel the eventual outcome once the function does settle.
+    // This runner has no process of its own to signal here, so a timeout cannot cut an internal
+    // job short through this timer - it can only relabel the eventual outcome once the function
+    // does settle. (plaud-fetch's own child is cut short by its session's own timeout instead, see
+    // KillOutcome's docstring above.)
     const timeoutTimer = setTimeout(() => {
       markEndReason(record, "timedOut");
     }, timeoutMs);
     record.timers.push(timeoutTimer);
 
-    void internals[name](log)
+    void internals[name](log, args)
       .then(() => {
         settle.viaLog(record.why === "timedOut" ? "timeout" : "done", 0);
       })
@@ -264,7 +274,15 @@ export function createRunner(
 
     if (plan.kind === "spawn")
       runSpawn({ id, plan, env, logPath, timeoutMs, record });
-    else runInternal(id, plan.name, logPath, timeoutMs, record);
+    else
+      runInternal({
+        id,
+        name: plan.name,
+        args: plan.args,
+        logPath,
+        timeoutMs,
+        record,
+      });
 
     return getJob(db, id)!;
   }

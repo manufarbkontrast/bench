@@ -53,7 +53,8 @@ apps behind them use.
 /api/projekte/stand`, already sorted staleness-first) renders one row per project - its slug, then
   age and the same badge wording `standHints` produces in the Projekte app itself (`Stand
 veraltet`, `1 Repo ungesichert` / `<n> Repos ungesichert`, `1 offene Aufgabe` / `<n> offene
-Aufgaben`, `Repo nicht gefunden: <name>` - `handoffMeta`/`handoffHints` in `types.ts`, written
+Aufgaben`, `1 Plaud-Notiz seit Handoff` / `<n> Plaud-Notizen seit Handoff`, `Repo nicht gefunden:
+<name>` - `handoffMeta`/`handoffHints` in `types.ts`, written
   again here rather than imported), capped at
   `HANDOFF_ROWS` (8) with a trailing `… und <n> weitere` row linking to `/projekte/` once there are
   more. Below that, `movingProjects` renders repositories - but only from `stand.ohneProjekt`, the
@@ -97,7 +98,8 @@ first `## ` heading and stops at the next one or end of body, and that the Proje
 
 **End to end** (`e2e/cockpit.spec.ts`) loads `/` against the built sample data and asserts all
 seven headings, an overdue task under `Überfällig`, the Eingang panel's count against the sample
-fixture's own two unprocessed files with its link into `/eingang/`, the session note's text under
+fixture's own three unprocessed files - the werkstattrunde and werftbegehung transcripts and the
+m4a recording - with its link into `/eingang/`, the session note's text under
 `Hier weitermachen` with a working link into Vault, and under `Projekte in Bewegung` both the
 `leuchtturm` handoff row (`Stand veraltet`, since `e2e/fixtures.ts` rewrites its `repos:` entry to
 this worker's own sample-workshop checkout) and the uncoupled `treibgut` row from `ohneProjekt`,

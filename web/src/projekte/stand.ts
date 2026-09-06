@@ -33,7 +33,8 @@ export function dayText(updated: string): string {
 }
 
 /** The badges a Stand card shows, in a fixed order: staleness, then dirty repos, then open
-    tasks, then one line per repo the handoff names but the scan never found. */
+    tasks, then Plaud notes since the handoff, then one line per repo the handoff names but the
+    scan never found. */
 export function standHints(p: ProjektStand): string[] {
   const hints: string[] = [];
   if (p.signals.veraltet) hints.push("Stand veraltet");
@@ -43,6 +44,9 @@ export function standHints(p: ProjektStand): string[] {
   if (p.signals.offeneTasks === 1) hints.push("1 offene Aufgabe");
   else if (p.signals.offeneTasks > 1)
     hints.push(`${String(p.signals.offeneTasks)} offene Aufgaben`);
+  if (p.signals.plaudNotizen === 1) hints.push("1 Plaud-Notiz seit Handoff");
+  else if (p.signals.plaudNotizen > 1)
+    hints.push(`${String(p.signals.plaudNotizen)} Plaud-Notizen seit Handoff`);
   for (const name of p.missingRepos) hints.push(`Repo nicht gefunden: ${name}`);
   return hints;
 }

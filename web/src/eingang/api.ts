@@ -1,4 +1,10 @@
-import type { EingangJobKind, InboxFile, JobRow, ScheduledRun } from "./types";
+import type {
+  EingangJobKind,
+  InboxFile,
+  JobRow,
+  PlaudReply,
+  ScheduledRun,
+} from "./types";
 
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -71,4 +77,7 @@ export const api = {
   killJob: (id: number) =>
     post<JobReply>(`/api/eingang/jobs/${String(id)}/kill`, {}),
   schedule: () => get<ScheduleReply>("/api/eingang/schedule"),
+  plaud: (page: number) =>
+    get<PlaudReply>(`/api/eingang/plaud?page=${String(page)}`),
+  projekte: () => get<{ slugs: string[] }>("/api/eingang/projekte"),
 };

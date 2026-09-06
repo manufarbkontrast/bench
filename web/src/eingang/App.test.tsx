@@ -39,6 +39,8 @@ vi.mock("./api", () => ({
     job: vi.fn(),
     killJob: vi.fn(),
     schedule: vi.fn(),
+    plaud: vi.fn(),
+    projekte: vi.fn(),
   },
   HttpError: class HttpError extends Error {
     status: number;
@@ -59,6 +61,12 @@ beforeEach(() => {
   vi.mocked(api.job).mockResolvedValue({ job: job(), log: "" });
   vi.mocked(api.killJob).mockResolvedValue({ job: job({ status: "killed" }) });
   vi.mocked(api.schedule).mockResolvedValue({ runs: [] });
+  vi.mocked(api.plaud).mockResolvedValue({
+    source: "sample",
+    recordings: [],
+    nextPage: null,
+  });
+  vi.mocked(api.projekte).mockResolvedValue({ slugs: [] });
 });
 
 describe("Eingang App", () => {
@@ -190,5 +198,66 @@ describe("Eingang App", () => {
     expect(
       await screen.findByText("com.bench.plaud-sync — Tag 1, 07:00 Uhr"),
     ).toBeInTheDocument();
+  });
+
+  it("shows the Plaud-Aufnahmen panel heading", async () => {
+    render(<App />);
+    expect(
+      await screen.findByRole("heading", { name: "Plaud-Aufnahmen" }),
+    ).toBeInTheDocument();
+  });
+
+  it("starts plaud-fetch and refetches the Plaud listing when Holen is clicked", async () => {
+    vi.mocked(api.plaud).mockResolvedValue({
+      source: "sample",
+      recordings: [
+        {
+          id: "fix-lampe-0901",
+          titel: "Lampe für den Leuchtturm",
+          start: "2026-09-01T09:00:00",
+          dauer: 1523000,
+          status: "neu",
+        },
+      ],
+      nextPage: null,
+    });
+    render(<App />);
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: "Holen: Lampe für den Leuchtturm",
+      }),
+    );
+    expect(api.startJob).toHaveBeenCalledWith("plaud-fetch", {
+      id: "fix-lampe-0901",
+    });
+    await waitFor(() => {
+      expect(api.plaud).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("starts plaud-process with the selected projekt", async () => {
+    vi.mocked(api.projekte).mockResolvedValue({ slugs: ["leuchtturm"] });
+    render(<App />);
+    await screen.findByText("2026-08-30_werkstattrunde-transcript.txt");
+    await userEvent.selectOptions(
+      await screen.findByRole("combobox", {
+        name: "Projekt: 2026-08-30_werkstattrunde-transcript.txt",
+      }),
+      "leuchtturm",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Verarbeiten/ }));
+    expect(api.startJob).toHaveBeenCalledWith("plaud-process", {
+      file: "2026-08-30_werkstattrunde-transcript.txt",
+      projekt: "leuchtturm",
+    });
+  });
+
+  it("starts plaud-process with the file only when no projekt is selected", async () => {
+    render(<App />);
+    await screen.findByText("2026-08-30_werkstattrunde-transcript.txt");
+    await userEvent.click(screen.getByRole("button", { name: /Verarbeiten/ }));
+    expect(api.startJob).toHaveBeenCalledWith("plaud-process", {
+      file: "2026-08-30_werkstattrunde-transcript.txt",
+    });
   });
 });

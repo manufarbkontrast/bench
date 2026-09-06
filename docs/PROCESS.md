@@ -133,6 +133,11 @@ Traps worth knowing:
 - Refs go stale after navigation - re-snapshot before clicking.
 - `snapshot -i` lists only interactive elements; a container with a role may not appear, which is
   not evidence that it is missing. Confirm against the source before reporting it as a defect.
+- **On a developer machine with a real `.env`, `npm run dev` reaches the real vault and the real
+  Plaud account** - a browser check of an ordinary change should instead run
+  `BENCH_DOTENV=off DATA_DIR=<a scratch dir> npm run dev`, which builds the bundled sample world the
+  same way an e2e worker does, unless the point of the session actually is the real-machine
+  walkthrough. A session in this change saw real recording titles in a screenshot before switching.
 
 Record anything that automation cannot assert in [e2e/EXPLORATORY.md](../e2e/EXPLORATORY.md).
 

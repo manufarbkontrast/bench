@@ -37,7 +37,12 @@ function projekt(overrides: Partial<ProjektStand> = {}): ProjektStand {
     zustand: "Der Turm steht, die Fresnel-Linse fehlt noch.",
     repos: [repo()],
     missingRepos: [],
-    signals: { veraltet: false, dirtyRepos: 0, offeneTasks: 0 },
+    signals: {
+      veraltet: false,
+      dirtyRepos: 0,
+      offeneTasks: 0,
+      plaudNotizen: 0,
+    },
     ...overrides,
   };
 }
@@ -49,7 +54,12 @@ describe("ProjektView", () => {
     const stand: StandReply = {
       projekte: [
         projekt({
-          signals: { veraltet: true, dirtyRepos: 1, offeneTasks: 2 },
+          signals: {
+            veraltet: true,
+            dirtyRepos: 1,
+            offeneTasks: 2,
+            plaudNotizen: 0,
+          },
         }),
       ],
       ohneProjekt: [],
@@ -128,6 +138,27 @@ describe("ProjektView", () => {
       <ProjektView stand={stand} today={TODAY} onSelect={vi.fn()} />,
     );
     expect(container.querySelector(".projekte-stand-text")).toBeNull();
+  });
+
+  it("shows the Plaud-Notizen badge, pluralised", () => {
+    const stand: StandReply = {
+      projekte: [
+        projekt({
+          signals: {
+            veraltet: false,
+            dirtyRepos: 0,
+            offeneTasks: 0,
+            plaudNotizen: 2,
+          },
+        }),
+      ],
+      ohneProjekt: [],
+      warnings: [],
+    };
+    render(<ProjektView stand={stand} today={TODAY} onSelect={vi.fn()} />);
+    expect(
+      screen.getByText("2 Plaud-Notizen seit Handoff"),
+    ).toBeInTheDocument();
   });
 
   it("lists one badge line per missing repo", () => {

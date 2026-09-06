@@ -35,6 +35,9 @@ test("the Projekte view opens by default, shows the coupled handoff and leaves t
     "Handoff: Leuchtturm",
   );
   await expect(leuchtturmCard).toContainText("Stand veraltet");
+  // The Hafenrunde note (server/src/aufgaben/fixture/notizen/2026-08-20_hafenrunde.md) now names
+  // projekt: leuchtturm and postdates the handoff's own updated: 2020-01-01.
+  await expect(leuchtturmCard).toContainText("1 Plaud-Notiz seit Handoff");
   await expect(leuchtturmCard.locator("pre.projekte-stand-text")).toHaveText(
     "Der Leuchtturm steht; die Lampe ist bestellt.",
   );
@@ -71,6 +74,7 @@ test("the Projekte view opens by default, shows the coupled handoff and leaves t
     "Handoff: Hafen",
   );
   await expect(hafenCard).not.toContainText("Stand veraltet");
+  await expect(hafenCard).not.toContainText("Plaud-Notiz seit Handoff");
   await expect(hafenCard.getByRole("button")).toHaveCount(0);
 
   const rest = page.locator("section.projekte-stand-rest");

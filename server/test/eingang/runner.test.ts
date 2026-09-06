@@ -54,6 +54,7 @@ function newRunner(
     {
       "vault-reindex": overrides["vault-reindex"] ?? neverCalled,
       "projekte-scan": overrides["projekte-scan"] ?? neverCalled,
+      "plaud-fetch": overrides["plaud-fetch"] ?? neverCalled,
     },
     killEscalationMs,
   );
@@ -249,7 +250,7 @@ describe("createRunner - internal jobs", () => {
     const started = runner.start(
       "vault-reindex",
       "{}",
-      { kind: "internal", name: "vault-reindex" },
+      { kind: "internal", name: "vault-reindex", args: {} },
       {},
       JOB_TIMEOUTS_MS["vault-reindex"],
     );
@@ -270,7 +271,7 @@ describe("createRunner - internal jobs", () => {
     const started = runner.start(
       "projekte-scan",
       "{}",
-      { kind: "internal", name: "projekte-scan" },
+      { kind: "internal", name: "projekte-scan", args: {} },
       {},
       JOB_TIMEOUTS_MS["projekte-scan"],
     );
@@ -293,7 +294,7 @@ describe("createRunner - internal jobs", () => {
     const started = runner.start(
       "vault-reindex",
       "{}",
-      { kind: "internal", name: "vault-reindex" },
+      { kind: "internal", name: "vault-reindex", args: {} },
       {},
       JOB_TIMEOUTS_MS["vault-reindex"],
     );
@@ -304,6 +305,27 @@ describe("createRunner - internal jobs", () => {
     resolveJob?.();
     const finished = await waitForTerminal(db, started.id);
     expect(finished.status).toBe("done");
+  });
+
+  it("hands an internal job its plan args", async () => {
+    let seen: Record<string, unknown> | null = null;
+    const { db, runner } = newRunner({
+      "plaud-fetch": (log, args) => {
+        seen = args;
+        log("ok");
+        return Promise.resolve();
+      },
+    });
+    const job = runner.start(
+      "plaud-fetch",
+      JSON.stringify({ id: "abc" }),
+      { kind: "internal", name: "plaud-fetch", args: { id: "abc" } },
+      {},
+      JOB_TIMEOUTS_MS["plaud-fetch"],
+    );
+    const finished = await waitForTerminal(db, job.id);
+    expect(finished.status).toBe("done");
+    expect(seen).toEqual({ id: "abc" });
   });
 });
 
@@ -372,7 +394,7 @@ describe("createRunner - a broken log stream", () => {
     const started = runner.start(
       "vault-reindex",
       "{}",
-      { kind: "internal", name: "vault-reindex" },
+      { kind: "internal", name: "vault-reindex", args: {} },
       {},
       JOB_TIMEOUTS_MS["vault-reindex"],
     );

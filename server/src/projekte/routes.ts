@@ -13,6 +13,7 @@ export interface ProjekteContext {
   roots: string[];
   source: "configured" | "sample";
   gh: GhRunner | "off";
+  notizenDir: string | null;
 }
 
 interface ListedProject extends ProjectRow {
@@ -94,7 +95,7 @@ export function projekteRouter(
   // Never triggers a scan: reads the projects table as it stands, so an empty table simply
   // yields every handoff with all its repos missing - the honest picture before the first scan.
   router.get("/stand", (_req, res) => {
-    res.json(projektStand(vaultDb, listProjects(db)));
+    res.json(projektStand(vaultDb, listProjects(db), ctx.notizenDir));
   });
 
   router.post("/scan", async (_req, res) => {

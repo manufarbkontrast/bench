@@ -212,17 +212,17 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 
 | Scope                               | Statements |
 | ----------------------------------- | ---------- |
-| `server/src`                        | 92.8%      |
+| `server/src`                        | 93.08%     |
 | `web/src/aufgaben`                  | 79.43%     |
 | `web/src/aufgaben/components`       | 96.15%     |
 | `web/src/crm`                       | 100%       |
 | `web/src/crm/components`            | 94.76%     |
 | `web/src/crm/pages`                 | 95.77%     |
-| `web/src/eingang`                   | 76.53%     |
+| `web/src/eingang`                   | 76.33%     |
 | `web/src/eingang/components`        | 100%       |
-| `web/src/home`                      | 78.37%     |
+| `web/src/home`                      | 78.28%     |
 | `web/src/kontext`                   | 77.41%     |
-| `web/src/projekte`                  | 81.63%     |
+| `web/src/projekte`                  | 82.35%     |
 | `web/src/projekte/components`       | 100%       |
 | `web/src/rolodex`                   | 81.35%     |
 | `web/src/rolodex/components`        | 81.56%     |
@@ -232,7 +232,10 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 | `web/src/vault`                     | 85.49%     |
 | `web/src/vault/components`          | 81.88%     |
 | `web/src/zahlen`                    | 62.5%      |
-| **web overall**                     | **86.01%** |
+| **web overall**                     | **85.95%** |
+
+The last two decimals of `server/src` vary run to run - a few timeout-dependent tests settle
+differently from one run to the next.
 
 **Do not lower the bar to make a red run green.**
 

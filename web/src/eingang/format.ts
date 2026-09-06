@@ -6,6 +6,7 @@ import type {
   InboxFile,
   JobRow,
   JobStatus,
+  Recording,
   ScheduledRun,
 } from "./types";
 
@@ -39,6 +40,8 @@ export function fileMetaText(file: InboxFile): string {
 interface JobArgs {
   file?: string;
   modus?: string;
+  projekt?: string;
+  id?: string;
 }
 
 /** argsJson is always what routes.ts wrote with JSON.stringify(args) for this same kind, so no
@@ -53,16 +56,25 @@ function jobArgs(job: Pick<JobRow, "argsJson">): JobArgs {
     what jobKindLabel's default branch used to be: a switch with `default: return job.kind`
     compiles for a new, unlabeled kind too, since this tsconfig does not set noImplicitReturns -
     the missing-key check on this object literal is what actually catches it. */
+/** plaud-process carries the optional projekt slug of decision 16, appended when present. */
+function plaudProcessLabel(args: JobArgs): string {
+  const file = args.file!;
+  return args.projekt === undefined
+    ? `Verarbeiten: ${file}`
+    : `Verarbeiten: ${file} (${args.projekt})`;
+}
+
 const KNOWN_KIND_LABEL: Record<EingangJobKind, (args: JobArgs) => string> = {
   "plaud-sync": () => "Einsammeln",
-  // The runner never starts these two kinds without a file arg (jobs.ts planPlaudProcess /
-  // planAufgabenImport), so the union member TypeScript cannot narrow away is one this string
-  // always carries.
-  "plaud-process": (args) => `Verarbeiten: ${args.file!}`,
+  // The runner never starts these kinds without their required arg (jobs.ts planPlaudProcess /
+  // planAufgabenImport / planPlaudFetch), so the union member TypeScript cannot narrow away is
+  // one this string always carries.
+  "plaud-process": plaudProcessLabel,
   "aufgaben-import": (args) => `Aufgaben-Import: ${args.file!}`,
   controlling: (args) => `Controlling (${args.modus!})`,
   "vault-reindex": () => "Vault-Reindex",
   "projekte-scan": () => "Projekte-Scan",
+  "plaud-fetch": (args) => `Holen: ${args.id!}`,
 };
 
 /** The job's row in the Jobs table and the LogView header both read this - one place for what a
@@ -113,4 +125,28 @@ function twoDigits(n: number | null): string {
 export function scheduledRunText(run: ScheduledRun): string {
   const day = run.day === null ? EM_DASH : String(run.day);
   return `${run.label} ${EM_DASH} Tag ${day}, ${twoDigits(run.hour)}:${twoDigits(run.minute)} Uhr`;
+}
+
+/** server/src/eingang/plaud-fetch.ts's own dauerText, duplicated per the workspace boundary:
+    "23s" under a minute, "5m23s" under an hour, "1h05m" from an hour on. */
+export function dauerText(ms: number): string {
+  const total = Math.floor(ms / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) return `${String(h)}h${String(m).padStart(2, "0")}m`;
+  if (m > 0) return `${String(m)}m${String(s).padStart(2, "0")}s`;
+  return `${String(s)}s`;
+}
+
+/** The muted meta line under a recording's title: when it started, local, and how long it ran.
+    plaud-fetch.ts's toRecording blanks a start_at it cannot trust, and Date.parse("") is NaN -
+    Intl.DateTimeFormat.format throws RangeError on that, which unmounts the whole page, so a
+    blank start renders as "Ohne Datum" instead of ever reaching dateTimeText. */
+export function recordingMetaText(recording: Recording): string {
+  const when =
+    recording.start === ""
+      ? "Ohne Datum"
+      : dateTimeText(Date.parse(recording.start));
+  return `${when} · ${dauerText(recording.dauer)}`;
 }
