@@ -78,10 +78,12 @@ beforeEach(() => {
     controllingDir: located.controllingDir,
     skillsDir: EINGANG_FIXTURE,
     sample: true,
+    projektSlugs: () => [],
   };
   const runner = createRunner(db, path.join(scratch.dir, `jobs-${n}`), {
     "vault-reindex": neverCalled,
     "projekte-scan": neverCalled,
+    "plaud-fetch": neverCalled,
   });
   const ctx: EingangContext = {
     db,
@@ -302,11 +304,16 @@ describe("POST /api/eingang/jobs - a null plaudHome", () => {
       controllingDir: nullPlaudLocated.controllingDir,
       skillsDir: EINGANG_FIXTURE,
       sample: false,
+      projektSlugs: () => [],
     };
     const nullPlaudRunner = createRunner(
       nullPlaudDb,
       path.join(scratch.dir, `jobs-null-plaud-${n}`),
-      { "vault-reindex": neverCalled, "projekte-scan": neverCalled },
+      {
+        "vault-reindex": neverCalled,
+        "projekte-scan": neverCalled,
+        "plaud-fetch": neverCalled,
+      },
     );
     const nullPlaudApp = appWithEingang({
       db: nullPlaudDb,

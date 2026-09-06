@@ -9,14 +9,14 @@ import {
   type JobRow,
   type JobStatus,
 } from "./db.js";
-import type { JobKind, JobPlan } from "./jobs.js";
+import type { InternalName, JobKind, JobPlan } from "./jobs.js";
 
-type InternalJobFn = (log: (line: string) => void) => Promise<void>;
+type InternalJobFn = (
+  log: (line: string) => void,
+  args: Record<string, unknown>,
+) => Promise<void>;
 
-export interface RunnerInternals {
-  "vault-reindex": InternalJobFn;
-  "projekte-scan": InternalJobFn;
-}
+export type RunnerInternals = Record<InternalName, InternalJobFn>;
 
 /**
  * `killed` - a SIGTERM was actually sent. `not_running` - the id is absent or already finished.
@@ -208,13 +208,15 @@ export function createRunner(
     });
   }
 
-  function runInternal(
-    id: number,
-    name: keyof RunnerInternals,
-    logPath: string,
-    timeoutMs: number,
-    record: InFlightJob,
-  ): void {
+  function runInternal(internalJob: {
+    id: number;
+    name: keyof RunnerInternals;
+    args: Record<string, unknown>;
+    logPath: string;
+    timeoutMs: number;
+    record: InFlightJob;
+  }): void {
+    const { id, name, args, logPath, timeoutMs, record } = internalJob;
     const out = createWriteStream(logPath);
     const settle = createLogSettler(record, out, (status, exitCode) =>
       finish(id, status, exitCode),
@@ -237,7 +239,7 @@ export function createRunner(
     }, timeoutMs);
     record.timers.push(timeoutTimer);
 
-    void internals[name](log)
+    void internals[name](log, args)
       .then(() => {
         settle.viaLog(record.why === "timedOut" ? "timeout" : "done", 0);
       })
@@ -264,7 +266,15 @@ export function createRunner(
 
     if (plan.kind === "spawn")
       runSpawn({ id, plan, env, logPath, timeoutMs, record });
-    else runInternal(id, plan.name, logPath, timeoutMs, record);
+    else
+      runInternal({
+        id,
+        name: plan.name,
+        args: plan.args,
+        logPath,
+        timeoutMs,
+        record,
+      });
 
     return getJob(db, id)!;
   }

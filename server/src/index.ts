@@ -12,6 +12,8 @@ import { isSeeded, seed } from "./crm/seed.js";
 import { failStaleRunning, openEingangDb } from "./eingang/db.js";
 import type { JobPaths } from "./eingang/jobs.js";
 import { locateEingang } from "./eingang/locate.js";
+import { runPlaudFetch } from "./eingang/plaud-fetch.js";
+import { REAL_PLAUD_COMMAND, type PlaudCommand } from "./eingang/plaud-mcp.js";
 import type { EingangContext } from "./eingang/routes.js";
 import { createRunner } from "./eingang/runner.js";
 import { locateKontext } from "./kontext/locate.js";
@@ -19,9 +21,11 @@ import type { KontextContext } from "./kontext/routes.js";
 import { listSkills } from "./kontext/skills.js";
 import { listProjects, openProjekteDb } from "./projekte/db.js";
 import { realGh } from "./projekte/gh.js";
+import { vaultHandoffs } from "./projekte/handoffs.js";
 import { locateProjects } from "./projekte/locate.js";
 import { scanProjects } from "./projekte/pipeline.js";
 import type { ProjekteContext } from "./projekte/routes.js";
+import { localDay } from "./projekte/stand.js";
 import { openDb as openRolodexDb } from "./rolodex/db/index.js";
 import { seedIfEmpty as seedRolodex } from "./rolodex/seed.js";
 import { openDb as openVaultDb } from "./vault/db.js";
@@ -111,7 +115,13 @@ const eingangPaths: JobPaths = {
   controllingDir: eingangLocation.controllingDir,
   skillsDir: path.join(os.homedir(), ".claude", "skills"),
   sample: eingangLocation.source === "sample",
+  projektSlugs: () => vaultHandoffs(vaultDb).handoffs.map((h) => h.slug),
 };
+// BENCH_PLAUD=off is the e2e/sample switch, the BENCH_GH=off twin; the sample world is off by construction.
+const plaudCommand: PlaudCommand =
+  process.env.BENCH_PLAUD === "off" || eingangPaths.sample
+    ? "off"
+    : REAL_PLAUD_COMMAND;
 const eingangRunner = createRunner(
   eingangDb,
   path.join(dataDir, "eingang-jobs"),
@@ -134,6 +144,18 @@ const eingangRunner = createRunner(
         `scanned ${result.projects} projects (${result.repos} repos, ${result.folders} folders, ${result.duplicates} duplicates) in ${result.ms}ms`,
       );
     },
+    // planPlaudFetch (jobs.ts) already proved args.id is a string before the plan reached here.
+    "plaud-fetch": (log, args) =>
+      runPlaudFetch(
+        {
+          command: plaudCommand,
+          plaudHome: eingangPaths.plaudHome,
+          sample: eingangPaths.sample,
+          today: () => localDay(Date.now()),
+        },
+        args.id as string,
+        log,
+      ),
   },
 );
 const eingang: EingangContext = {
@@ -210,6 +232,7 @@ createApp({
   console.log(
     `  Eingang: ${eingangLocation.watchDirs.length} watch dirs (${eingangLocation.source}), ${eingangJobCount} jobs recorded`,
   );
+  console.log(`  Plaud MCP: ${plaudCommand === "off" ? "off" : "on"}`);
   console.log(`  Kontext: ${listSkills(kontext.claudeDir).count} skills`);
   console.log(
     zahlen.dir === null

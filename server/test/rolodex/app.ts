@@ -39,6 +39,7 @@ function emptyEingang(): EingangContext {
       controllingDir: null,
       skillsDir: "/nonexistent",
       sample: true,
+      projektSlugs: () => [],
     },
   };
 }
