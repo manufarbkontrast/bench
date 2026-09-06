@@ -241,7 +241,7 @@ differently from one run to the next.
 **Do not lower the bar to make a red run green.**
 
 **Thresholds stay on `statements` only.** That decision is a settled project-level control and
-this pass does not change it. Branches now read 84.6% on the server and 81.5% on web - both above
+this pass does not change it. Branches now read 85.9% on the server and 82.2% on web - both above
 80%, where the server used to sit at 72% and would have failed a shared branches gate. The revisit
 condition this paragraph named, raising the server's branch coverage first, has been met, so adding
 a branches threshold is now an available project-level call rather than a blocked one.

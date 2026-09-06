@@ -183,8 +183,10 @@ COLUMN` migration in the pattern `crm/db.ts` set. No backfill: the next `indexAl
    before the change (criteria report: counts only).
 3. **The Regeln tab.** `e2e/kontext/kontext.spec.ts` asserts that neither fixture handoff appears
    under Regeln while `Testing` still does.
-4. **One scanner.** `grep -rn 'indexOf(": ")' server/src` finds exactly one file; the four
-   callers' suites pass unchanged; `server/test/shared/frontmatter.test.ts` exists and passes.
+4. **One scanner.** `grep -rln 'indexOf(SEPARATOR)' server/src` finds exactly
+   `server/src/shared/frontmatter.ts` and `grep -rn 'indexOf(": ")' server/src` finds nothing (the
+   module reads through a constant); the four callers' suites pass unchanged;
+   `server/test/shared/frontmatter.test.ts` exists and passes.
 5. **The gate.** `npm run format`, `npm run check` (coverage at or above 80 % statements in both
    workspaces) and `npm run e2e` all exit 0 at the branch head.
 
