@@ -57,6 +57,16 @@ function knownNote(db: Database.Database, relPath: string): boolean {
   );
 }
 
+// A handoff note is the /handoff skill's write surface, not this one - PROJECT.md's "Bench
+// never writes a handoff" promise, enforced here rather than only documented. Declared locally
+// rather than imported from projekte/handoffs.ts's HANDOFF_FOLDER: the two apps never import
+// each other, the same rule EXCLUDED_FOLDERS follows elsewhere in this codebase.
+const HANDOFF_FOLDER = "50_Workflow/Handoffs/";
+
+function isHandoffNote(relPath: string): boolean {
+  return relPath.startsWith(HANDOFF_FOLDER);
+}
+
 interface PostFields {
   text: string;
   due?: string;
@@ -105,6 +115,10 @@ export function tasksRouter({ db, dir }: VaultContext): Router {
       res.status(400).json({ error: "path, line and raw are required" });
       return;
     }
+    if (isHandoffNote(relPath)) {
+      res.status(400).json({ error: "handoff notes are read-only" });
+      return;
+    }
     if (!knownNote(db, relPath)) {
       res.status(404).json({ error: "Not found" });
       return;
@@ -130,6 +144,10 @@ export function tasksRouter({ db, dir }: VaultContext): Router {
     const relPath = insideVault(root, fields.path);
     if (!relPath) {
       res.status(400).json({ error: "path must stay inside the vault" });
+      return;
+    }
+    if (isHandoffNote(relPath)) {
+      res.status(400).json({ error: "handoff notes are read-only" });
       return;
     }
     if (relPath !== TASK_INBOX && !knownNote(db, relPath)) {

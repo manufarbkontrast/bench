@@ -89,7 +89,10 @@ describe("toggleTask", () => {
     const fileLines = readFileSync(path.join(dir, LEUCHTTURM), "utf8").split(
       "\n",
     );
-    expect(fileLines[12]).toBe(
+    // Shifted by 1 from the fixture's added `projekt: leuchtturm` frontmatter line - task line
+    // numbers are body-relative and unaffected, but bodyOffset (write.ts) counts frontmatter
+    // lines to find the file line, and the frontmatter now has one more.
+    expect(fileLines[13]).toBe(
       "- [x] Spezifikation schreiben 🔺 📅 2026-08-20 ✅ 2026-09-01",
     );
     const after = db
@@ -127,11 +130,13 @@ describe("appendTask", () => {
   it("lands the task after the Aufgaben section's last non-empty line", () => {
     const result = appendTask(dir, db, LEUCHTTURM, "- [ ] Neue Aufgabe");
 
-    expect(result).toEqual({ ok: true, line: 19, raw: "- [ ] Neue Aufgabe" });
+    // Shifted by 1 from the fixture's added `projekt: leuchtturm` frontmatter line - appendTask's
+    // line is file-relative, and the file now carries one more frontmatter line above the body.
+    expect(result).toEqual({ ok: true, line: 20, raw: "- [ ] Neue Aufgabe" });
     const lines = readFileSync(path.join(dir, LEUCHTTURM), "utf8").split("\n");
-    expect(lines[18]).toBe("- [ ] Neue Aufgabe");
-    expect(lines[19]).toBe("");
-    expect(lines[20]).toBe("## Notizen");
+    expect(lines[19]).toBe("- [ ] Neue Aufgabe");
+    expect(lines[20]).toBe("");
+    expect(lines[21]).toBe("## Notizen");
   });
 
   it("appends the heading itself when the note does not have one", () => {

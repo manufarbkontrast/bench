@@ -1,6 +1,7 @@
 ---
 tags: [project, brand/nordlicht, status/active]
 path: ~/Projekte/leuchtturm
+projekt: leuchtturm
 updated: 2026-08-01
 ---
 

@@ -58,7 +58,8 @@ describe("watchVault", () => {
       "# Neu\n\nVerweist auf [[Start]].\n",
     );
     await added;
-    expect(notes()).toBe(14);
+    // 15 fixture notes (13 plus the two 50_Workflow/Handoffs fixtures) plus this one.
+    expect(notes()).toBe(16);
     expect(
       db
         .prepare("SELECT to_path FROM links WHERE from_path = ?")
@@ -82,7 +83,8 @@ describe("watchVault", () => {
     const removed = nextChange();
     unlinkSync(path.join(dir, "60_Knowledge", "Neu.md"));
     await removed;
-    expect(notes()).toBe(13);
+    // Back to the 15 fixture notes (13 plus the two 50_Workflow/Handoffs fixtures).
+    expect(notes()).toBe(15);
   });
 
   it("indexes a note with malformed frontmatter instead of leaving the event unhandled, and it is findable by body text", async () => {
@@ -92,7 +94,8 @@ describe("watchVault", () => {
       "---\ntitle: [unterminated\nfoo: bar\n---\n\nKaputte Frontmatter mit findmekaputttoken.\n",
     );
     await added;
-    expect(notes()).toBe(14);
+    // 15 fixture notes (13 plus the two 50_Workflow/Handoffs fixtures) plus this one.
+    expect(notes()).toBe(16);
     // The fallback in splitNote keeps the whole file as body rather than dropping it from the
     // index - proving it appears in the notes table is not the same as proving FTS can find it,
     // since notes_fts is a second table indexNote writes to independently.
@@ -117,6 +120,7 @@ describe("watchVault", () => {
       "# Echt\n\nEin echtes Notiz.\n",
     );
     await added;
-    expect(notes()).toBe(14);
+    // 15 fixture notes (13 plus the two 50_Workflow/Handoffs fixtures) plus this one.
+    expect(notes()).toBe(16);
   });
 });

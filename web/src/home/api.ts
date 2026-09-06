@@ -1,4 +1,4 @@
-import type { InboxFile, Project, Task, ZahlenReply } from "./types";
+import type { InboxFile, StandReply, Task, ZahlenReply } from "./types";
 
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -30,8 +30,11 @@ interface SessionNote {
 export const api = {
   tasks: () =>
     get<{ tasks: Task[] }>("/api/aufgaben/tasks").then((r) => r.tasks),
-  projects: () =>
-    get<{ projects: Project[] }>("/api/projekte/list").then((r) => r.projects),
+  // GET /list scans an empty table before answering (server/src/projekte/routes.ts); GET /stand
+  // never scans. The Cockpit is the first page a fresh install shows, so it has to warm the
+  // table itself before reading /stand - the list body is unused here, the panel reads /stand.
+  warmProjects: () => get<unknown>("/api/projekte/list").then(() => undefined),
+  stand: () => get<StandReply>("/api/projekte/stand"),
   inbox: () =>
     get<{ files: InboxFile[] }>("/api/eingang/inbox").then((r) => r.files),
   sessionNote: () =>

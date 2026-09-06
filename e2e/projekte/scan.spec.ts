@@ -49,10 +49,13 @@ test("a repo created after the first scan is found by Neu scannen, without a rel
   projectsDir,
 }) => {
   await page.goto("/projekte/");
+  // Projekte is the default view now (Task 4), not Tabelle - switch there first; the view stays
+  // put across the rescan below, so both waits land on the table's own rows.
   // Generous: a fresh worker's first list fetch also builds and scans the sample workshop, which
   // shells out to git several times, before any row exists - the house pattern from
   // smoke.spec.ts's projekte addition. Waiting for a row here also guarantees projectsDir exists
   // on disk before the new repo is written into it below.
+  await page.getByRole("button", { name: "Tabelle", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "treibgut", exact: true }),
   ).toBeVisible({ timeout: 20_000 });

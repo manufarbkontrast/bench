@@ -9,9 +9,14 @@ test("groups the uncoupled sample under one section and column, and a card opens
   page,
 }) => {
   await page.goto("/projekte/");
-  // Generous, and asserted before switching view: this spec cannot assume table.spec ran first in
-  // this worker, so the first row still has to survive the lazy first-visit scan of a fresh
-  // worker's sample workshop.
+  // Projekte is the default view now (Task 4), not Tabelle - switch there first before checking
+  // for Board. (App.tsx fetches /stand only once /list has resolved, so the Projekte view's own
+  // Ohne Projekt list would show the same row without racing the first-visit scan below; the
+  // click here is only about reaching Tabelle before Board, this spec's actual subject.)
+  // Generous, and asserted before switching to Board: this spec cannot assume table.spec ran
+  // first in this worker, so the first row still has to survive the lazy first-visit scan of a
+  // fresh worker's sample workshop.
+  await page.getByRole("button", { name: "Tabelle", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "leuchtfeuer", exact: true }),
   ).toBeVisible({ timeout: 20_000 });

@@ -20,6 +20,16 @@ export default defineConfig({
     // watch suite's own 30s hang detector, so that detector's message can surface instead of
     // vitest's own timeout racing it.
     testTimeout: 40_000,
+    // stand.ts's veraltet signal compares LOCAL calendar days, and stand.test.ts's day-boundary
+    // cases only discriminate a correct localDay from a UTC-based one when local time differs
+    // from UTC. The dev machine is Europe/Berlin; GitHub's runners are UTC with no TZ set (grep
+    // confirms nothing in this repo pins one) - without this pin those tests pass against a wrong
+    // implementation on the very runner that gates the merge. Verified in the installed vitest
+    // 4.1.11 source (cli-api.CnMVyzaz.js): a worker's env is `{...process.env, ...options.env,
+    // ...ctx.config.env, ...project.config.env}`, so this root-level value overrides the shell's
+    // own TZ and reaches every project below (both "unit" and "watch") without repeating it in
+    // each - and it equals the dev machine's zone, so no local behaviour changes.
+    env: { TZ: "Europe/Berlin" },
     coverage: {
       provider: "v8",
       include: ["src/**"],

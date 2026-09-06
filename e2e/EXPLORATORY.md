@@ -96,12 +96,15 @@ confirmed-but-unasserted:
 
 ## Projekte
 
-Covered by specs against the built sample workshop (`e2e/projekte/{table,board,scan}.spec.ts`): the
-table lists the sample's git checkouts with their git state, the duplicate pair carries `Dublette`,
-the remoteless checkout carries `Kein Remote`, issue cells read the em dash with `gh` off; the
-board groups the (uncoupled) sample into one `Ohne Marke` section and one `Unzugeordnet` column, a
-card opens the detail panel and lists its duplicate; `Neu scannen` picks up a checkout created
-after the first scan without a reload.
+Covered by specs against the built sample workshop
+(`e2e/projekte/{table,board,scan,stand}.spec.ts`): the table lists the sample's git checkouts with
+their git state, the duplicate pair carries `Dublette`, the remoteless checkout carries `Kein
+Remote`, issue cells read the em dash with `gh` off; the board groups the (uncoupled) sample into
+one `Ohne Marke` section and one `Unzugeordnet` column, a card opens the detail panel and lists its
+duplicate; `Neu scannen` picks up a checkout created after the first scan without a reload; the
+`Projekte` view opens by default and shows the fixture vault's two handoffs - one coupled and
+`Stand veraltet` against the worker's own rewritten `repos:` entry, one with no `repos:` at all -
+with the uncoupled checkout left in `Ohne Projekt`.
 
 Left to judgement, because the sample workshop cannot exercise it and a live `gh` call has no
 place in an automated suite:
@@ -124,6 +127,24 @@ place in an automated suite:
   every repo it builds. The table and detail rendering for that state (branch reads, every delta
   column empty) was confirmed once by hand against a real Chrome (Phase 6 Task 4), not by an
   automated spec.
+- **The real handoffs' `repos:` lists.** The committed fixture vault's two synthetic handoffs
+  couple to nothing on their own - `Handoff_leuchtturm.md` names `~/Projekte/leuchtturm`, which
+  matches no scanned row, and `Handoff_hafen.md` names no `repos:` at all; only each e2e worker's
+  own rewritten copy (`e2e/fixtures.ts`) points `leuchtturm` at a real, scanned checkout, as this
+  file's own Projekte paragraph above states. The seven real handoffs' own `repos:` entries -
+  several projects spanning more than one checkout, three with none at all - are only exercised by
+  hand against the real vault and the real `PROJECT_ROOTS` scan.
+- **A Stand card's age text against the real clock.** `ageText`'s day-count wording (`heute`, `vor
+1 Tag`, `vor <n> Tagen`) is covered at the unit level for fixed inputs; whether it reads right
+  next to a real handoff's actual age - months old, or from today - is only seen by hand.
+- **The seven real projects' signals**, together rather than one at a time: `veraltet` against a
+  real newest commit, `dirtyRepos` and `offeneTasks` counted correctly across real coupled
+  checkouts and real vault tasks, is confirmed piecewise by the unit suite but has not been watched
+  rendered together for every real handoff in one pass.
+- **The H1-after-H2 ordering.** `handoffs.ts`'s `handoffTitle` reads the body's first `# ` line
+  wherever it falls, independent of any `## ` section around it - but every fixture and test body
+  puts the H1 first, before any `## ` heading, so a handoff whose H1 sits after its first `##`
+  section (unusual, but not forbidden) has never actually been fed through the function.
 - **`gh` absent from `PATH`**, rather than `BENCH_GH=off`'s explicit switch, is covered at the unit
   level for the two realistic failure shapes (`gh.test.ts`), but no e2e spec restricts `PATH` to
   reproduce it - the suite's `BENCH_GH=off` exercises a different, pre-existing code path. Confirmed
@@ -141,7 +162,9 @@ target lands it under the inbox's heading; importing an unmatched Plaud row file
 suggested target and the ledger survives a reload, the dedup hint appears on a row that overlaps
 an existing open task, the Issues tab shows its off-mode message. The Cockpit's own spec covers all
 seven panels rendering in order against the sample data, an overdue task, the session note's first
-section with its Vault link, and a moving project.
+section with its Vault link, and under `Projekte in Bewegung` the `leuchtturm` handoff row and the
+uncoupled `treibgut` row from `ohneProjekt`, with `leuchtfeuer` asserted absent since it is already
+shown coupled to the handoff.
 
 Left to judgement, for the same reason as Projekte's own `gh` gap below - a live call has no place
 in an automated suite, and the fixture data was built to exercise specific behaviour once each
@@ -215,7 +238,9 @@ Left to judgement, because a real `claude -p` invocation, a real skill script an
 ## Kontext
 
 Covered by specs against the committed `claude-home` fixture (`e2e/kontext/kontext.spec.ts`):
-Profil, Regeln and Stand render the fixture vault notes and the one Claude-side rule file; Skills
+Profil, Regeln and Stand render the fixture vault notes and the one Claude-side rule file - Regeln
+reads `50_Workflow/` as a prefix, so the fixture's two handoff notes now render there too, alongside
+the fixture's other workflow note, unremarked by any assertion; Skills
 counts the fixture's two folders and a search narrows the list without moving the counter off
 `2 Skills`; MCP lists the two fixture server names and the page never contains the poisoned URL's
 own host, `secret.example.com`. Task 9 re-ran the same shape of check against the real

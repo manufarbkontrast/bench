@@ -1,9 +1,10 @@
 import path from "node:path";
+import type Database from "better-sqlite3";
 import type express from "express";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import * as scanModule from "../../src/projekte/scan.js";
-import { openProjekteDb } from "../../src/projekte/db.js";
+import { listProjects, openProjekteDb } from "../../src/projekte/db.js";
 import type { ProjekteContext } from "../../src/projekte/routes.js";
 import { openDb as openVaultDb } from "../../src/vault/db.js";
 import type { VaultContext } from "../../src/vault/routes/index.js";
@@ -244,5 +245,106 @@ describe("sameName", () => {
     expect(new Set(demoRows.map((p) => p.groupKey)).size).toBe(2);
     expect(demoRows.every((p) => p.sameName)).toBe(true);
     expect(demoRows.every((p) => !p.isDuplicate)).toBe(true);
+  });
+});
+
+interface StandResponse {
+  projekte: {
+    slug: string;
+    repos: { path: string }[];
+    signals: { veraltet: boolean; dirtyRepos: number; offeneTasks: number };
+  }[];
+  ohneProjekt: { path: string }[];
+  warnings: string[];
+}
+
+// Mirrors coupleNotes in app.ts, but for a handoff note rather than a brand/status coupling -
+// this suite is the only one that needs a handoff in the vault, so it stays local.
+function insertHandoff(
+  vaultDb: Database.Database,
+  frontmatter: Record<string, unknown>,
+): void {
+  vaultDb
+    .prepare(
+      "INSERT INTO notes (path, title, folder, frontmatter, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    )
+    .run(
+      "50_Workflow/Handoffs/Handoff_bench.md",
+      "Bench",
+      "50_Workflow/Handoffs",
+      JSON.stringify(frontmatter),
+      "",
+      0,
+      0,
+    );
+}
+
+describe("GET /api/projekte/stand", () => {
+  it("assembles the handoff's project state from the current table, leaving the rest in ohneProjekt", async () => {
+    const ctx = buildSampleContext(path.join(scratch.dir, "stand"));
+    const standApp = appWithProjekte(ctx.projekte, ctx.vault);
+    await request(standApp).post("/api/projekte/scan");
+    const rows = listProjects(ctx.projekte.db);
+    const target = rows[0];
+
+    insertHandoff(ctx.vault.db, {
+      projekt: "bench",
+      updated: "2020-01-01",
+      repos: [target.path],
+    });
+
+    const res = await request(standApp).get("/api/projekte/stand");
+    expect(res.status).toBe(200);
+    const body = res.body as StandResponse;
+
+    expect(body.projekte).toHaveLength(1);
+    expect(body.projekte[0].slug).toBe("bench");
+    expect(body.projekte[0].repos[0].path).toBe(target.path);
+    // The sample checkouts' commits are all made just now; a 2020 handoff is stale against them.
+    expect(body.projekte[0].signals.veraltet).toBe(true);
+    expect(
+      body.ohneProjekt
+        .map((r) => r.path)
+        .sort((a, b) => Number(a > b) - Number(a < b)),
+    ).toEqual(
+      rows
+        .filter((r) => r.path !== target.path)
+        .map((r) => r.path)
+        .sort((a, b) => Number(a > b) - Number(a < b)),
+    );
+    expect(body.warnings).toEqual([]);
+  });
+
+  it("puts every row in ohneProjekt when the vault has no handoff notes", async () => {
+    const ctx = buildSampleContext(path.join(scratch.dir, "stand-no-handoffs"));
+    const standApp = appWithProjekte(ctx.projekte, ctx.vault);
+    await request(standApp).post("/api/projekte/scan");
+    const rows = listProjects(ctx.projekte.db);
+
+    const res = await request(standApp).get("/api/projekte/stand");
+    expect(res.status).toBe(200);
+    const body = res.body as StandResponse;
+
+    expect(body.projekte).toEqual([]);
+    expect(
+      body.ohneProjekt
+        .map((r) => r.path)
+        .sort((a, b) => Number(a > b) - Number(a < b)),
+    ).toEqual(
+      rows.map((r) => r.path).sort((a, b) => Number(a > b) - Number(a < b)),
+    );
+    expect(body.warnings).toEqual([]);
+  });
+
+  it("answers from an empty table without triggering a scan", async () => {
+    const ctx = buildSampleContext(path.join(scratch.dir, "stand-empty"));
+    const standApp = appWithProjekte(ctx.projekte, ctx.vault);
+
+    const res = await request(standApp).get("/api/projekte/stand");
+    expect(res.status).toBe(200);
+    const body = res.body as StandResponse;
+
+    expect(body.ohneProjekt).toEqual([]);
+    expect(listProjects(ctx.projekte.db)).toHaveLength(0);
   });
 });

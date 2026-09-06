@@ -21,6 +21,8 @@ test("lists the sample workshop with each row's git and duplicate state", async 
   page,
 }) => {
   await page.goto("/projekte/");
+  // Projekte is the default view now (Task 4); this spec exercises the table specifically.
+  await page.getByRole("button", { name: "Tabelle", exact: true }).click();
 
   const leuchtfeuer = rowFor(page, "leuchtfeuer");
   // Generous: a fresh worker's first list fetch also builds and scans the sample workshop, which

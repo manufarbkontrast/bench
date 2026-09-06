@@ -62,15 +62,27 @@ test("the Cockpit surfaces overdue tasks, the session note and moving projects",
     zahlen.getByRole("link", { name: "Zur Zahlen-App" }),
   ).toHaveAttribute("href", "/zahlen/");
 
-  // Generous: a fresh worker's first read of /api/projekte/list can trigger the same lazy scan
-  // of the sample workshop as /projekte/'s own first visit, which shells out to git several
-  // times before any row exists - see smoke.spec.ts and projekte/scan.spec.ts for the same 20s
-  // wait on that call.
+  // Generous: the Cockpit warms the project index with GET /api/projekte/list before reading
+  // /stand (fix round 1), which on a fresh worker's first visit scans the sample workshop -
+  // shelling out to git several times - before any row exists. Same 20s wait as
+  // smoke.spec.ts and projekte/scan.spec.ts use for the same first-visit scan.
+  //
+  // e2e/fixtures.ts rewrites Handoff_leuchtturm.md's repos entry to this worker's own
+  // leuchtfeuer checkout, so the handoff row shows instead of a bare leuchtfeuer row - the same
+  // coupling e2e/projekte/stand.spec.ts exercises. A project is named by its slug, so the row's
+  // own text is "leuchtturm".
+  const projectsPanel = panel(page, "Projekte in Bewegung");
+  const handoffRow = projectsPanel
+    .locator("li")
+    .filter({ hasText: "leuchtturm" });
+  await expect(handoffRow).toBeVisible({ timeout: 20_000 });
+  await expect(handoffRow).toContainText("Stand veraltet");
   await expect(
-    panel(page, "Projekte in Bewegung").getByText("leuchtfeuer", {
-      exact: true,
-    }),
-  ).toBeVisible({ timeout: 20_000 });
+    projectsPanel.getByText("treibgut", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    projectsPanel.getByText("leuchtfeuer", { exact: true }),
+  ).toHaveCount(0);
 
   const link = session.getByRole("link", { name: "Im Vault öffnen" });
   await expect(link).toHaveAttribute(

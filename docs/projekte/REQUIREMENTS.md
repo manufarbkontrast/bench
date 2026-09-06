@@ -79,3 +79,13 @@ Deliberately left out of this phase:
 6. A scan over a realistic root set finishes in single-digit seconds.
 7. The end-to-end suite covers the table, the board and a rescan that picks up a checkout created
    after the first scan, against a built sample workshop.
+
+## Projektstand
+
+A later change, layered on top of the above: a project is no longer only a git checkout, but
+first of all a handoff note under the vault's `50_Workflow/Handoffs/`, coupled to zero or more
+checkouts through the note's own `repos:` frontmatter. Projekte gains a project-level view showing
+each handoff's `Zustand` text verbatim plus three signals Bench computes - staleness against the
+newest coupled commit, uncommitted repos, open vault tasks - and the Cockpit's panel lists the
+same handoffs in `/stand`'s own order: stale ones first, then oldest updated first. Full brief:
+[changes/projektstand/SPEC.md](../changes/projektstand/SPEC.md).

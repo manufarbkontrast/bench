@@ -17,6 +17,8 @@ import { api } from "./api";
 import { breakEvenText, dateText, deltaText, runLineText } from "./format";
 import { firstSection, type Section } from "./session";
 import {
+  HANDOFF_ROWS,
+  handoffMeta,
   movingProjects,
   overdueTasks,
   recentDone,
@@ -24,7 +26,7 @@ import {
   weekTasks,
   zahlenKpis,
   type InboxFile,
-  type Project,
+  type StandReply,
   type Task,
   type ZahlenReply,
 } from "./types";
@@ -46,9 +48,10 @@ const APPS: {
   { href: "/rolodex/", name: "Rolodex", Icon: IconRolodex },
 ];
 
-/** The local calendar day - matches the aufgaben app's own todayISO. */
-function todayISO(): string {
-  const now = new Date();
+/** The local calendar day for a given instant - matches the aufgaben app's own todayISO, taken
+    as a parameter here so a handoff's age and the moving-repos window read the same clock. */
+function todayISO(ms: number): string {
+  const now = new Date(ms);
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const d = String(now.getDate()).padStart(2, "0");
@@ -92,15 +95,35 @@ function TaskPanel({
   );
 }
 
-function ProjectPanel({ projects }: { projects: Project[] }) {
+function ProjectPanel({ stand, now }: { stand: StandReply; now: number }) {
+  const today = todayISO(now);
+  const handoffs = stand.projekte.slice(0, HANDOFF_ROWS);
+  const moreCount = stand.projekte.length - handoffs.length;
+  const moving = movingProjects(stand.ohneProjekt, now);
+  const empty = handoffs.length === 0 && moving.length === 0;
   return (
     <section className="home-panel">
       <h2>Projekte in Bewegung</h2>
-      {projects.length === 0 ? (
+      {empty ? (
         <p className="home-empty">Alles ruhig.</p>
       ) : (
         <ul className="home-rows">
-          {projects.map((project) => (
+          {handoffs.map((row) => (
+            <li key={row.slug}>
+              <a className="home-row" href="/projekte/">
+                <span className="home-row-text">{row.slug}</span>
+                <span className="home-row-meta">{handoffMeta(row, today)}</span>
+              </a>
+            </li>
+          ))}
+          {moreCount > 0 && (
+            <li key="__more">
+              <a className="home-row" href="/projekte/">
+                <span className="home-row-text">{`… und ${String(moreCount)} weitere`}</span>
+              </a>
+            </li>
+          )}
+          {moving.map((project) => (
             <li key={project.path}>
               <a className="home-row" href="/projekte/">
                 <span className="home-row-text">{project.name}</span>
@@ -178,14 +201,25 @@ function ZahlenPanel({ reply }: { reply: ZahlenReply }) {
 
 export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [stand, setStand] = useState<StandReply>({
+    projekte: [],
+    ohneProjekt: [],
+  });
   const [inboxFiles, setInboxFiles] = useState<InboxFile[]>([]);
   const [session, setSession] = useState<Section | null>(null);
   const [zahlen, setZahlen] = useState<ZahlenReply>({ run: null });
 
   useEffect(() => {
     void api.tasks().then(setTasks);
-    void api.projects().then(setProjects);
+    // Sequenced, not parallel: GET /list scans the sample workshop on an empty table (see
+    // server/src/projekte/routes.ts), but GET /stand never scans and just reads the table as it
+    // stands - fired in parallel, a fresh install (nothing in data/projekte.sqlite yet) would show
+    // an empty panel until Neu scannen or a reload. Warming first means the scan has already run.
+    // Same ordering as web/src/projekte/App.tsx's own mount effect.
+    void api
+      .warmProjects()
+      .then(() => api.stand())
+      .then(setStand);
     void api.inbox().then(setInboxFiles);
     void api
       .sessionNote()
@@ -193,8 +227,8 @@ export default function App() {
     void api.zahlenLast().then(setZahlen);
   }, []);
 
-  const today = todayISO();
   const now = new Date().getTime();
+  const today = todayISO(now);
 
   return (
     <>
@@ -227,7 +261,7 @@ export default function App() {
             empty="Diese Woche ist nichts fällig."
           />
           <EingangPanel files={inboxFiles} />
-          <ProjectPanel projects={movingProjects(projects, now)} />
+          <ProjectPanel stand={stand} now={now} />
           <SessionPanel section={session} />
           <ZahlenPanel reply={zahlen} />
           <TaskPanel

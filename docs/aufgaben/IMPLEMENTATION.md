@@ -92,6 +92,10 @@ append-first-record-second discipline above. This is the import route's only pat
 vault-relative path through a symlink reach a real write outside the vault before this containment
 existed.
 
+**A `targetPath` under `50_Workflow/Handoffs/` answers 400 "handoff notes are read-only", checked
+before `knownTarget` and before anything is recorded.** A local `HANDOFF_FOLDER` constant, not an
+import from `projekte/handoffs.ts` - the two apps never import each other.
+
 **The ledger's `line` is provenance, not a live pointer.** It records where the task landed at
 import time, for the `Übernommen` link the UI shows afterwards. Nothing keeps it in step with
 later edits to the note - insert a line above it in Obsidian and the ledger's `line` now names the

@@ -84,6 +84,11 @@ Rules that keep this suite reliable:
 - **Each worker runs its own server and database.** `e2e/fixtures.ts` spawns the API on
   `8150 + workerIndex` with its own `DATA_DIR` under `e2e/.tmp/w<n>`; `e2e/global-setup.ts` builds
   `web/dist` once. There is no `webServer` block in `playwright.config.ts` - do not add one back.
+- **A fixture note can need a per-worker rewrite.** The committed `Handoff_leuchtturm.md` names a
+  synthetic path (`~/Projekte/leuchtturm`) that couples to nothing, since the worker's own sample
+  workshop only exists once that worker's server has built it. `e2e/fixtures.ts` rewrites that
+  worker's own copy of the note's `repos:` entry to its sample checkout after copying the fixture,
+  so the coupling exercises a real, scanned repository rather than a path no worker can ever have.
 - **Tests within a worker share a database, and retries re-run against it.** Set up your own state
   at the start of a test rather than depending on the seed or on another test's leftovers. See
   `dealInStage` in `e2e/crm/revenue.spec.ts`.
