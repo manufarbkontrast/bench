@@ -221,10 +221,9 @@ three views - `Projekte`, `Tabelle`, `Board` - with `Projekte` the default. On m
 performs the lazy first-visit scan on an empty table (see "The API" above), so firing `/stand`
 alongside it would show every handoff's repos as missing until the scan finishes - the list
 response itself is discarded, only its side effect matters. `Neu scannen` re-runs the same
-sequence (`POST /scan`, then `/list`, then `/stand`), disabled and reading `Scannt …` while running
-
-- and re-enabled even if the scan fails. Selecting a repository row or card fetches
-  `GET /project?path=` and opens `Detail`, a side panel closed by its own button or Escape.
+sequence (`POST /scan`, then `/list`, then `/stand`), disabled and reading `Scannt …` while
+running, and re-enabled even if the scan fails. Selecting a repository row or card fetches
+`GET /project?path=` and opens `Detail`, a side panel closed by its own button or Escape.
 
 - **`ProjektView`** (`components/ProjektView.tsx`) renders `GET /stand`'s reply: `warnings` as
   plain lines, one `ProjektCard` per project, then an `Ohne Projekt` section listing `ohneProjekt`

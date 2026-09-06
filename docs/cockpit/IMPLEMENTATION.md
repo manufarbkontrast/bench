@@ -104,11 +104,10 @@ this worker's own sample-workshop checkout) and the uncoupled `treibgut` row fro
 with `leuchtfeuer` itself asserted absent from that list since it is coupled to the handoff row
 already shown - the handoff assertion with a generous 20-second wait, because a fresh worker's
 first `GET /api/projekte/list` can trigger the same lazy scan of the sample workshop that
-`/projekte/`'s own first visit does, which shells out to `git` several times before any row exists
-
-- and the Zahlen panel's run line and `Umsatz gesamt` line against the sample controlling fixture's
-  last run (`server/src/eingang/fixture/controlling/2026-08-15-zwischenstand`, the one
-  `letzter-lauf.json` names).
+`/projekte/`'s own first visit does, which shells out to `git` several times before any row exists.
+It also asserts the Zahlen panel's run line and `Umsatz gesamt` line against the sample
+controlling fixture's last run (`server/src/eingang/fixture/controlling/2026-08-15-zwischenstand`,
+the one `letzter-lauf.json` names).
 
 ## Related documents
 
