@@ -2,6 +2,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   dateText,
   dateTimeText,
+  dauerText,
   durationText,
   fileMetaText,
   jobKindLabel,
@@ -125,6 +126,39 @@ describe("jobKindLabel", () => {
     expect(jobKindLabel(job({ kind: "some-retired-kind" }))).toBe(
       "some-retired-kind",
     );
+  });
+
+  it("labels plaud-fetch with the recording id", () => {
+    expect(
+      jobKindLabel(
+        job({ kind: "plaud-fetch", argsJson: JSON.stringify({ id: "abc" }) }),
+      ),
+    ).toBe("Holen: abc");
+  });
+
+  it("labels plaud-process with the projekt slug when given one", () => {
+    expect(
+      jobKindLabel(
+        job({
+          kind: "plaud-process",
+          argsJson: JSON.stringify({ file: "a.md", projekt: "leuchtturm" }),
+        }),
+      ),
+    ).toBe("Verarbeiten: a.md (leuchtturm)");
+  });
+});
+
+describe("dauerText", () => {
+  it("renders seconds under a minute", () => {
+    expect(dauerText(23_000)).toBe("23s");
+  });
+
+  it("renders minutes and seconds under an hour", () => {
+    expect(dauerText(323_000)).toBe("5m23s");
+  });
+
+  it("renders hours and minutes from an hour on", () => {
+    expect(dauerText(3_900_000)).toBe("1h05m");
   });
 });
 

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { fileMetaText } from "../format";
 import { isProcessable, type InboxFile } from "../types";
 
@@ -11,12 +12,42 @@ function StatusChip({ status }: { status: InboxFile["status"] }) {
   return <span className="eingang-chip">{STATUS_LABEL[status]}</span>;
 }
 
+function ProjektSelect({
+  file,
+  slugs,
+  projekt,
+  onChange,
+}: {
+  file: InboxFile;
+  slugs: string[];
+  projekt: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <select
+      aria-label={`Projekt: ${file.name}`}
+      className="eingang-row-select"
+      value={projekt}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">Kein Projekt</option>
+      {slugs.map((slug) => (
+        <option key={slug} value={slug}>
+          {slug}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function ProcessButton({
   file,
+  projekt,
   onProcess,
 }: {
   file: InboxFile;
-  onProcess: (name: string) => void;
+  projekt: string;
+  onProcess: (name: string, projekt: string | null) => void;
 }) {
   const processable = isProcessable(file);
   return (
@@ -25,7 +56,7 @@ function ProcessButton({
       aria-label={`Verarbeiten: ${file.name}`}
       disabled={!processable}
       title={processable ? undefined : "Erst einsammeln"}
-      onClick={() => onProcess(file.name)}
+      onClick={() => onProcess(file.name, projekt === "" ? null : projekt)}
     >
       Verarbeiten
     </button>
@@ -34,11 +65,15 @@ function ProcessButton({
 
 function InboxRow({
   file,
+  slugs,
   onProcess,
 }: {
   file: InboxFile;
-  onProcess: (name: string) => void;
+  slugs: string[];
+  onProcess: (name: string, projekt: string | null) => void;
 }) {
+  const [projekt, setProjekt] = useState("");
+  const processable = isProcessable(file);
   return (
     <li className="eingang-row">
       <div className="eingang-row-body">
@@ -51,7 +86,17 @@ function InboxRow({
       {file.kind === "audio" ? (
         <span className="eingang-row-audio">Nur Ablage</span>
       ) : (
-        <ProcessButton file={file} onProcess={onProcess} />
+        <>
+          {processable && (
+            <ProjektSelect
+              file={file}
+              slugs={slugs}
+              projekt={projekt}
+              onChange={setProjekt}
+            />
+          )}
+          <ProcessButton file={file} projekt={projekt} onProcess={onProcess} />
+        </>
       )}
     </li>
   );
@@ -60,10 +105,12 @@ function InboxRow({
 /** The inbox listing: one row per watched file, newest first as the server already sorted it. */
 export default function InboxList({
   files,
+  slugs,
   onProcess,
 }: {
   files: InboxFile[];
-  onProcess: (name: string) => void;
+  slugs: string[];
+  onProcess: (name: string, projekt: string | null) => void;
 }) {
   if (files.length === 0) {
     return <p className="eingang-empty">Nichts Neues.</p>;
@@ -74,6 +121,7 @@ export default function InboxList({
         <InboxRow
           key={`${file.dir}/${file.name}`}
           file={file}
+          slugs={slugs}
           onProcess={onProcess}
         />
       ))}

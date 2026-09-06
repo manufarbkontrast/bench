@@ -13,7 +13,8 @@ export type EingangJobKind =
   | "aufgaben-import"
   | "controlling"
   | "vault-reindex"
-  | "projekte-scan";
+  | "projekte-scan"
+  | "plaud-fetch";
 
 export type JobStatus = "running" | "done" | "failed" | "killed" | "timeout";
 
@@ -24,6 +25,7 @@ const EINGANG_JOB_KINDS = [
   "controlling",
   "vault-reindex",
   "projekte-scan",
+  "plaud-fetch",
 ] as const satisfies readonly EingangJobKind[];
 
 /** The literal union of members `EINGANG_JOB_KINDS` actually lists. `satisfies` above already
@@ -67,10 +69,14 @@ export interface ScheduledRun {
   minute: number | null;
 }
 
-/** The two kinds the runner runs in-process rather than as a spawned child
+/** The three kinds the runner runs in-process rather than as a spawned child
     (server/src/eingang/jobs.ts JobPlan "internal") - killing one always answers 409 "internal
     jobs cannot be cancelled", so the UI never offers a button that can only fail. */
-const INTERNAL_KINDS: readonly string[] = ["vault-reindex", "projekte-scan"];
+const INTERNAL_KINDS: readonly string[] = [
+  "vault-reindex",
+  "projekte-scan",
+  "plaud-fetch",
+];
 
 export function canCancel(kind: string): boolean {
   return !INTERNAL_KINDS.includes(kind);
@@ -91,4 +97,26 @@ export function isProcessable(file: InboxFile): boolean {
     file.status === "unverarbeitet" &&
     dirBasename(file.dir) === "inbox"
   );
+}
+
+/** Where a Plaud listing came from - every source but "mcp" and "sample" answers an empty
+    recording list (server's plaud route), so the panel shows a source line in place of rows. */
+export type PlaudSource =
+  "mcp" | "sample" | "off" | "unauthenticated" | "unreachable";
+
+export type RecordingStatus =
+  "neu" | "wird_geholt" | "im_eingang" | "im_archiv" | "notiz_vorhanden";
+
+export interface Recording {
+  id: string;
+  titel: string;
+  start: string; // "YYYY-MM-DDTHH:MM:SS", local, no zone
+  dauer: number; // milliseconds
+  status: RecordingStatus;
+}
+
+export interface PlaudReply {
+  source: PlaudSource;
+  recordings: Recording[];
+  nextPage: number | null;
 }
