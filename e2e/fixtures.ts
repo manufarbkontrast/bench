@@ -108,6 +108,9 @@ export const test = base.extend<
           BENCH_DOTENV: "off",
           VAULT_DIR: vaultDir,
           BENCH_GH: "off",
+          // The sample world is off already; the explicit switch guards a future configured
+          // e2e world.
+          BENCH_PLAUD: "off",
           // ...process.env above still carries a developer's own shell exports, and config.ts
           // reads PROJECT_ROOTS straight from process.env with no .env file involved - so a
           // real PROJECT_ROOTS exported in the shell would otherwise flip every worker onto the

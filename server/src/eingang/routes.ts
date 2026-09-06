@@ -1,10 +1,22 @@
 /** Eingang API: the watched inbox, fenced jobs and the externally scheduled runs. Mounted at /api/eingang. */
 import { Router } from "express";
-import { closeSync, fstatSync, openSync, readSync } from "node:fs";
+import {
+  closeSync,
+  fstatSync,
+  openSync,
+  readFileSync,
+  readSync,
+} from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type Database from "better-sqlite3";
 import { getJob, listJobs, runningJobs, type JobRow } from "./db.js";
-import { listInbox } from "./inbox.js";
+import {
+  listInbox,
+  localRecordingIds,
+  plaudStatus,
+  type RecordingStatus,
+} from "./inbox.js";
 import {
   JOB_TIMEOUTS_MS,
   planJob,
@@ -12,6 +24,18 @@ import {
   type JobPaths,
 } from "./jobs.js";
 import type { LocatedEingang } from "./locate.js";
+import {
+  listRecordings,
+  parseListFiles,
+  type Recording,
+  type RecordingPage,
+} from "./plaud-fetch.js";
+import {
+  PlaudError,
+  withPlaud,
+  type PlaudCommand,
+  type PlaudFailure,
+} from "./plaud-mcp.js";
 import type { Runner } from "./runner.js";
 import { listScheduledRuns } from "./schedule.js";
 
@@ -19,8 +43,18 @@ export interface EingangContext {
   db: Database.Database;
   located: LocatedEingang;
   plaud: { dir: string; source: "configured" | "sample" };
+  mcp: PlaudCommand;
   runner: Runner;
   paths: JobPaths;
+}
+
+export type PlaudSource =
+  "mcp" | "sample" | "off" | "unauthenticated" | "unreachable";
+
+interface PlaudReply {
+  source: PlaudSource;
+  recordings: (Recording & { status: RecordingStatus })[];
+  nextPage: number | null;
 }
 
 const JOB_LIST_LIMIT = 50;
@@ -84,6 +118,32 @@ function inFlightFiles(db: Database.Database): Set<string> {
   return files;
 }
 
+const FIXTURE_LISTING = fileURLToPath(
+  new URL("./fixture/plaud-aufnahmen.json", import.meta.url),
+);
+
+function pageOf(raw: unknown): number {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 ? n : 1;
+}
+
+/** The ids running plaud-fetch jobs carry, the inFlightFiles twin for recordings. */
+function inFlightIds(db: Database.Database): Set<string> {
+  const ids = new Set<string>();
+  for (const job of runningJobs(db)) {
+    if (job.kind !== "plaud-fetch") continue;
+    const args = JSON.parse(job.argsJson) as Record<string, unknown>;
+    if (typeof args.id === "string") ids.add(args.id);
+  }
+  return ids;
+}
+
+function sourceOf(kind: PlaudFailure): PlaudSource {
+  if (kind === "off") return "off";
+  if (kind === "unauthenticated") return "unauthenticated";
+  return "unreachable";
+}
+
 interface JobBody {
   kind?: unknown;
   args?: unknown;
@@ -103,7 +163,7 @@ function findJob(db: Database.Database, rawId: string): JobRow | null {
 }
 
 export function eingangRouter(ctx: EingangContext): Router {
-  const { db, located, plaud, runner, paths } = ctx;
+  const { db, located, plaud, mcp, runner, paths } = ctx;
   const router = Router();
 
   router.get("/inbox", (_req, res) => {
@@ -113,6 +173,67 @@ export function eingangRouter(ctx: EingangContext): Router {
       inFlightFiles(db),
     );
     res.json({ source: located.source, files });
+  });
+
+  // The same async handler shape projekteRouter's POST /scan uses: Express 5 forwards a rejection
+  // to its error middleware, so only a PlaudError is caught here and everything else still 500s.
+  router.get("/plaud", async (req, res) => {
+    const page = pageOf(req.query.page);
+    const empty = (source: PlaudSource): PlaudReply => ({
+      source,
+      recordings: [],
+      nextPage: null,
+    });
+    if (paths.plaudHome === null) {
+      res.json(empty("off"));
+      return;
+    }
+    const local = localRecordingIds({
+      inboxDir: path.join(paths.plaudHome, "inbox"),
+      archivDir: archivDirOf(plaud),
+      notizenDir: plaud.dir,
+    });
+    const inFlight = inFlightIds(db);
+    const withStatus = (
+      pageReply: RecordingPage,
+      source: PlaudSource,
+    ): PlaudReply => ({
+      source,
+      recordings: pageReply.recordings.map((r) => ({
+        ...r,
+        status: plaudStatus(r.id, local, inFlight),
+      })),
+      nextPage: pageReply.nextPage,
+    });
+    if (paths.sample) {
+      res.json(
+        withStatus(
+          parseListFiles(
+            page === 1 ? readFileSync(FIXTURE_LISTING, "utf8") : "[]",
+            page,
+          ),
+          "sample",
+        ),
+      );
+      return;
+    }
+    try {
+      res.json(
+        withStatus(
+          await withPlaud(mcp, (call) => listRecordings(call, page)),
+          "mcp",
+        ),
+      );
+    } catch (err) {
+      if (!(err instanceof PlaudError)) throw err;
+      // The reply carries only the kind; the text (first 200 bytes, per the client) goes to the server log.
+      console.error(`plaud mcp ${err.kind}: ${err.message}`);
+      res.json(empty(sourceOf(err.kind)));
+    }
+  });
+
+  router.get("/projekte", (_req, res) => {
+    res.json({ slugs: paths.projektSlugs() });
   });
 
   router.get("/jobs", (_req, res) => {

@@ -23,7 +23,7 @@ export type PlaudCall = (
 /** argv of the MCP server, or "off" - the sample world and BENCH_PLAUD=off never spawn anything. */
 export type PlaudCommand = readonly string[] | "off";
 
-/** @public the production command; a later task wires this into config, not consumed yet. */
+/** The production command, wired into index.ts's plaudCommand. */
 export const REAL_PLAUD_COMMAND: PlaudCommand = [
   "npx",
   "-y",

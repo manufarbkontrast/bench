@@ -162,6 +162,7 @@ const eingang: EingangContext = {
   db: eingangDb,
   located: eingangLocation,
   plaud: { dir: plaudLocation.dir, source: plaudLocation.source },
+  mcp: plaudCommand,
   runner: eingangRunner,
   paths: eingangPaths,
 };

@@ -48,6 +48,7 @@ function emptyEingang(): EingangContext {
       missing: [],
     },
     plaud: { dir: "/nonexistent", source: "sample" },
+    mcp: "off",
     runner: {
       start: () => {
         throw new Error("emptyEingang's runner is never meant to start a job");

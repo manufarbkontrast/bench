@@ -145,7 +145,7 @@ export function parseNote(text: string): string | null {
     : null;
 }
 
-/** @public routes.ts pages recordings through this; not wired up until Task 5. */
+/** routes.ts pages recordings through this. */
 export async function listRecordings(
   call: PlaudCall,
   page: number,
@@ -335,7 +335,7 @@ export function writeFetchedFile(
   return target;
 }
 
-/** @public its own test drives it directly, ahead of runPlaudFetch's write. */
+/** Its own test drives it directly, ahead of runPlaudFetch's write. */
 export async function assembleFetch(
   call: PlaudCall,
   id: string,
