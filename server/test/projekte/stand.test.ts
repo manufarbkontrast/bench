@@ -1,10 +1,15 @@
 import { afterAll, describe, expect, it } from "vitest";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
 import { openDb as openVaultDb } from "../../src/vault/db.js";
 import type { ProjectRow } from "../../src/projekte/db.js";
 import type { ProjektStand, Signals } from "../../src/projekte/stand.js";
-import { localDay, projektStand } from "../../src/projekte/stand.js";
+import {
+  localDay,
+  plaudNoteMeta,
+  projektStand,
+} from "../../src/projekte/stand.js";
 import { scratchDir } from "./tmp.js";
 
 interface NoteFixture {
@@ -19,6 +24,17 @@ interface NoteFixture {
 const scratch = scratchDir("bench-stand-");
 afterAll(scratch.cleanup);
 let dbCount = 0;
+let notizenCount = 0;
+
+/** A fresh scratch subdirectory holding the given `.md` files, named the way buildVault names its databases. */
+function notizenDir(files: Record<string, string>): string {
+  const dir = path.join(scratch.dir, `notizen-${String(notizenCount++)}`);
+  mkdirSync(dir, { recursive: true });
+  for (const [name, text] of Object.entries(files)) {
+    writeFileSync(path.join(dir, name), text);
+  }
+  return dir;
+}
 
 function buildVault(notes: NoteFixture[]): Database.Database {
   const db = openVaultDb(
@@ -107,7 +123,7 @@ describe("projektStand", () => {
       row({ path: "/abs/repo-a", name: "repo-a" }),
       row({ path: "/abs/other", name: "other" }),
     ];
-    const reply = projektStand(db, rows);
+    const reply = projektStand(db, rows, null);
     const first: ProjektStand = reply.projekte[0];
     expect(first.repos.map((r) => r.name)).toEqual(["repo-a"]);
     expect(first.missingRepos).toEqual(["nicht-da"]);
@@ -121,43 +137,46 @@ describe("projektStand", () => {
       handoff("a", { updated: "2026-08-01", repos: ["/abs/a"] }),
     ]);
     expect(
-      projektStand(db, [row({ path: "/abs/a", lastCommitAt: onTheDay })])
+      projektStand(db, [row({ path: "/abs/a", lastCommitAt: onTheDay })], null)
         .projekte[0].signals.veraltet,
     ).toBe(false);
     expect(
-      projektStand(db, [row({ path: "/abs/a", lastCommitAt: dayAfter })])
+      projektStand(db, [row({ path: "/abs/a", lastCommitAt: dayAfter })], null)
         .projekte[0].signals.veraltet,
     ).toBe(true);
   });
 
   it("is not veraltet without repos, without commits, or without a date", () => {
     const withoutRepos = buildVault([handoff("a", { updated: "2026-08-01" })]);
-    expect(projektStand(withoutRepos, []).projekte[0].signals.veraltet).toBe(
-      false,
-    );
+    expect(
+      projektStand(withoutRepos, [], null).projekte[0].signals.veraltet,
+    ).toBe(false);
 
     const withoutCommit = buildVault([
       handoff("b", { updated: "2026-08-01", repos: ["/abs/b"] }),
     ]);
     expect(
-      projektStand(withoutCommit, [row({ path: "/abs/b" })]).projekte[0].signals
-        .veraltet,
+      projektStand(withoutCommit, [row({ path: "/abs/b" })], null).projekte[0]
+        .signals.veraltet,
     ).toBe(false);
 
     const withoutDate = buildVault([handoff("c", { repos: ["/abs/c"] })]);
     expect(
-      projektStand(withoutDate, [
-        row({ path: "/abs/c", lastCommitAt: Date.now() }),
-      ]).projekte[0].signals.veraltet,
+      projektStand(
+        withoutDate,
+        [row({ path: "/abs/c", lastCommitAt: Date.now() })],
+        null,
+      ).projekte[0].signals.veraltet,
     ).toBe(false);
   });
 
   it("counts dirty repos", () => {
     const db = buildVault([handoff("a", { repos: ["/abs/x", "/abs/y"] })]);
-    const signals: Signals = projektStand(db, [
-      row({ path: "/abs/x", dirty: 3 }),
-      row({ path: "/abs/y", dirty: 0 }),
-    ]).projekte[0].signals;
+    const signals: Signals = projektStand(
+      db,
+      [row({ path: "/abs/x", dirty: 3 }), row({ path: "/abs/y", dirty: 0 })],
+      null,
+    ).projekte[0].signals;
     expect(signals.dirtyRepos).toBe(1);
   });
 
@@ -171,7 +190,7 @@ describe("projektStand", () => {
     insertTask(db, "30_Projekte/A/A.md", 2, 1);
     insertTask(db, `${HANDOFF_FOLDER}/Handoff_a.md`, 5, 0);
     insertTask(db, "Templates/T.md", 1, 0);
-    expect(projektStand(db, []).projekte[0].signals.offeneTasks).toBe(1);
+    expect(projektStand(db, [], null).projekte[0].signals.offeneTasks).toBe(1);
   });
 
   it("sorts veraltet first, then oldest updated first, unknown dates last", () => {
@@ -186,7 +205,7 @@ describe("projektStand", () => {
       row({ path: "/abs/b", lastCommitAt: new Date(2026, 6, 11).getTime() }), // after 07-10 -> veraltet
       row({ path: "/abs/d", lastCommitAt: new Date(2026, 6, 20).getTime() }), // on 07-20 -> not veraltet
     ];
-    const reply = projektStand(db, rows);
+    const reply = projektStand(db, rows, null);
     expect(reply.projekte.map((p) => p.slug)).toEqual(["a", "b", "d", "c"]);
   });
 
@@ -198,8 +217,48 @@ describe("projektStand", () => {
       row({ path: "/abs/z", name: "z" }),
       row({ path: "/abs/a", name: "a" }),
     ];
-    const reply = projektStand(db, rows);
+    const reply = projektStand(db, rows, null);
     expect(reply.warnings).toEqual(["Handoff ohne projekt: Handoff_ohne.md"]);
     expect(reply.ohneProjekt.map((r) => r.name)).toEqual(["z", "a"]);
+  });
+});
+
+describe("plaudNoteMeta", () => {
+  it("reads projekt and datum, tolerating a titel with a colon, and is null without either", () => {
+    expect(
+      plaudNoteMeta(
+        "---\ntitel: 08-18 Besprechung: Q4\nprojekt: Bench \ndatum: 2026-08-20\n---\n",
+      ),
+    ).toEqual({ projekt: "bench", datum: "2026-08-20" });
+    expect(plaudNoteMeta("---\ndatum: 2026-08-20\n---\n")).toBeNull();
+    expect(plaudNoteMeta("# none")).toBeNull();
+  });
+});
+
+describe("plaudNotizen", () => {
+  it("counts notes with the slug dated after updated, not on it, not before, and 0 without a dir or updated", () => {
+    const dir = notizenDir({
+      "a.md": "---\nprojekt: bench\ndatum: 2026-08-02\n---\n",
+      "b.md": "---\nprojekt: bench\ndatum: 2026-08-01\n---\n",
+      "c.md": "---\nprojekt: bench\ndatum: 2026-07-31\n---\n",
+      "d.md": "---\nprojekt: other\ndatum: 2026-09-01\n---\n",
+      "e.txt": "---\nprojekt: bench\ndatum: 2026-09-01\n---\n",
+    });
+    const db = buildVault([
+      handoff("bench", { updated: "2026-08-01" }),
+      handoff("nodate"),
+    ]);
+    const reply = projektStand(db, [], dir);
+    expect(
+      reply.projekte.find((p) => p.slug === "bench")?.signals.plaudNotizen,
+    ).toBe(1);
+    expect(
+      reply.projekte.find((p) => p.slug === "nodate")?.signals.plaudNotizen,
+    ).toBe(0);
+    expect(projektStand(db, [], null).projekte[0].signals.plaudNotizen).toBe(0);
+    expect(
+      projektStand(db, [], path.join(scratch.dir, "missing")).projekte[0]
+        .signals.plaudNotizen,
+    ).toBe(0);
   });
 });

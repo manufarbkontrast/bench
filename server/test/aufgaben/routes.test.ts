@@ -375,7 +375,13 @@ describe("GET /api/aufgaben/issues", () => {
     const ghApp = appWithAufgaben(
       { ...aufgaben, gh: run },
       { db: openVaultDb(":memory:"), dir, name: "fixture" },
-      { db: projekteDb, roots: [], source: "sample", gh: "off" },
+      {
+        db: projekteDb,
+        roots: [],
+        source: "sample",
+        gh: "off",
+        notizenDir: null,
+      },
     );
 
     const res = await request(ghApp).get("/api/aufgaben/issues");

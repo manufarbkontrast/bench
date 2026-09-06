@@ -69,17 +69,20 @@ const projekteLocation = locateProjects(
   path.join(dataDir, "sample-projekte"),
 );
 const projekteDb = openProjekteDb(path.join(dataDir, "projekte.sqlite"));
-const projekte: ProjekteContext = {
-  db: projekteDb,
-  roots: projekteLocation.roots,
-  source: projekteLocation.source,
-  gh: process.env.BENCH_GH === "off" ? "off" : realGh,
-};
 
 const plaudLocation = locatePlaud(
   config,
   path.join(root, "server", "src", "aufgaben", "fixture", "notizen"),
 );
+
+const projekte: ProjekteContext = {
+  db: projekteDb,
+  roots: projekteLocation.roots,
+  source: projekteLocation.source,
+  gh: process.env.BENCH_GH === "off" ? "off" : realGh,
+  notizenDir: plaudLocation.dir,
+};
+
 const aufgabenDb = openAufgabenDb(path.join(dataDir, "aufgaben.sqlite"));
 const aufgaben: AufgabenSources = {
   ledger: aufgabenDb,

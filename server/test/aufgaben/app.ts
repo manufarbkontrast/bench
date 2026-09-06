@@ -32,6 +32,7 @@ function emptyProjekte(): ProjekteContext {
     roots: [],
     source: "sample",
     gh: "off",
+    notizenDir: null,
   };
 }
 

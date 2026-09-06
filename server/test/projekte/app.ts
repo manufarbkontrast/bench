@@ -57,6 +57,7 @@ export function emptyProjekte(): ProjekteContext {
     roots: [],
     source: "sample",
     gh: "off",
+    notizenDir: null,
   };
 }
 
@@ -140,6 +141,7 @@ export function buildSampleContext(
       roots: [sampleDir],
       source: "sample",
       gh,
+      notizenDir: null,
     },
     vault: { db: vaultDb, dir: sampleDir, name: "sample" },
     sampleDir,
