@@ -235,6 +235,46 @@ describe("createRunner - spawned jobs", () => {
     await waitForTerminal(db, started.id);
     expect(runner.isRunning("plaud-sync")).toBe(false);
   }, 10_000);
+
+  it("a spawned job's row carries the child's real pid once it starts", async () => {
+    const { db, runner } = newRunner();
+    const { plan, env } = fakePlan("plaud-sync");
+
+    const started = runner.start(
+      "plaud-sync",
+      "{}",
+      plan,
+      env,
+      JOB_TIMEOUTS_MS["plaud-sync"],
+    );
+
+    expect(started.pid).toEqual(expect.any(Number));
+    expect(started.pid).toBeGreaterThan(0);
+
+    await waitForTerminal(db, started.id);
+  }, 10_000);
+
+  it("a spawn failure (missing binary) writes no pid and still reaches failed", async () => {
+    const { db, runner } = newRunner();
+    const plan: JobPlan = {
+      kind: "spawn",
+      argv: ["/no/such/bench-eingang-runner-test-binary", "plaud-sync"],
+      cwd: scratch.dir,
+    };
+
+    const started = runner.start(
+      "plaud-sync",
+      "{}",
+      plan,
+      { ...process.env },
+      JOB_TIMEOUTS_MS["plaud-sync"],
+    );
+    expect(started.pid).toBeNull();
+
+    const finished = await waitForTerminal(db, started.id);
+    expect(finished.status).toBe("failed");
+    expect(finished.pid).toBeNull();
+  }, 10_000);
 });
 
 describe("createRunner - internal jobs", () => {
@@ -305,6 +345,24 @@ describe("createRunner - internal jobs", () => {
     resolveJob?.();
     const finished = await waitForTerminal(db, started.id);
     expect(finished.status).toBe("done");
+  });
+
+  it("an internal job's row carries pid: null, since it has no child", async () => {
+    const { db, runner } = newRunner({
+      "vault-reindex": () => Promise.resolve(),
+    });
+
+    const started = runner.start(
+      "vault-reindex",
+      "{}",
+      { kind: "internal", name: "vault-reindex", args: {} },
+      {},
+      JOB_TIMEOUTS_MS["vault-reindex"],
+    );
+    expect(started.pid).toBeNull();
+
+    const finished = await waitForTerminal(db, started.id);
+    expect(finished.pid).toBeNull();
   });
 
   it("hands an internal job its plan args", async () => {

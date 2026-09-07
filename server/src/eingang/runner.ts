@@ -149,6 +149,10 @@ export function createRunner(
     db.prepare("UPDATE jobs SET log_path = ? WHERE id = ?").run(logPath, id);
   }
 
+  function setPid(id: number, pid: number): void {
+    db.prepare("UPDATE jobs SET pid = ? WHERE id = ?").run(pid, id);
+  }
+
   function finish(
     id: number,
     status: Exclude<JobStatus, "running">,
@@ -179,6 +183,9 @@ export function createRunner(
       stdio: ["ignore", "pipe", "pipe"],
     });
     record.child = child;
+    // spawn() leaves pid undefined when the spawn itself fails (e.g. ENOENT) - the "error"
+    // handler below settles the job in that case, so there is never a pid to record.
+    if (typeof child.pid === "number") setPid(id, child.pid);
     child.stdout.pipe(out, { end: false });
     child.stderr.pipe(out, { end: false });
 
