@@ -376,13 +376,12 @@ export function createRunner(
     return "killed";
   }
 
-  // The in-flight map alone is empty on every boot, so a restart-orphaned job of this kind would
-  // otherwise be invisible to the fence and a second run could start beside it. The database read
-  // is what makes this restart-proof; the map is kept too so a job caught mid-insert (the row
-  // exists, the map entry not yet set - see start()) still fences correctly within one tick.
+  // The database, not the in-flight map: the map is empty on every boot, so a restart-orphaned job
+  // would otherwise be invisible to the fence and a second run could start beside it. The map
+  // needs no consulting here at all - every id it holds has a `running` row (start() inserts
+  // before it sets the entry, and finish() deletes the entry before it writes the terminal status,
+  // both synchronously), so the row is always the wider answer.
   function isRunning(kind: JobKind): boolean {
-    if ([...inFlight.values()].some((record) => record.kind === kind))
-      return true;
     return runningJobs(db).some((row) => row.kind === kind);
   }
 
