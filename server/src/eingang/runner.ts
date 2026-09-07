@@ -135,9 +135,14 @@ function escalateOrphanKill(
   killEscalationMs: number,
 ): void {
   signalOrphan(pid, "SIGTERM");
+  // unref'd, unlike the in-process path's timers: those live in an InFlightJob record clearTimers
+  // can cancel, and this one has no record to live in, so nothing can ever cancel it. Left
+  // ref'd it holds the event loop open for the whole grace period after an orphan kill, delaying
+  // a shutdown by that much, and it can outlive whatever armed it - which is exactly how the test
+  // suite came to fire a real SIGKILL at an invented pid seconds after the test had ended.
   setTimeout(() => {
     if (isOurProcess(pid, startedAt)) signalOrphan(pid, "SIGKILL");
-  }, killEscalationMs);
+  }, killEscalationMs).unref();
 }
 
 type Settle = (

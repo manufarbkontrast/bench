@@ -503,8 +503,26 @@ describe("createRunner - kill() on an orphan (no in-flight record)", () => {
     return vi.spyOn(process, "kill").mockImplementation(() => true);
   }
 
+  // escalateOrphanKill's timer belongs to no in-flight record, so nothing cancels it, and unref
+  // does not stop it firing inside a worker whose event loop other tests keep alive. It therefore
+  // outlives the test that armed it, with that test's process.kill spy already restored - and it
+  // really did call the REAL process.kill(424242, "SIGKILL") five seconds after two tests here had
+  // ended, invisible only because macOS caps PID_MAX at 99999 while Linux CI's pid_max is
+  // 4194304. So every test below that sends a SIGTERM uses a short grace period AND a verifier
+  // that confirms the pid once, for kill()'s own check, and refuses from then on, which is what
+  // stops the escalation branch reaching a pid this suite invented.
+  const ORPHAN_ESCALATION_MS = 50;
+
+  function verifiesOnce() {
+    let calls = 0;
+    return vi.fn(() => {
+      calls += 1;
+      return calls === 1;
+    });
+  }
+
   it("signals a verified orphan pid, marks the row killed, and returns killed", () => {
-    const { db, runner } = newRunner({}, undefined, () => true);
+    const { db, runner } = newRunner({}, ORPHAN_ESCALATION_MS, verifiesOnce());
     const id = insertRunningRow(db, 424_242);
     const killSpy = spyOnProcessKill();
 
@@ -603,13 +621,9 @@ describe("createRunner - kill() on an orphan (no in-flight record)", () => {
   });
 
   it("does not escalate to SIGKILL once re-verification now answers false", async () => {
-    let calls = 0;
     // true for the immediate check kill() makes, false for the one the escalation timer repeats.
-    const isOurProcess = vi.fn(() => {
-      calls += 1;
-      return calls === 1;
-    });
-    const { db, runner } = newRunner({}, 50, isOurProcess);
+    const isOurProcess = verifiesOnce();
+    const { db, runner } = newRunner({}, ORPHAN_ESCALATION_MS, isOurProcess);
     const id = insertRunningRow(db, 555_555);
     const killSpy = spyOnProcessKill();
 
@@ -626,8 +640,10 @@ describe("createRunner - kill() on an orphan (no in-flight record)", () => {
     }
   });
 
+  // The one test that does take the SIGKILL branch, and it waits the grace period out with the
+  // spy still installed - so the signal is observed here rather than escaping into a later test.
   it("escalates to SIGKILL after the grace period when re-verification is still true", async () => {
-    const { db, runner } = newRunner({}, 50, () => true);
+    const { db, runner } = newRunner({}, ORPHAN_ESCALATION_MS, () => true);
     const id = insertRunningRow(db, 555_556);
     const killSpy = spyOnProcessKill();
 
@@ -645,7 +661,7 @@ describe("createRunner - kill() on an orphan (no in-flight record)", () => {
   });
 
   it("does not throw when process.kill reports the pid already gone (ESRCH)", () => {
-    const { db, runner } = newRunner({}, undefined, () => true);
+    const { db, runner } = newRunner({}, ORPHAN_ESCALATION_MS, verifiesOnce());
     const id = insertRunningRow(db, 555_557);
     const esrch = Object.assign(new Error("kill ESRCH"), { code: "ESRCH" });
     const killSpy = vi.spyOn(process, "kill").mockImplementation(() => {
