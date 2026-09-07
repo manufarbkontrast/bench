@@ -158,10 +158,14 @@ These are settled. Changing one is a project-level decision, not an implementati
   point: it is chrome above the app, not part of it. The error boundary (`ErrorBoundary.tsx`,
   `crash.css`) follows the same rule for the same reason: when it renders, the app's own
   stylesheet may be the thing that broke. On the server, `server/src/shared/` holds the
-  frontmatter line scanner the eight backends share. The server's app boundary is a convention,
-  not a lint rule: an app imports from `shared/` and `config.ts` and never from a sibling, with
-  three documented exceptions into the vault's write and query surface (`projekte/routes.ts`,
-  `aufgaben/mapping.ts`, `aufgaben/routes.ts`); a fourth is a project decision, not a habit.
+  frontmatter line scanner the eight backends share. The server's app boundary is the same lint
+  rule as the web's, scoped to `server/src/<app>/**`: an app imports from `shared/` and
+  `config.ts` and never from a sibling, with three documented exceptions into the vault's write
+  and query surface (`projekte/routes.ts`, `aufgaben/mapping.ts`, `aufgaben/routes.ts`), each
+  written as its own config so the exception opens the boundary to the vault and to nothing else;
+  a fourth is a project decision, not a habit. The scope deliberately leaves out `app.ts` and
+  `index.ts`, the composition root, which imports from every app, and `server/test/**`, where
+  each app's harness builds the whole Express app.
 - **One theme, chosen once.** `web/src/shared/theme.ts` writes `data-theme` on the document
   element and remembers the choice in `localStorage` under `bench.theme`; each entry point calls
   `initTheme()` **before it renders**, because setting it after the first paint flashes the wrong
@@ -250,8 +254,9 @@ A new `web/<name>/index.html`, a new `web/src/<name>/`, an entry in `vite.config
 `rollupOptions.input`, the prefix in the `APPS` list in **both** `server/src/app.ts` and
 `web/vite.config.ts`, and a link in the Cockpit's app row in `web/src/home/App.tsx`. A backend, if
 it has one, is a `server/src/<name>/` with its own database file opened in `server/src/index.ts`
-and its router mounted at `/api/<name>` - and a `no-restricted-imports` entry in
-`eslint.config.js` so it stays separate from its siblings.
+and its router mounted at `/api/<name>`. The name also goes in the `APPS` list at the top of
+`eslint.config.js`, which generates the `no-restricted-imports` config for both workspaces at
+once, so the new app stays separate from its siblings on the web and on the server.
 
 Then the navigation: an icon in `web/src/shared/AppIcons.tsx`, an entry in the `APPS` list in
 `web/src/shared/BenchNav.tsx`, the new key in that file's `AppKey` union, and

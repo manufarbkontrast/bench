@@ -9,6 +9,25 @@ import vitest from "@vitest/eslint-plugin";
 import playwright from "eslint-plugin-playwright";
 import prettier from "eslint-config-prettier";
 
+const APPS = [
+  "crm",
+  "rolodex",
+  "vault",
+  "projekte",
+  "aufgaben",
+  "eingang",
+  "kontext",
+  "zahlen",
+];
+
+// A denylist of the siblings rather than an allowlist of what is permitted, so `shared/` and the
+// server's `config.ts` need no rule change. `allowed` names the siblings one file may still reach,
+// which keeps a documented exception from opening the boundary to the other six as well.
+const siblingPatterns = (app, allowed = []) =>
+  APPS.filter((other) => other !== app && !allowed.includes(other)).flatMap(
+    (other) => [`**/${other}/**`, `../${other}/*`],
+  );
+
 /**
  * One flat config for web, server and e2e. Type-aware rules reach both workspace tsconfigs plus
  * the root one covering e2e through typescript-eslint's projectService.
@@ -136,37 +155,44 @@ export default tseslint.config(
   // The eight apps stay separate. A denylist of the siblings rather than an allowlist of what is
   // permitted, so the shared module needs no rule change. This guards the module graph only: the
   // collision PROJECT.md warns about is the three global stylesheets, which no lint rule sees.
-  ...[
-    "crm",
-    "rolodex",
-    "vault",
-    "projekte",
-    "aufgaben",
-    "eingang",
-    "kontext",
-    "zahlen",
-  ].map((app) => ({
+  ...APPS.map((app) => ({
     files: [`web/src/${app}/**`],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: siblingPatterns(app) }],
+    },
+  })),
+
+  // The same boundary on the server, where it had been convention only. Scoped to
+  // `server/src/<app>/**`, which leaves out the composition root: `app.ts` and `index.ts` sit
+  // beside those folders and import from every app by design. `server/test/**` is out too - each
+  // app's test harness builds the whole Express app, so the boundary cannot hold there.
+  ...APPS.map((app) => ({
+    files: [`server/src/${app}/**`],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: siblingPatterns(app) }],
+    },
+  })),
+
+  // The three documented exceptions into the vault's write and query surface (PROJECT.md). One
+  // config per app rather than one for all three files, so aufgaben still cannot reach projekte.
+  {
+    files: ["server/src/aufgaben/mapping.ts", "server/src/aufgaben/routes.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
-        {
-          patterns: [
-            "crm",
-            "rolodex",
-            "vault",
-            "projekte",
-            "aufgaben",
-            "eingang",
-            "kontext",
-            "zahlen",
-          ]
-            .filter((other) => other !== app)
-            .flatMap((other) => [`**/${other}/**`, `../${other}/*`]),
-        },
+        { patterns: siblingPatterns("aufgaben", ["vault"]) },
       ],
     },
-  })),
+  },
+  {
+    files: ["server/src/projekte/routes.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { patterns: siblingPatterns("projekte", ["vault"]) },
+      ],
+    },
+  },
 
   {
     files: ["web/src/**/*.tsx"],

@@ -138,7 +138,7 @@ function planPlaudSync(
  * means none, a non-string is a caller error, and a string is checked against the vault index's
  * own slugs (injected via `ctx.projektSlugs`) rather than trusted as free text.
  */
-function projektOf(
+function projektArgOf(
   args: Record<string, unknown>,
   ctx: JobPaths,
 ): string | null | { error: string } {
@@ -163,7 +163,7 @@ function planPlaudProcess(
     return { error: `no such inbox file: ${file}` };
   if (!resolvesInsideFolder(inbox, target))
     return { error: `file escapes the inbox folder: ${file}` };
-  const projekt = projektOf(args, ctx);
+  const projekt = projektArgOf(args, ctx);
   if (typeof projekt === "object" && projekt !== null) return projekt;
   if (ctx.sample) return fakeSpawn("plaud-process", ctx.plaudHome);
   const projektHint =

@@ -75,7 +75,7 @@ missing target file never reaches a command:
   rejects a missing or non-matching `id`, any second key in `args`, a null `plaudHome`, and - via
   `localRecordingIds`/`isLocal` (`inbox.ts`) - an id already sitting in `inbox/`, `archiv/` or
   `notizen/`, answering `recording already local: <id>` before a `plaud-fetch` job is ever planned.
-- **`plaud-process`'s optional `projekt` must name a real handoff.** `projektOf` lets an absent
+- **`plaud-process`'s optional `projekt` must name a real handoff.** `projektArgOf` lets an absent
   `args.projekt` through as `null`, rejects a non-string one, and otherwise requires it to appear
   in `ctx.projektSlugs()` - the vault's own handoff slugs, injected by the composition root -
   answering `unknown projekt: <slug>` for anything else. This check runs after the file argument is
