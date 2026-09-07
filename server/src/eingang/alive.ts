@@ -32,6 +32,11 @@ const TRUNCATION_TOLERANCE_MS = 1000;
 // then spawns synchronously in the same tick, so a real child starts within milliseconds; five
 // seconds is three orders of magnitude of headroom for a loaded machine, and still leaves reuse
 // impossible, since it would take the pid space wrapping inside those five seconds.
+// The one case the window cannot separate is a DST fall-back: `ps -o lstart=` prints local time
+// with no offset, so a pid recycled inside the repeated hour to a process started at the same
+// wall-clock second of the second pass parses to the job's own timestamp and passes. It needs pid
+// wraparound within one hour, a same-second coincidence and the transition, all three at once; the
+// reverse pairing fails the lower bound, which is the safe direction.
 const SPAWN_WINDOW_MS = 5000;
 
 /**
