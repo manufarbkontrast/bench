@@ -1,7 +1,8 @@
 /** Eingang's Jobs panel over the fake runner: an internal job that settles to Fertig with a log
     to open, a spawned one cancelled mid-run whose log stays open through the cancel, the
-    double-start guard that refuses a second Einsammeln while one is already running, and a
-    restart-orphaned row seeded straight into the database. */
+    double-start guard that refuses a second Einsammeln while one is already running, and two
+    restart-orphaned rows seeded straight into the database - one whose process is genuinely alive
+    and killed by the click, one whose process is gone and settled by it. */
 import type { Locator, Page } from "@playwright/test";
 import Database from "better-sqlite3";
 import { spawn } from "node:child_process";
@@ -138,6 +139,39 @@ test("cancelling Einsammeln while it runs reaches Abgebrochen with its log still
     .toContain("Fertig");
 });
 
+/** Writes a `running` job row straight into this worker's own database. This worker's server never
+    called runner.start() for it, so it is absent from the in-flight map on the very first
+    GET /jobs - exactly the restart-orphan shape decision 2 defines, without an actual restart.
+    `modus` names the row in the table, as `Controlling (<modus>)`. */
+function seedOrphanRow(
+  workerIndex: number,
+  modus: string,
+  startedAt: number,
+  pid: number,
+): void {
+  const workerDir = path.join(
+    repoRoot,
+    "e2e",
+    ".tmp",
+    `w${String(workerIndex)}`,
+  );
+  const db = new Database(path.join(workerDir, "eingang.sqlite"));
+  try {
+    db.prepare(
+      `INSERT INTO jobs (kind, args_json, status, started_at, log_path, pid)
+       VALUES (?, ?, 'running', ?, ?, ?)`,
+    ).run(
+      "controlling",
+      JSON.stringify({ modus }),
+      startedAt,
+      path.join(workerDir, "eingang-jobs", `${modus}.log`),
+      pid,
+    );
+  } finally {
+    db.close();
+  }
+}
+
 test("a restart-orphaned row renders as verwaist with its kill button", async ({
   page,
 }, testInfo) => {
@@ -156,38 +190,7 @@ test("a restart-orphaned row renders as verwaist with its kill button", async ({
   const pid = child.pid!;
 
   try {
-    // This worker's own server never called runner.start() for this row, so it is absent from
-    // the in-flight map on the very first GET /jobs - exactly the restart-orphan shape decision 2
-    // defines, without an actual restart.
-    const dbPath = path.join(
-      repoRoot,
-      "e2e",
-      ".tmp",
-      `w${testInfo.workerIndex}`,
-      "eingang.sqlite",
-    );
-    const db = new Database(dbPath);
-    try {
-      db.prepare(
-        `INSERT INTO jobs (kind, args_json, status, started_at, log_path, pid)
-         VALUES (?, ?, 'running', ?, ?, ?)`,
-      ).run(
-        "controlling",
-        JSON.stringify({ modus: "e2e-verwaist" }),
-        startedAt,
-        path.join(
-          repoRoot,
-          "e2e",
-          ".tmp",
-          `w${testInfo.workerIndex}`,
-          "eingang-jobs",
-          "e2e-verwaist.log",
-        ),
-        pid,
-      );
-    } finally {
-      db.close();
-    }
+    seedOrphanRow(testInfo.workerIndex, "e2e-verwaist", startedAt, pid);
 
     await page.goto("/eingang/");
     const row = jobRow(page, "Protokoll: Controlling (e2e-verwaist)");
@@ -210,4 +213,26 @@ test("a restart-orphaned row renders as verwaist with its kill button", async ({
       // Already gone - the click above already reached it, or it exited on its own.
     }
   }
+});
+
+test("an orphan whose process is gone is settled by the same kill button", async ({
+  page,
+}, testInfo) => {
+  // A pid past any pid_max - macOS caps at 99999, Linux defaults to 4194304 - so `ps` can never
+  // find it and isOurProcess answers false without a signal ever being sent. That is the shape an
+  // orphan takes once its process has exited on its own, which is what a job does: boot
+  // reconciliation confirmed it alive, and nothing reclassifies it afterwards.
+  seedOrphanRow(testInfo.workerIndex, "e2e-tot", Date.now(), 999_999_999);
+
+  await page.goto("/eingang/");
+  const row = jobRow(page, "Protokoll: Controlling (e2e-tot)");
+  await expect(row).toContainText("Verwaist");
+
+  // The escape hatch. reconcileRunning runs at boot and nowhere else, so a row left "running" here
+  // would refuse every later Controlling start for the life of the server. kill() reaches
+  // reconcileRunning's own verdict from the same evidence and writes it in the same request; the
+  // response is a 409, and App.tsx refetches after a kill either way, so the row shows what that
+  // request just wrote.
+  await row.getByRole("button", { name: "Abbrechen", exact: true }).click();
+  await expect(row).toContainText("Fehlgeschlagen");
 });
