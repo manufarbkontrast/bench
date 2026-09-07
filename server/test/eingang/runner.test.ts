@@ -508,9 +508,12 @@ describe("createRunner - kill() on an orphan (no in-flight record)", () => {
   // outlives the test that armed it, with that test's process.kill spy already restored - and it
   // really did call the REAL process.kill(424242, "SIGKILL") five seconds after two tests here had
   // ended, invisible only because macOS caps PID_MAX at 99999 while Linux CI's pid_max is
-  // 4194304. So every test below that sends a SIGTERM uses a short grace period AND a verifier
-  // that confirms the pid once, for kill()'s own check, and refuses from then on, which is what
-  // stops the escalation branch reaching a pid this suite invented.
+  // 4194304. So every test below that sends a SIGTERM uses a short grace period, and all but one
+  // pair it with a verifier that confirms the pid once - for kill()'s own check - and refuses from
+  // then on, so the escalation branch never reaches a pid this suite invented. The exception is
+  // the test that exists to prove the escalation does fire: it verifies true throughout and is
+  // safe instead by awaiting the grace period with its spy still installed, so the SIGKILL lands
+  // on the spy rather than on the machine. Its own comment says so at the call site.
   const ORPHAN_ESCALATION_MS = 50;
 
   function verifiesOnce() {

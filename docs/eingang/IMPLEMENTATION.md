@@ -478,8 +478,8 @@ label carries the chosen slug.
   bounded below by the one second `ps`'s whole-second rounding can lose and above by a few seconds
   of spawn latency, so a pid recycled to an unrelated process that merely started later is never
   mistaken for the job's own child. A row that survives that check stays `"running"`, untouched;
-  everything else becomes `"failed"`, exactly as before. `isRunning(kind)` now also reads
-  `runningJobs(db)` rather than only the in-memory map, so a live orphan still fences a second run
+  everything else becomes `"failed"`, exactly as before. `isRunning(kind)` now reads
+  `runningJobs(db)` instead of the in-memory map, so a live orphan still fences a second run
   of its kind after a restart. The jobs routes attach a `verwaist` boolean to every row
   (`withVerwaist`, computed as `"running"` and absent from the runner's own in-flight map, so it
   needs no column of its own) and the web Jobs panel marks it "Verwaist"; the kill button is the

@@ -56,6 +56,15 @@ export function isOurProcess(
   try {
     stdout = run(pid);
   } catch {
+    // This conflates two things on purpose, and the conflation has a cost worth knowing. `ps`
+    // exiting non-zero because the pid is gone is a real answer; `ps` failing to run at all
+    // (EMFILE, EAGAIN, a missing /bin/ps) is no answer, and both land here as false. For the
+    // signalling path that is the safe direction either way - a false "gone" never sends a
+    // signal. For the fence it is not: kill() settles a `running` row to "failed" on a false
+    // answer, so a machine briefly out of fork slots could open the fence while the job's process
+    // is genuinely still alive, and a second job of that kind could start beside it. Rare, and it
+    // costs duplicated work rather than a stranger's process, which is why one boolean is still
+    // the right shape here - but it is a real edge, not an oversight.
     return false;
   }
   const reported = stdout.trim();
