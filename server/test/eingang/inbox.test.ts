@@ -2,7 +2,6 @@ import { mkdirSync, utimesSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import {
-  frontmatterValue,
   isLocal,
   listInbox,
   localRecordingIds,
@@ -236,14 +235,7 @@ describe("quelleOf", () => {
   });
 });
 
-describe("frontmatterValue / localRecordingIds / plaudStatus", () => {
-  it("reads a key up to the first ': ' and ignores a titel with its own colon", () => {
-    const text =
-      "---\ntitel: 08-18 Besprechung: Q4\naufnahme: abc-1\n---\n# x\n";
-    expect(frontmatterValue(text, "aufnahme")).toBe("abc-1");
-    expect(frontmatterValue(text, "titel")).toBe("08-18 Besprechung: Q4");
-    expect(frontmatterValue("# no frontmatter", "aufnahme")).toBeNull();
-  });
+describe("localRecordingIds / plaudStatus", () => {
   it("collects ids per folder, skipping non-md files and missing folders", () => {
     const { watch, notizenDir, archivDir } = world();
     writeInboxFile(watch, "a-transkript.md", "---\naufnahme: id-inbox\n---\n");

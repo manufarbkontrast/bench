@@ -1,7 +1,7 @@
 import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
-import { splitNote, tagsOf, titleOf } from "./frontmatter.js";
+import { projektOf, splitNote, tagsOf, titleOf } from "./frontmatter.js";
 import { listNotes } from "./scan.js";
 import { extractTasks } from "./tasks.js";
 import { extractWikilinks } from "./wikilinks.js";
@@ -32,12 +32,13 @@ export function indexNote(
     db.prepare("DELETE FROM notes WHERE path = ?").run(relPath);
     db.prepare("DELETE FROM notes_fts WHERE path = ?").run(relPath);
     db.prepare(
-      "INSERT INTO notes (path, title, folder, frontmatter, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO notes (path, title, folder, frontmatter, projekt, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     ).run(
       relPath,
       titleOf(relPath),
       folder,
       JSON.stringify(frontmatter),
+      projektOf(frontmatter),
       body,
       Math.round(stat.mtimeMs),
       stat.size,

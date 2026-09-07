@@ -172,6 +172,31 @@ describe("indexAll", () => {
       .get("60_Knowledge/Quelle.md", "Notizen");
     expect(link).toEqual({ to_path: "60_Knowledge/Notizen.md" });
   });
+
+  it("derives projekt from a checked, normalised slug and leaves it null otherwise", () => {
+    const handoffs = path.join(dir, "50_Workflow", "Handoffs");
+    writeFileSync(
+      path.join(handoffs, "Handoff_gross.md"),
+      "---\nprojekt:  Gross-Schreibung \n---\n# x\n",
+    );
+    writeFileSync(
+      path.join(handoffs, "Handoff_kaputt.md"),
+      "---\nprojekt: Nicht Gültig!\n---\n# x\n",
+    );
+    indexAll(db, dir);
+    const projektAt = (p: string) =>
+      (
+        db.prepare("SELECT projekt FROM notes WHERE path = ?").get(p) as {
+          projekt: string | null;
+        }
+      ).projekt;
+    expect(projektAt("50_Workflow/Handoffs/Handoff_hafen.md")).toBe("hafen");
+    expect(projektAt("50_Workflow/Handoffs/Handoff_gross.md")).toBe(
+      "gross-schreibung",
+    );
+    expect(projektAt("50_Workflow/Handoffs/Handoff_kaputt.md")).toBeNull();
+    expect(projektAt("00_Index/Start.md")).toBeNull();
+  });
 });
 
 describe("indexNote and removeNote", () => {

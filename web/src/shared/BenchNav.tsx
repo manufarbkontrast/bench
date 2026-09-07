@@ -20,7 +20,7 @@ import {
 import { currentTheme, toggleTheme, type Theme } from "./theme";
 import "./nav.css";
 
-type AppKey =
+export type AppKey =
   | "home"
   | "vault"
   | "projekte"

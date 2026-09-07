@@ -63,7 +63,8 @@ web/                ONE Vite project, multi-page (MPA)
   eingang/index.html  -> src/eingang/main.tsx
   kontext/index.html  -> src/kontext/main.tsx
   zahlen/index.html   -> src/zahlen/main.tsx
-  src/shared/         the navigation strip and the theme - the only code all nine documents share
+  src/shared/         the navigation strip, the theme and the error boundary - the only code all
+                      nine documents share
 server/             ONE Express app
   src/index.ts        opens the six DBs, listens on :8100
   src/app.ts          mounts routers, serves web/dist with per-prefix SPA fallback
@@ -77,6 +78,7 @@ server/             ONE Express app
                       code, and to the MCP fetch, in-process
   src/kontext/        kontext routes over vault.sqlite (injected) and ~/.claude - no database
   src/zahlen/         zahlen routes over eingang's controlling dir (injected) - no database
+  src/shared/         the frontmatter line scanner - the only code the eight backends share
   test/{crm,rolodex,vault,projekte,aufgaben,eingang,kontext,zahlen}/   vitest suites
 data/                 crm.sqlite, rolodex.sqlite, vault.sqlite, projekte.sqlite, aufgaben.sqlite,
                       eingang.sqlite, eingang-jobs/*.log (gitignored, seeded/scanned on first run)
@@ -146,13 +148,20 @@ These are settled. Changing one is a project-level decision, not an implementati
   `appFallback` plugin in `web/vite.config.ts` does the same for the dev server. Without it a
   refresh on `/crm/contacts` serves the Cockpit. Both carry the same `APPS` list, and they have
   disagreed before - check both when you touch routing.
-- **One shared module: `web/src/shared/`.** The navigation strip and the theme are the only code
-  the nine documents have in common, and the `no-restricted-imports` rule allows it because that
+- **Two shared modules, one per workspace: `web/src/shared/` and `server/src/shared/`.** On the
+  web, the navigation strip, the theme and the error boundary are the only code the nine
+  documents have in common, and the `no-restricted-imports` rule allows the folder because that
   rule is a denylist of the sibling apps, not an allowlist. **Its CSS has to be self-contained.**
   It loads into nine stylesheets that collide on `.brand` and `:root`, each app redefines its own
   palette under `[data-theme]` - so every class in `nav.css` is `bench-nav`-prefixed and every
   value is a literal, never a variable. The strip looks the same over all of them, which is the
-  point: it is chrome above the app, not part of it.
+  point: it is chrome above the app, not part of it. The error boundary (`ErrorBoundary.tsx`,
+  `crash.css`) follows the same rule for the same reason: when it renders, the app's own
+  stylesheet may be the thing that broke. On the server, `server/src/shared/` holds the
+  frontmatter line scanner the eight backends share. The server's app boundary is a convention,
+  not a lint rule: an app imports from `shared/` and `config.ts` and never from a sibling, with
+  three documented exceptions into the vault's write and query surface (`projekte/routes.ts`,
+  `aufgaben/mapping.ts`, `aufgaben/routes.ts`); a fourth is a project decision, not a habit.
 - **One theme, chosen once.** `web/src/shared/theme.ts` writes `data-theme` on the document
   element and remembers the choice in `localStorage` under `bench.theme`; each entry point calls
   `initTheme()` **before it renders**, because setting it after the first paint flashes the wrong
@@ -246,7 +255,9 @@ and its router mounted at `/api/<name>` - and a `no-restricted-imports` entry in
 
 Then the navigation: an icon in `web/src/shared/AppIcons.tsx`, an entry in the `APPS` list in
 `web/src/shared/BenchNav.tsx`, the new key in that file's `AppKey` union, and
-`<BenchNav active="<name>" />` above the app's own shell. No colour to pick - the strip's only
+`<BenchNav active="<name>" />` above the app's own shell, and `<ErrorBoundary active="<name>">`
+around whatever `main.tsx` renders - outside the router if the app has one;
+`web/src/shared/entryPoints.test.ts` fails until it is there. No colour to pick - the strip's only
 accent is orange, for wherever you are. Two things to get right in the app's own stylesheet: a
 `[data-theme="dark"]` palette and `color-scheme`, and the height chain - the app's root element has
 to leave room for a 47px strip; see how the existing apps do it.

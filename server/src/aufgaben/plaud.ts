@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readdirSync } from "node:fs";
+import { scanFrontmatter } from "../shared/frontmatter.js";
 
 export interface PlaudItem {
   rowHash: string;
@@ -17,47 +18,6 @@ export interface PlaudNote {
   items: PlaudItem[];
   openQuestions: string[];
   direct: string[];
-}
-
-interface Frontmatter {
-  titel: string | null;
-  datum: string | null;
-  quelle: string | null;
-}
-
-const NO_FRONTMATTER: Frontmatter = { titel: null, datum: null, quelle: null };
-
-/**
- * The processed notes are machine-generated from a fixed template by the /plaud skill, and
- * their titel often contains its own ": " (e.g. "08-18 Besprechung: Q4-Planungslogik") - a
- * YAML parser rejects that as an incomplete mapping. A line scanner reading "key: value" up to
- * the first ": " is what actually matches the source, and is robust to it precisely because it
- * carries no YAML semantics.
- */
-function splitFrontmatter(text: string): {
-  frontmatter: Frontmatter;
-  body: string;
-} {
-  const lines = text.split("\n");
-  if (lines[0] !== "---") return { frontmatter: NO_FRONTMATTER, body: text };
-  const closing = lines.indexOf("---", 1);
-  if (closing === -1) return { frontmatter: NO_FRONTMATTER, body: text };
-  let titel: string | null = null;
-  let datum: string | null = null;
-  let quelle: string | null = null;
-  for (const line of lines.slice(1, closing)) {
-    const sep = line.indexOf(": ");
-    if (sep === -1) continue;
-    const key = line.slice(0, sep);
-    const value = line.slice(sep + 2).trim();
-    if (key === "titel") titel = value;
-    else if (key === "datum") datum = value;
-    else if (key === "quelle") quelle = value;
-  }
-  return {
-    frontmatter: { titel, datum, quelle },
-    body: lines.slice(closing + 1).join("\n"),
-  };
 }
 
 function firstHeading(lines: string[]): string | null {
@@ -133,13 +93,13 @@ function bullets(lines: string[]): string[] {
 
 /** A processed Plaud note - title/date/source from frontmatter, and its three tracked sections. */
 export function parsePlaudNote(file: string, text: string): PlaudNote {
-  const { frontmatter, body } = splitFrontmatter(text);
+  const { fields, body } = scanFrontmatter(text);
   const lines = body.split("\n");
   return {
     file,
-    title: frontmatter.titel ?? firstHeading(lines) ?? file,
-    date: frontmatter.datum,
-    source: frontmatter.quelle,
+    title: fields.get("titel") ?? firstHeading(lines) ?? file,
+    date: fields.get("datum") ?? null,
+    source: fields.get("quelle") ?? null,
     items: parseItems(sectionLines(lines, "Arbeitsaufträge")),
     openQuestions: bullets(sectionLines(lines, "Offene Fragen")),
     direct: bullets(sectionLines(lines, "Direkt erledigbar")),

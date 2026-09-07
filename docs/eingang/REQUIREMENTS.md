@@ -99,6 +99,6 @@ Deliberately left out of this phase:
 - [IMPLEMENTATION.md](./IMPLEMENTATION.md) - how Eingang is actually built
 - [aufgaben/IMPLEMENTATION.md](../aufgaben/IMPLEMENTATION.md) - the Plaud notes Eingang reconciles
   against; the frontmatter scan `quelleOf` duplicates is reasoned about in
-  `server/src/aufgaben/plaud.ts`'s `splitFrontmatter` docstring, not in this doc
+  `server/src/shared/frontmatter.ts`'s `scanFrontmatter` docstring, not in this doc
 - [PROJECT.md](../PROJECT.md) - how the apps fit together
 - [PROCESS.md](../PROCESS.md) - how to make a change here

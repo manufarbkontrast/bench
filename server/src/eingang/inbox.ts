@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { scanFrontmatter } from "../shared/frontmatter.js";
 
 export interface InboxFile {
   dir: string;
@@ -31,28 +32,8 @@ function matches(name: string, dirBasename: string, ext: string): boolean {
   );
 }
 
-/**
- * The eingang app does not import aufgaben modules - apps stay separate, per PROJECT.md's per-app
- * boundary - so this is a small, deliberate duplicate of the tolerant frontmatter scan
- * aufgaben/plaud.ts established: a note's own titel can carry its own ": " (e.g. "08-18
- * Besprechung: Q4-Planungslogik"), which a YAML parser rejects as an incomplete mapping. Scanning
- * each line up to its first ": " is what actually matches the source and needs no YAML semantics.
- */
-export function frontmatterValue(text: string, key: string): string | null {
-  const lines = text.split("\n");
-  if (lines[0] !== "---") return null;
-  const closing = lines.indexOf("---", 1);
-  if (closing === -1) return null;
-  for (const line of lines.slice(1, closing)) {
-    const sep = line.indexOf(": ");
-    if (sep === -1) continue;
-    if (line.slice(0, sep) === key) return line.slice(sep + 2).trim();
-  }
-  return null;
-}
-
 export function quelleOf(noteText: string): string | null {
-  return frontmatterValue(noteText, "quelle");
+  return scanFrontmatter(noteText).fields.get("quelle") ?? null;
 }
 
 /** Names directly inside `dir`, files only, no recursion; [] when `dir` does not exist. */
@@ -152,8 +133,8 @@ function recordingIdsIn(dir: string): Set<string> {
   for (const name of fileNames(dir)) {
     if (!name.endsWith(".md")) continue;
     const text = readFileSync(path.join(dir, name), "utf8");
-    const id = frontmatterValue(text, "aufnahme");
-    if (id !== null) ids.add(id);
+    const id = scanFrontmatter(text).fields.get("aufnahme");
+    if (id !== undefined) ids.add(id);
   }
   return ids;
 }

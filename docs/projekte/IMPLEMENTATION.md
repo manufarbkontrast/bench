@@ -35,7 +35,7 @@ reads the vault's `notes` table `WHERE folder = '50_Workflow/Handoffs'` (equalit
 
 | Field      | Source                                                                                                                                                                                                                    |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `slug`     | frontmatter `projekt`, trimmed, lowercased - the card's own heading                                                                                                                                                       |
+| `slug`     | the index's `projekt` column - frontmatter `projekt`, trimmed, lowercased and checked against `^[a-z0-9]+(-[a-z0-9]+)*$` by the vault indexer (`vault/index/frontmatter.ts`'s `projektOf`); the card's own heading        |
 | `title`    | the body's first `# ` line outside any fenced code block, trimmed, wherever it falls; falls back to `slug` with no H1                                                                                                     |
 | `notePath` | the note's vault-relative path, for the `Handoff im Vault` link                                                                                                                                                           |
 | `updated`  | frontmatter `updated` as `YYYY-MM-DD`, or `null` when missing or unparsable                                                                                                                                               |
@@ -43,15 +43,16 @@ reads the vault's `notes` table `WHERE folder = '50_Workflow/Handoffs'` (equalit
 | `zustand`  | the body's `## Zustand` section; absent, the first `## ` section; absent, `""`                                                                                                                                            |
 
 A handoff without a string `projekt`, or one that is empty or whitespace-only after trimming,
-becomes a warning line (`Handoff ohne projekt: <file>`) and is dropped; a second handoff claiming a
-slug already seen becomes `Doppelter Slug <slug>: <file>` and is dropped too - first note path
-(sorted) wins, the same dedupe rule `couple.ts` applies to duplicate project paths. `stand.ts`'s
-`projektStand` couples each handoff's `repos` entries to `projects` rows by lowercased path
-equality; entries that match nothing land in `missingRepos` as their basenames. Four signals are
-computed at read time, never stored: `veraltet` (the handoff's `updated` is earlier than the local
-calendar day of the newest coupled commit), `dirtyRepos` (how many coupled repos carry uncommitted
-changes), `offeneTasks` (open vault tasks whose _containing note's_ `projekt` frontmatter
-matches the slug, outside `50_Workflow`/`Templates`/`90_Archive`), and `plaudNotizen` (Plaud notes
+becomes a warning line (`Handoff ohne projekt: <file>`) and is dropped; a `projekt` that is there
+but failed the slug rule becomes `Ungültiger Slug in <file>` and is dropped the same way. A second
+handoff claiming a slug already seen becomes `Doppelter Slug <slug>: <file>` and is dropped too -
+first note path (sorted) wins, the same dedupe rule `couple.ts` applies to duplicate project paths.
+`stand.ts`'s `projektStand` couples each handoff's `repos` entries to `projects` rows by lowercased
+path equality; entries that match nothing land in `missingRepos` as their basenames. Four signals
+are computed at read time, never stored: `veraltet` (the handoff's `updated` is earlier than the
+local calendar day of the newest coupled commit), `dirtyRepos` (how many coupled repos carry
+uncommitted changes), `offeneTasks` (open vault tasks whose _containing note's_ `projekt` column
+equals the slug, outside `50_Workflow`/`Templates`/`90_Archive`), and `plaudNotizen` (Plaud notes
 dated after the handoff - see "The fourth signal" below). A `projects` row that no
 handoff's `repos` names at all lands in `ohneProjekt`.
 
@@ -62,10 +63,8 @@ folder, injected by the composition root the same way `ProjekteContext.notizenDi
 `routes.ts` (`index.ts` passes it `plaudLocation.dir`, the same value Aufgaben's own Plaud reading
 already uses). `plaudNotes` (`stand.ts`) reads every `.md` directly inside it once per `GET /stand`
 call - `null` or an unreadable directory contributes nothing rather than throwing - and
-`plaudNoteMeta` reads each one's `projekt` and `datum` frontmatter with a third, hand-rolled
-line scanner: the same tolerant colon-scan `server/src/eingang/inbox.ts`'s `frontmatterValue` and
-`server/src/aufgaben/plaud.ts`'s `splitFrontmatter` already use, written a third time here rather
-than imported, since the three apps never import each other. `plaudNotizenFor` then counts, per
+`plaudNoteMeta` reads each one's `projekt` and `datum` frontmatter through
+`server/src/shared/frontmatter.ts`'s `scanFrontmatter`. `plaudNotizenFor` then counts, per
 handoff, the notes whose `projekt` equals the slug and whose `datum` is a day **after** the
 handoff's `updated` - strictly later, not on the same day, so the meeting that produced the handoff
 note itself never counts against it - answering `0` when the handoff carries no `updated` at all.
@@ -296,8 +295,9 @@ vault database built and inserted into directly for `couple.ts` and the routes' 
 paths. `gh.test.ts` never calls the real CLI - every case injects a fake `GhRunner`. `handoffs.test.ts`
 covers the frontmatter fields, tilde expansion, fenced code blocks (`## `/`# ` lines inside a
 ` ``` ` fence read as prose, never as headings), `Zustand` extraction (including the first-H2
-fallback and the no-H2 empty case), and the four warning shapes (missing or blank `projekt`,
-duplicate slug, a non-string `repos` entry, and a `repos` value present but not a list).
+fallback and the no-H2 empty case), and the five warning shapes (missing or blank `projekt`, a
+`projekt` that fails the slug rule, duplicate slug, a non-string `repos` entry, and a `repos` value
+present but not a list).
 `stand.test.ts` covers coupling by lowercased path, `missingRepos`, each signal with a positive and
 a negative case, the sort order, and the `50_Workflow` task exclusion - `TZ=Europe/Berlin` is
 pinned for the whole suite in `server/vitest.config.ts` so its day-boundary cases actually

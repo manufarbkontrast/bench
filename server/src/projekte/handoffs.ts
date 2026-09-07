@@ -23,6 +23,7 @@ const HANDOFF_FOLDER = "50_Workflow/Handoffs";
 interface NoteRow {
   path: string;
   frontmatter: string;
+  projekt: string | null;
   body: string;
 }
 
@@ -99,7 +100,7 @@ function reposOf(
 export function vaultHandoffs(vaultDb: Database.Database): HandoffsResult {
   const rows = vaultDb
     .prepare(
-      "SELECT path, frontmatter, body FROM notes WHERE folder = ? ORDER BY path",
+      "SELECT path, frontmatter, projekt, body FROM notes WHERE folder = ? ORDER BY path",
     )
     .all(HANDOFF_FOLDER) as NoteRow[];
   const warnings: string[] = [];
@@ -108,12 +109,18 @@ export function vaultHandoffs(vaultDb: Database.Database): HandoffsResult {
   for (const row of rows) {
     const file = path.posix.basename(row.path);
     const frontmatter = JSON.parse(row.frontmatter) as Record<string, unknown>;
-    const projekt = frontmatter.projekt;
-    if (typeof projekt !== "string" || projekt.trim() === "") {
-      warnings.push(`Handoff ohne projekt: ${file}`);
+    if (row.projekt === null) {
+      // The indexer left the column empty (vault/index/frontmatter.ts's projektOf) for one of
+      // two reasons a person tells apart: nothing there, or something the slug rule refused.
+      const raw = frontmatter.projekt;
+      warnings.push(
+        typeof raw !== "string" || raw.trim() === ""
+          ? `Handoff ohne projekt: ${file}`
+          : `Ungültiger Slug in ${file}`,
+      );
       continue;
     }
-    const slug = projekt.trim().toLowerCase();
+    const slug = row.projekt;
     // First note path wins, like couple.ts's dedupe of duplicate project paths.
     if (seen.has(slug)) {
       warnings.push(`Doppelter Slug ${slug}: ${file}`);

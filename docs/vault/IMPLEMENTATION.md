@@ -15,8 +15,8 @@ never writes to it. Backed by `data/vault.sqlite`.
 Five tables in `server/src/vault/db.ts`, all of it derived from the markdown files:
 
 - **`notes`** - one row per file: `path` (vault-relative, posix, primary key), `title` (the
-  filename, never frontmatter), `folder`, `frontmatter` (the parsed YAML as a JSON string), `body`,
-  `mtime`, `size`.
+  filename, never frontmatter), `folder`, `frontmatter` (the parsed YAML as a JSON string),
+  `projekt` (the checked handoff slug, or `NULL` - see below), `body`, `mtime`, `size`.
 - **`links`** - one row per `[[wikilink]]` found in a note's body: `target` as written, optional
   `heading` and `alias`, `embed` (`![[...]]`), and `to_path` - filled in a second pass, null until
   then and null forever if the link does not resolve.
@@ -44,6 +44,13 @@ old rows, then insert the new ones for `notes`, `notes_fts`, `links`, `tags`, `t
   watcher, became an uncaught exception on the `add`/`change` event. `splitNote` now catches the
   parse and treats the whole file as body, frontmatter `{}`, so the note still indexes and appears
   in search - with no tags and no frontmatter fields until the YAML is fixed.
+- **`projekt` is a derived column, the one place the slug rule lives.** `projektOf`
+  (`index/frontmatter.ts`) trims and lowercases a string `projekt:` and keeps it only when it
+  matches `^[a-z0-9]+(-[a-z0-9]+)*$`; everything else is `NULL`. Projekte's readers select
+  this column rather than the frontmatter JSON, and Eingang's project fence inherits it through
+  the slug list Projekte hands the root - so an apostrophe, a space or an umlaut in a handoff's
+  `projekt:` is refused once, here, not three times downstream. An index file from before the
+  column gets it through `migrate` in `db.ts`; the next `indexAll` fills it.
 - **Links go in unresolved.** `writeLinks` inserts every link with `to_path` null; `resolveLinks`
   fills it in afterwards, once every note in the vault is known, because a link can name a note
   that is indexed later in the same pass, or not at all.

@@ -212,7 +212,7 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 
 | Scope                               | Statements |
 | ----------------------------------- | ---------- |
-| `server/src`                        | 93.08%     |
+| `server/src`                        | 93.4%      |
 | `web/src/aufgaben`                  | 79.43%     |
 | `web/src/aufgaben/components`       | 96.15%     |
 | `web/src/crm`                       | 100%       |
@@ -229,10 +229,11 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 | `web/src/rolodex/components/person` | 86.18%     |
 | `web/src/rolodex/components/today`  | 80%        |
 | `web/src/rolodex/pages`             | 77.65%     |
+| `web/src/shared`                    | 97.72%     |
 | `web/src/vault`                     | 85.49%     |
 | `web/src/vault/components`          | 81.88%     |
 | `web/src/zahlen`                    | 62.5%      |
-| **web overall**                     | **85.95%** |
+| **web overall**                     | **85.94%** |
 
 The last two decimals of `server/src` vary run to run - a few timeout-dependent tests settle
 differently from one run to the next.
@@ -240,7 +241,7 @@ differently from one run to the next.
 **Do not lower the bar to make a red run green.**
 
 **Thresholds stay on `statements` only.** That decision is a settled project-level control and
-this pass does not change it. Branches now read 84.6% on the server and 81.5% on web - both above
+this pass does not change it. Branches now read 85.9% on the server and 82.2% on web - both above
 80%, where the server used to sit at 72% and would have failed a shared branches gate. The revisit
 condition this paragraph named, raising the server's branch coverage first, has been met, so adding
 a branches threshold is now an available project-level call rather than a blocked one.

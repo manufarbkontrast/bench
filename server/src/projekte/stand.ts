@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { readdirSync, readFileSync, type Dirent } from "node:fs";
 import path from "node:path";
+import { scanFrontmatter } from "../shared/frontmatter.js";
 import type { ProjectRow } from "./db.js";
 import { type Handoff, vaultHandoffs } from "./handoffs.js";
 
@@ -34,7 +35,7 @@ const EXCLUDED_FOLDERS = new Set(["50_Workflow", "Templates", "90_Archive"]);
 
 interface TaskRow {
   path: string;
-  frontmatter: string;
+  projekt: string;
 }
 
 export function localDay(ms: number): string {
@@ -47,47 +48,28 @@ export function localDay(ms: number): string {
 function openTaskCounts(vaultDb: Database.Database): Map<string, number> {
   const rows = vaultDb
     .prepare(
-      "SELECT t.path AS path, n.frontmatter AS frontmatter FROM tasks t JOIN notes n ON n.path = t.path WHERE t.done = 0",
+      "SELECT t.path AS path, n.projekt AS projekt FROM tasks t JOIN notes n ON n.path = t.path WHERE t.done = 0 AND n.projekt IS NOT NULL",
     )
     .all() as TaskRow[];
   const counts = new Map<string, number>();
   for (const row of rows) {
     if (row.path.split("/").some((segment) => EXCLUDED_FOLDERS.has(segment)))
       continue;
-    const projekt = (JSON.parse(row.frontmatter) as Record<string, unknown>)
-      .projekt;
-    if (typeof projekt !== "string") continue;
-    const slug = projekt.trim().toLowerCase();
-    counts.set(slug, (counts.get(slug) ?? 0) + 1);
+    counts.set(row.projekt, (counts.get(row.projekt) ?? 0) + 1);
   }
   return counts;
 }
 
-// The Plaud notes are machine-written from the /plaud skill's template, whose titel line can
-// carry its own ": " - the same line scanner server/src/eingang/inbox.ts's frontmatterValue and
-// server/src/aufgaben/plaud.ts's splitFrontmatter use, written a third time here because the
-// three apps never import each other.
+/** `projekt` (lowercased) and `datum` (first ten characters) of a Plaud note's frontmatter, or
+    null when either is missing. The slug is compared against the handoffs' checked slugs, never
+    admitted on its own, so no rule is applied here. */
 export function plaudNoteMeta(
   text: string,
 ): { projekt: string; datum: string } | null {
-  const lines = text.split("\n");
-  if (lines[0] !== "---") return null;
-  const closing = lines.indexOf("---", 1);
-  if (closing === -1) return null;
-  let projekt: string | null = null;
-  let datum: string | null = null;
-  for (const line of lines.slice(1, closing)) {
-    const sep = line.indexOf(": ");
-    if (sep === -1) continue;
-    const key = line.slice(0, sep);
-    const value = line.slice(sep + 2).trim();
-    if (key === "projekt") projekt = value.toLowerCase();
-    else if (key === "datum") datum = value.slice(0, 10);
-  }
-  return projekt !== null &&
-    projekt !== "" &&
-    datum !== null &&
-    /^\d{4}-\d{2}-\d{2}$/.test(datum)
+  const { fields } = scanFrontmatter(text);
+  const projekt = fields.get("projekt")?.toLowerCase() ?? "";
+  const datum = fields.get("datum")?.slice(0, 10) ?? "";
+  return projekt !== "" && /^\d{4}-\d{2}-\d{2}$/.test(datum)
     ? { projekt, datum }
     : null;
 }

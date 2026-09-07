@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
 import { openDb as openVaultDb } from "../../src/vault/db.js";
+import { projektOf } from "../../src/vault/index/frontmatter.js";
 import type { ProjectRow } from "../../src/projekte/db.js";
 import type { ProjektStand, Signals } from "../../src/projekte/stand.js";
 import {
@@ -41,7 +42,7 @@ function buildVault(notes: NoteFixture[]): Database.Database {
     path.join(scratch.dir, `vault-${String(dbCount++)}.sqlite`),
   );
   const insert = db.prepare(
-    "INSERT INTO notes (path, title, folder, frontmatter, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO notes (path, title, folder, frontmatter, projekt, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
   );
   for (const note of notes) {
     insert.run(
@@ -49,6 +50,7 @@ function buildVault(notes: NoteFixture[]): Database.Database {
       note.title ?? path.posix.basename(note.path, ".md"),
       path.posix.dirname(note.path),
       JSON.stringify(note.frontmatter),
+      projektOf(note.frontmatter),
       note.body ?? "",
       0,
       0,
@@ -191,6 +193,35 @@ describe("projektStand", () => {
     insertTask(db, `${HANDOFF_FOLDER}/Handoff_a.md`, 5, 0);
     insertTask(db, "Templates/T.md", 1, 0);
     expect(projektStand(db, [], null).projekte[0].signals.offeneTasks).toBe(1);
+  });
+
+  it("counts a task under a note whose projekt normalises to the slug, not one that fails the rule", () => {
+    const db = buildVault([
+      handoff("bench"),
+      { path: "30_Projekte/A.md", frontmatter: { projekt: " Bench " } },
+      { path: "30_Projekte/B.md", frontmatter: { projekt: "kein slug!" } },
+    ]);
+    insertTask(db, "30_Projekte/A.md", 1, 0);
+    insertTask(db, "30_Projekte/B.md", 1, 0);
+    const reply = projektStand(db, [], null);
+    expect(reply.projekte[0].signals.offeneTasks).toBe(1);
+  });
+
+  it("ignores a task whose note has projekt in the frontmatter but not in the column", () => {
+    const db = buildVault([handoff("bench")]);
+    db.prepare(
+      "INSERT INTO notes (path, title, folder, frontmatter, body, mtime, size) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    ).run(
+      "30_Projekte/Roh.md",
+      "Roh",
+      "30_Projekte",
+      JSON.stringify({ projekt: "bench" }),
+      "",
+      0,
+      0,
+    );
+    insertTask(db, "30_Projekte/Roh.md", 1, 0);
+    expect(projektStand(db, [], null).projekte[0].signals.offeneTasks).toBe(0);
   });
 
   it("sorts veraltet first, then oldest updated first, unknown dates last", () => {

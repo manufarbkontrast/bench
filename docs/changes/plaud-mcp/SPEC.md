@@ -79,6 +79,8 @@ Settled in this spec, open for the user's approval with it:
     `frontmatterValue(text, key)` in `inbox.ts`; Projekte gets its own eight-line reader for
     `projekt` and `datum`. The per-app boundary is worth more than the shared lines, as Eingang's
     doc already argues for `quelleOf`.
+    Superseded by [changes/follow-ups/SPEC.md](../follow-ups/SPEC.md) decision 10 (2026-09-06): the
+    scanner now lives once in `server/src/shared/frontmatter.ts`.
 15. **`plaud-sync` stays as it is.** It collects hand exports from `~/Downloads`; the MCP fetch is
     a second way in, not a replacement. The `_HIER-...` marker keeps its instructions.
 
