@@ -22,17 +22,25 @@ export const realPs: PsRunner = (pid) =>
 
 // ps reports whole seconds; startedAt is milliseconds. A legitimate child can be truncated down
 // to a second that reads earlier than the job's own recorded startedAt even though it started a
-// moment later in real time - this widens the accepted window by one second to absorb exactly
-// that rounding, not to forgive a process that started substantially earlier.
+// moment later in real time - this absorbs exactly that rounding, not a process that started
+// substantially earlier.
 const TRUNCATION_TOLERANCE_MS = 1000;
 
+// The window is bounded on BOTH sides, and the upper bound is the one that matters. A recycled
+// pid names a process that started LATER than the job, so a rule of "not earlier than startedAt"
+// accepts it - which would let a kill click signal a stranger. The runner records startedAt and
+// then spawns synchronously in the same tick, so a real child starts within milliseconds; five
+// seconds is three orders of magnitude of headroom for a loaded machine, and still leaves reuse
+// impossible, since it would take the pid space wrapping inside those five seconds.
+const SPAWN_WINDOW_MS = 5000;
+
 /**
- * True only when a live process with `pid` started no earlier than `startedAt` (a job's
- * `started_at`, epoch ms) - proof the pid still names the job's own process rather than one that
- * happened to exist, under the same number, before the job ever ran. Anything ps cannot confirm -
- * the process is gone, a non-zero exit, empty output, an unparsable date - answers false: SPEC
- * decision 4 treats a false "alive" as the dangerous direction, since it would let an unrelated
- * process be signalled by a later kill click.
+ * True only when a live process with `pid` started inside a narrow window around `startedAt` (a
+ * job's `started_at`, epoch ms) - proof the pid still names the job's own child rather than an
+ * older process that happened to carry the same number, or a stranger the pid was recycled to
+ * after the job. Anything ps cannot confirm - the process is gone, a non-zero exit, empty output,
+ * an unparsable date - answers false: SPEC decision 4 treats a false "alive" as the dangerous
+ * direction, since it would let an unrelated process be signalled by a later kill click.
  */
 export function isOurProcess(
   pid: number,
@@ -49,5 +57,8 @@ export function isOurProcess(
   if (!reported) return false;
   const started = Date.parse(reported);
   if (Number.isNaN(started)) return false;
-  return started + TRUNCATION_TOLERANCE_MS >= startedAt;
+  return (
+    started + TRUNCATION_TOLERANCE_MS >= startedAt &&
+    started <= startedAt + SPAWN_WINDOW_MS
+  );
 }

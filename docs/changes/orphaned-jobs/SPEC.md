@@ -45,10 +45,18 @@ and the kill path consistent with the two guards beside them.
    gone, so the row becomes `failed` exactly as today. The function is renamed to say so.
 
 4. **A pid alone is not proof.** A pid recorded hours ago may belong to an unrelated process. A
-   row counts as alive only when the process exists **and** its start time is not earlier than the
-   job's `started_at`, read through `ps`. Anything else is treated as gone. A false "gone" costs
-   an unmonitored process, which is today's behaviour; a false "alive" would let a stranger's
-   process be killed by a later click, which is a new harm and must not be possible.
+   row counts as alive only when the process exists **and** its start time falls inside a narrow
+   window around the job's `started_at`, read through `ps`. Anything else is treated as gone. A
+   false "gone" costs an unmonitored process, which is today's behaviour; a false "alive" would
+   let a stranger's process be killed by a later click, which is a new harm and must not be
+   possible.
+
+   **The window is bounded on both sides, and the upper bound is the one that does the work.** An
+   earlier draft of this decision said only "not earlier than `started_at`", which is wrong: a
+   recycled pid names a process that started _later_ than the job, so that rule accepts exactly
+   the case it was written to reject. The runner records `started_at` and spawns synchronously in
+   the same tick, so a real child starts within milliseconds of it - which makes a tight window
+   both safe and cheap.
 
 5. **The kind fence reads the database.** `routes.ts:293` consults the reconciled `running` rows
    rather than the in-memory map, so a live orphan blocks a second run of its kind. The refusal is

@@ -43,6 +43,17 @@ describe("isOurProcess", () => {
     expect(isOurProcess(process.pid, startedAt, run)).toBe(false);
   });
 
+  // The dangerous direction, and the one a "not earlier than startedAt" rule misses entirely: a
+  // recycled pid names a process that started LATER than the job, not earlier. Bench spawns its
+  // child synchronously right after recording startedAt, so a start days later is proof the pid
+  // has been handed to a stranger - and a later kill click would signal that stranger.
+  it("answers false for a pid recycled to a process that started after the job", () => {
+    const startedAt = new Date(2026, 5, 1, 12, 0, 0).getTime();
+    const strangerStart = new Date(2026, 5, 4, 9, 30, 0);
+    const run: PsRunner = vi.fn(() => lstart(strangerStart));
+    expect(isOurProcess(4242, startedAt, run)).toBe(false);
+  });
+
   it("answers false when the injected ps runner throws", () => {
     const run: PsRunner = vi.fn(() => {
       throw new Error("ps failed");
@@ -72,7 +83,14 @@ describe("isOurProcess", () => {
   // No injected runner: proves the parsing above matches what the real `ps -o lstart=` prints on
   // this machine, not only a fixture built to fit it.
   it("parses real ps output for this process's own pid", () => {
-    const startedAt = Date.now() - 60_000;
+    // Node's own uptime says when this process started; the assertion is that the real ps agrees
+    // to within the window. An arbitrary startedAt would not work now that the window is bounded
+    // above as well as below - and that bound is the point of the whole function.
+    const startedAt = Date.now() - process.uptime() * 1000;
     expect(isOurProcess(process.pid, startedAt)).toBe(true);
+  });
+
+  it("answers false for this process against a startedAt well after it started", () => {
+    expect(isOurProcess(process.pid, Date.now() + 60_000)).toBe(false);
   });
 });
