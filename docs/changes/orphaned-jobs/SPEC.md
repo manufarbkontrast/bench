@@ -102,7 +102,9 @@ orphan from a job this server started. The kill button is the one already there.
 2. In that state, starting the same kind is refused, with the refusal naming the running job.
 3. Clicking kill on the orphan terminates the real process, and the row reaches `killed`.
 4. A job whose process died while the server was down reconciles to `failed`, as today.
-5. A pid belonging to a process older than the job is treated as gone and never signalled.
+5. A pid whose process falls outside the window is treated as gone and never signalled - in
+   **both** directions: a process older than the job, and a pid recycled to one that started after
+   it.
 6. `npm run check` and `npm run e2e` green; the new modules covered by unit tests that fake both
    the liveness check and the clock.
 
