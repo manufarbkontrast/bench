@@ -70,7 +70,7 @@ export default defineConfig({
       provider: "v8",
       include: ["src/**"],
       exclude: ["src/**/main.tsx", "src/**/test/**", "src/**/*.test.*"],
-      thresholds: { statements: 80 },
+      thresholds: { statements: 80, branches: 80 },
     },
   },
 });

@@ -42,7 +42,7 @@ export default defineConfig({
         "src/eingang/fixture/**",
         "src/kontext/fixture/**",
       ],
-      thresholds: { statements: 80 },
+      thresholds: { statements: 80, branches: 80 },
     },
     projects: [
       {
