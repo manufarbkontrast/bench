@@ -5,6 +5,7 @@ import type express from "express";
 import request from "supertest";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  finishJob,
   getJob,
   insertJob,
   openEingangDb,
@@ -572,6 +573,120 @@ describe("POST /api/eingang/jobs/:id/kill", () => {
     expect(res.status).toBe(409);
     expect(res.body).toEqual({ error: "not running" });
   }, 10_000);
+});
+
+interface JobWithVerwaist extends JobRow {
+  verwaist: boolean;
+}
+interface JobVerwaistResponse {
+  job: JobWithVerwaist;
+}
+interface JobsVerwaistResponse {
+  jobs: JobWithVerwaist[];
+}
+
+// A row inserted straight through insertJob, bypassing runner.start(), is the exact shape a
+// restart-orphaned job's row has once the server comes back up: "running" in the database, absent
+// from this process's own in-flight map, because only start() ever adds an id there (SPEC
+// decision 2, PLAN decision 2).
+function insertOrphanRow(orphanDb: typeof db, logName: string): number {
+  return insertJob(orphanDb, {
+    kind: "plaud-sync",
+    argsJson: "{}",
+    startedAt: Date.now(),
+    logPath: path.join(scratch.dir, logName),
+  });
+}
+
+describe("verwaiste Jobs - a running row absent from the in-flight map", () => {
+  it("refuses a second plaud-sync with the existing 409 while the orphaned row is running, and allows it again once that row is no longer running", async () => {
+    const orphanId = insertOrphanRow(db, `orphan-fence-${String(n)}.log`);
+
+    const refused = await request(app)
+      .post("/api/eingang/jobs")
+      .send({ kind: "plaud-sync" });
+    expect(refused.status).toBe(409);
+    expect(refused.body).toEqual({ error: "already running" });
+
+    finishJob(db, orphanId, "failed", null);
+
+    const allowed = await request(app)
+      .post("/api/eingang/jobs")
+      .send({ kind: "plaud-sync" });
+    expect(allowed.status).toBe(201);
+    await waitForTerminal((allowed.body as JobResponse).job.id);
+  }, 10_000);
+
+  it("GET /jobs marks the orphaned row verwaist and a job this process started not verwaist", async () => {
+    process.env.BENCH_FAKE_JOB = "hang";
+    try {
+      const started = await request(app)
+        .post("/api/eingang/jobs")
+        .send({ kind: "plaud-sync" });
+      const startedJob = (started.body as JobResponse).job;
+      const orphanId = insertOrphanRow(db, `orphan-list-${String(n)}.log`);
+
+      const res = await request(app).get("/api/eingang/jobs");
+
+      expect(res.status).toBe(200);
+      const byId = new Map(
+        (res.body as JobsVerwaistResponse).jobs.map((job) => [job.id, job]),
+      );
+      expect(byId.get(orphanId)?.verwaist).toBe(true);
+      expect(byId.get(startedJob.id)?.verwaist).toBe(false);
+
+      await request(app).post(
+        `/api/eingang/jobs/${String(startedJob.id)}/kill`,
+      );
+      await waitForTerminal(startedJob.id);
+    } finally {
+      delete process.env.BENCH_FAKE_JOB;
+    }
+  }, 10_000);
+
+  it("GET /jobs/:id carries verwaist for both an orphaned row and a job this process started", async () => {
+    process.env.BENCH_FAKE_JOB = "hang";
+    try {
+      const started = await request(app)
+        .post("/api/eingang/jobs")
+        .send({ kind: "plaud-sync" });
+      const startedJob = (started.body as JobResponse).job;
+      const orphanId = insertOrphanRow(db, `orphan-single-${String(n)}.log`);
+
+      const orphanRes = await request(app).get(
+        `/api/eingang/jobs/${String(orphanId)}`,
+      );
+      expect((orphanRes.body as JobVerwaistResponse).job.verwaist).toBe(true);
+
+      const startedRes = await request(app).get(
+        `/api/eingang/jobs/${String(startedJob.id)}`,
+      );
+      expect((startedRes.body as JobVerwaistResponse).job.verwaist).toBe(false);
+
+      await request(app).post(
+        `/api/eingang/jobs/${String(startedJob.id)}/kill`,
+      );
+      await waitForTerminal(startedJob.id);
+    } finally {
+      delete process.env.BENCH_FAKE_JOB;
+    }
+  }, 10_000);
+
+  it("marks a finished row verwaist: false regardless, in both the list and the single lookup", async () => {
+    const finishedId = insertOrphanRow(db, `finished-${String(n)}.log`);
+    finishJob(db, finishedId, "done", 0);
+
+    const single = await request(app).get(
+      `/api/eingang/jobs/${String(finishedId)}`,
+    );
+    expect((single.body as JobVerwaistResponse).job.verwaist).toBe(false);
+
+    const list = await request(app).get("/api/eingang/jobs");
+    const listed = (list.body as JobsVerwaistResponse).jobs.find(
+      (job) => job.id === finishedId,
+    );
+    expect(listed?.verwaist).toBe(false);
+  });
 });
 
 describe("POST /api/eingang/jobs - a null plaudHome", () => {

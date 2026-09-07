@@ -633,3 +633,34 @@ describe("createRunner - kill() on an orphan (no in-flight record)", () => {
     }
   });
 });
+
+describe("createRunner - isRunning and isInFlight consult the database", () => {
+  it("isRunning is true for a kind whose row is running in the database alone (an empty in-flight map), and false again once that row is no longer running", () => {
+    const { db, runner } = newRunner();
+    const id = insertRunningRow(db, null);
+
+    expect(runner.isRunning("plaud-sync")).toBe(true);
+
+    finishJob(db, id, "failed", null);
+    expect(runner.isRunning("plaud-sync")).toBe(false);
+  });
+
+  it("isInFlight is false for a database-only running row and true for a job this runner actually started", async () => {
+    const { db, runner } = newRunner();
+    const orphanId = insertRunningRow(db, null);
+    expect(runner.isInFlight(orphanId)).toBe(false);
+
+    const { plan, env } = fakePlan("plaud-sync");
+    const started = runner.start(
+      "plaud-sync",
+      "{}",
+      plan,
+      env,
+      JOB_TIMEOUTS_MS["plaud-sync"],
+    );
+    expect(runner.isInFlight(started.id)).toBe(true);
+
+    await waitForTerminal(db, started.id);
+    expect(runner.isInFlight(started.id)).toBe(false);
+  }, 10_000);
+});

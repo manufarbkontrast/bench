@@ -37,6 +37,7 @@ function emptyEingang(): EingangContext {
       },
       kill: () => "not_running",
       isRunning: () => false,
+      isInFlight: () => false,
     },
     paths: {
       plaudHome: "/nonexistent",

@@ -7,6 +7,7 @@ import {
   finishJob,
   getJob,
   insertJob,
+  runningJobs,
   type JobRow,
   type JobStatus,
 } from "./db.js";
@@ -48,6 +49,11 @@ export interface Runner {
   ): JobRow;
   kill(id: number): KillOutcome;
   isRunning(kind: JobKind): boolean;
+  /** True only for an id this runner's own start() put in its in-flight map - never restored by
+      the database, never true again once the job settles. A `running` row for which this answers
+      false is exactly a restart orphan (SPEC decision 2): the process, if still alive, belongs to
+      an earlier instance of this same server. */
+  isInFlight(id: number): boolean;
 }
 
 // A child that ignores SIGTERM would otherwise wedge the runner forever - this is the grace
@@ -355,9 +361,19 @@ export function createRunner(
     return "killed";
   }
 
+  // The in-flight map alone is empty on every boot, so a restart-orphaned job of this kind would
+  // otherwise be invisible to the fence and a second run could start beside it. The database read
+  // is what makes this restart-proof; the map is kept too so a job caught mid-insert (the row
+  // exists, the map entry not yet set - see start()) still fences correctly within one tick.
   function isRunning(kind: JobKind): boolean {
-    return [...inFlight.values()].some((record) => record.kind === kind);
+    if ([...inFlight.values()].some((record) => record.kind === kind))
+      return true;
+    return runningJobs(db).some((row) => row.kind === kind);
   }
 
-  return { start, kill, isRunning };
+  function isInFlight(id: number): boolean {
+    return inFlight.has(id);
+  }
+
+  return { start, kill, isRunning, isInFlight };
 }
