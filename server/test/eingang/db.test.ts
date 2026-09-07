@@ -250,4 +250,25 @@ describe("openEingangDb", () => {
     expect(row?.status).toBe("failed");
     expect(row?.exitCode).toBeNull();
   });
+
+  // The behaviour change reconcileRunning brought with it: the blanket failStaleRunning it
+  // replaced ran a bespoke UPDATE that left finished_at NULL, and web's durationText
+  // (web/src/eingang/format.ts) reads `finishedAt ?? now`, so a stale row flipped to "failed"
+  // rendered a duration that kept growing forever. Going through finishJob stamps it.
+  it("reconcileRunning stamps finished_at on every row it fails", () => {
+    const db = openEingangDb(":memory:");
+    const before = Date.now();
+    const id = insertJob(db, {
+      kind: "plaud-sync",
+      argsJson: "{}",
+      startedAt: 1,
+      logPath: "/a.log",
+    });
+
+    reconcileRunning(db, () => false);
+
+    const row = getJob(db, id);
+    expect(row?.status).toBe("failed");
+    expect(row?.finishedAt).toBeGreaterThanOrEqual(before);
+  });
 });
