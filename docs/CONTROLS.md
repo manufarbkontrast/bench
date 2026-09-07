@@ -70,10 +70,15 @@ Two things need no package, only configuration:
   `.tsx`, whose bodies are mostly a JSX tree the rule counts as logic. `complexity` and
   `cognitive-complexity` measure whether a function is actually hard to follow, and stay strict.
   The numbers were calibrated against this codebase rather than picked round, and they bite.
-- **`no-restricted-imports`**, stopping the three apps importing from each other. It is a denylist of
-  the sibling apps rather than an allowlist of permitted paths, so a future `web/src/shared/` is
-  allowed by default. Note what it does **not** cover: the collision
-  [PROJECT.md](./PROJECT.md) warns about is the three global stylesheets, and a lint rule cannot see
+- **`no-restricted-imports`**, stopping the eight apps importing from each other, in both
+  workspaces: `web/src/<app>/**` and `server/src/<app>/**`, generated from one `APPS` list. It is a
+  denylist of the sibling apps rather than an allowlist of permitted paths, so `web/src/shared/`,
+  `server/src/shared/` and `config.ts` are allowed by default. The server's three documented
+  exceptions into the vault each get their own config naming only `vault` as reachable, so an
+  exception cannot quietly widen to the other six; the composition root (`server/src/app.ts`,
+  `index.ts`) and `server/test/**` sit outside the scope on purpose, both importing from every app
+  by design. Note what it does **not** cover: the collision
+  [PROJECT.md](./PROJECT.md) warns about is the global stylesheets, and a lint rule cannot see
   CSS. Separate HTML entry points are what keeps those apart. This rule guards the module graph only.
 
 ### Rules deliberately off
