@@ -5,7 +5,7 @@ import path from "node:path";
 /**
  * One row per spawned or internal job the runner (Task 4/5) starts - kind and args_json record
  * what was asked for, the rest records what happened. A row is inserted running and only
- * finishJob or failStaleRunning ever move it out of that state.
+ * finishJob or reconcileRunning ever move it out of that state.
  */
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS jobs (
@@ -135,12 +135,18 @@ export function runningJobs(db: Database.Database): JobRow[] {
 }
 
 /**
- * A server killed mid-job leaves its row stuck at "running" forever - nothing else ever calls
- * finishJob for it. Called once at boot so a restart's job list reflects reality rather than a
- * job that will never finish.
+ * A server killed mid-job leaves every "running" row stuck there - nothing else ever calls
+ * finishJob for it. Called once at boot to tell each row's process apart from the pool of
+ * unrelated ones a reused pid could name: a row with a pid `isAlive` still confirms is genuinely
+ * running and is left untouched; everything else - a dead process, or an internal job's null pid,
+ * which can never be alive - becomes "failed" with no exit code, same as before this reconciled.
  */
-export function failStaleRunning(db: Database.Database): void {
-  db.prepare(
-    "UPDATE jobs SET status = 'failed', exit_code = NULL WHERE status = 'running'",
-  ).run();
+export function reconcileRunning(
+  db: Database.Database,
+  isAlive: (pid: number, startedAt: number) => boolean,
+): void {
+  for (const row of runningJobs(db)) {
+    if (row.pid !== null && isAlive(row.pid, row.startedAt)) continue;
+    finishJob(db, row.id, "failed", null);
+  }
 }

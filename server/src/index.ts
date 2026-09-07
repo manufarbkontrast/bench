@@ -9,7 +9,8 @@ import type { AufgabenSources } from "./aufgaben/routes.js";
 import { describeSources, loadConfig } from "./config.js";
 import { openDb as openCrmDb } from "./crm/db.js";
 import { isSeeded, seed } from "./crm/seed.js";
-import { failStaleRunning, openEingangDb } from "./eingang/db.js";
+import { isOurProcess } from "./eingang/alive.js";
+import { openEingangDb, reconcileRunning } from "./eingang/db.js";
 import type { JobPaths } from "./eingang/jobs.js";
 import { locateEingang } from "./eingang/locate.js";
 import { runPlaudFetch } from "./eingang/plaud-fetch.js";
@@ -99,9 +100,10 @@ const eingangFixtureDir = path.join(
 );
 const eingangLocation = locateEingang(config, eingangFixtureDir);
 const eingangDb = openEingangDb(path.join(dataDir, "eingang.sqlite"));
-// A server killed mid-job leaves its row stuck "running" forever - see failStaleRunning's own
-// comment. Run once at boot so a restart's job list reflects reality.
-failStaleRunning(eingangDb);
+// A server killed mid-job leaves its row stuck "running" forever - see reconcileRunning's own
+// comment. Run once at boot so a restart's job list reflects reality: a row whose process is
+// still alive stays running, everything else becomes failed.
+reconcileRunning(eingangDb, isOurProcess);
 
 const eingangPaths: JobPaths = {
   // The sample world is one coherent fixture tree (see locateEingang's docstring): plaudHome

@@ -4,12 +4,12 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import {
-  failStaleRunning,
   finishJob,
   getJob,
   insertJob,
   listJobs,
   openEingangDb,
+  reconcileRunning,
   runningJobs,
 } from "../../src/eingang/db.js";
 
@@ -168,7 +168,7 @@ describe("openEingangDb", () => {
     expect(runningJobs(db).map((row) => row.id)).toEqual([running]);
   });
 
-  it("failStaleRunning flips exactly the running rows to failed with a null exit code", () => {
+  it("reconcileRunning flips exactly the running rows to failed with a null exit code when nothing is alive", () => {
     const db = openEingangDb(":memory:");
     const stale = insertJob(db, {
       kind: "plaud-sync",
@@ -191,7 +191,7 @@ describe("openEingangDb", () => {
     });
     finishJob(db, alreadyFailed, "failed", 1);
 
-    failStaleRunning(db);
+    reconcileRunning(db, () => false);
 
     const staleRow = getJob(db, stale);
     expect(staleRow?.status).toBe("failed");
@@ -204,5 +204,50 @@ describe("openEingangDb", () => {
     const failedRow = getJob(db, alreadyFailed);
     expect(failedRow?.status).toBe("failed");
     expect(failedRow?.exitCode).toBe(1);
+  });
+
+  it("reconcileRunning leaves a row running when isAlive confirms its pid, and fails the rest", () => {
+    const db = openEingangDb(":memory:");
+    const aliveId = insertJob(db, {
+      kind: "plaud-sync",
+      argsJson: "{}",
+      startedAt: 1,
+      logPath: "/a.log",
+    });
+    db.prepare("UPDATE jobs SET pid = ? WHERE id = ?").run(4321, aliveId);
+    const goneId = insertJob(db, {
+      kind: "controlling",
+      argsJson: "{}",
+      startedAt: 2,
+      logPath: "/b.log",
+    });
+    db.prepare("UPDATE jobs SET pid = ? WHERE id = ?").run(9999, goneId);
+
+    reconcileRunning(db, (pid) => pid === 4321);
+
+    const aliveRow = getJob(db, aliveId);
+    expect(aliveRow?.status).toBe("running");
+    expect(aliveRow?.finishedAt).toBeNull();
+    expect(aliveRow?.exitCode).toBeNull();
+
+    const goneRow = getJob(db, goneId);
+    expect(goneRow?.status).toBe("failed");
+    expect(goneRow?.exitCode).toBeNull();
+  });
+
+  it("reconcileRunning fails a running row with no pid even when isAlive would answer true for everything", () => {
+    const db = openEingangDb(":memory:");
+    const internalId = insertJob(db, {
+      kind: "aufgaben-import",
+      argsJson: "{}",
+      startedAt: 1,
+      logPath: "/a.log",
+    });
+
+    reconcileRunning(db, () => true);
+
+    const row = getJob(db, internalId);
+    expect(row?.status).toBe("failed");
+    expect(row?.exitCode).toBeNull();
   });
 });
