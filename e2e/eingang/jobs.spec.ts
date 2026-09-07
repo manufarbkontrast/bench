@@ -143,7 +143,12 @@ test("a restart-orphaned row renders as verwaist with its kill button", async ({
 }, testInfo) => {
   // Stands in for a real spawned child that survived a server restart - genuinely alive, so
   // alive.ts's isOurProcess (read through ps) confirms it rather than a fabricated pid a real
-  // reconciliation would already have reconciled to "failed".
+  // reconciliation would already have reconciled to "failed". started_at is taken BEFORE the
+  // spawn, the runner's own ordering (start() records startedAt and then spawns): ps truncates
+  // the fork to a whole second, so the reported start can read up to the one second alive.ts
+  // tolerates below started_at and never above it. Taken after the spawn instead, the reading can
+  // land past that tolerance and the row stops being verwaist.
+  const startedAt = Date.now();
   const child = spawn("sleep", ["60"], { stdio: "ignore" });
   // pid is undefined only when the spawn itself failed synchronously - not a case a local
   // `sleep` hits, and the INSERT below would throw on binding undefined rather than silently
@@ -153,9 +158,7 @@ test("a restart-orphaned row renders as verwaist with its kill button", async ({
   try {
     // This worker's own server never called runner.start() for this row, so it is absent from
     // the in-flight map on the very first GET /jobs - exactly the restart-orphan shape decision 2
-    // defines, without an actual restart. started_at has to be Date.now() taken right after
-    // spawn(), same as the runner's own synchronous start-then-spawn: alive.ts's window is one
-    // second below and five above it.
+    // defines, without an actual restart.
     const dbPath = path.join(
       repoRoot,
       "e2e",
@@ -171,7 +174,7 @@ test("a restart-orphaned row renders as verwaist with its kill button", async ({
       ).run(
         "controlling",
         JSON.stringify({ modus: "e2e-verwaist" }),
-        Date.now(),
+        startedAt,
         path.join(
           repoRoot,
           "e2e",

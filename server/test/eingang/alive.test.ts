@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { describe, expect, it, vi } from "vitest";
 import { isOurProcess, type PsRunner } from "../../src/eingang/alive.js";
 
@@ -82,12 +83,28 @@ describe("isOurProcess", () => {
 
   // No injected runner: proves the parsing above matches what the real `ps -o lstart=` prints on
   // this machine, not only a fixture built to fit it.
-  it("parses real ps output for this process's own pid", () => {
-    // Node's own uptime says when this process started; the assertion is that the real ps agrees
-    // to within the window. An arbitrary startedAt would not work now that the window is bounded
-    // above as well as below - and that bound is the point of the whole function.
-    const startedAt = Date.now() - process.uptime() * 1000;
-    expect(isOurProcess(process.pid, startedAt)).toBe(true);
+  it("parses real ps output for a child it spawned itself", () => {
+    // startedAt before the spawn, which is production's own ordering (runner.ts's start() records
+    // it and then spawns), and what makes the one-second tolerance exactly tight: ps truncates the
+    // fork to a whole second, so the reported start can read up to a second earlier than startedAt
+    // and never later. Deriving startedAt from process.uptime() instead inverts that - uptime is
+    // measured from Node's bootstrap, 5-15ms after the fork ps reports, so the drift is the fork's
+    // own offset within its second plus that delay, and 60 samples on this machine reached 1009ms:
+    // past the tolerance, and a failure roughly one run in sixty.
+    const startedAt = Date.now();
+    const child = spawn(
+      process.execPath,
+      ["-e", "setTimeout(() => 0, 10000)"],
+      {
+        stdio: "ignore",
+      },
+    );
+
+    try {
+      expect(isOurProcess(child.pid!, startedAt)).toBe(true);
+    } finally {
+      child.kill("SIGKILL");
+    }
   });
 
   it("answers false for this process against a startedAt well after it started", () => {
