@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS jobs (
   started_at INTEGER NOT NULL,
   finished_at INTEGER,
   exit_code INTEGER,
-  log_path TEXT NOT NULL
+  log_path TEXT NOT NULL,
+  pid INTEGER
 );
 `;
 
@@ -31,6 +32,7 @@ export interface JobRow {
   finishedAt: number | null;
   exitCode: number | null;
   logPath: string;
+  pid: number | null;
 }
 
 interface JobDbRow {
@@ -42,6 +44,7 @@ interface JobDbRow {
   finished_at: number | null;
   exit_code: number | null;
   log_path: string;
+  pid: number | null;
 }
 
 function toJobRow(row: JobDbRow): JobRow {
@@ -54,7 +57,18 @@ function toJobRow(row: JobDbRow): JobRow {
     finishedAt: row.finished_at,
     exitCode: row.exit_code,
     logPath: row.log_path,
+    pid: row.pid,
   };
+}
+
+/** A jobs table created before the pid column existed gets it added in place. No backfill: a row
+    written before this change has no pid to record, and reconciles as gone. */
+function migrate(db: Database.Database): void {
+  const columns = (
+    db.prepare("PRAGMA table_info(jobs)").all() as { name: string }[]
+  ).map((c) => c.name);
+  if (!columns.includes("pid"))
+    db.exec("ALTER TABLE jobs ADD COLUMN pid INTEGER");
 }
 
 /** Open (creating if needed) the jobs database and ensure the schema exists. */
@@ -63,6 +77,7 @@ export function openEingangDb(file: string): Database.Database {
   const db = new Database(file);
   db.pragma("journal_mode = WAL");
   db.exec(SCHEMA);
+  migrate(db);
   return db;
 }
 

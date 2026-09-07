@@ -1,3 +1,7 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import {
   failStaleRunning,
@@ -28,7 +32,47 @@ describe("openEingangDb", () => {
       finishedAt: null,
       exitCode: null,
       logPath: "/var/log/eingang/1.log",
+      pid: null,
     });
+  });
+
+  it("a fresh job has a null pid until the runner sets it", () => {
+    const db = openEingangDb(":memory:");
+    const id = insertJob(db, {
+      kind: "plaud-sync",
+      argsJson: "{}",
+      startedAt: 1,
+      logPath: "/a.log",
+    });
+
+    expect(getJob(db, id)?.pid).toBeNull();
+  });
+
+  it("adds the pid column to a jobs table created before it existed", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "bench-eingang-migrate-"));
+    const file = path.join(dir, "eingang.sqlite");
+    const old = new Database(file);
+    old.exec(
+      `CREATE TABLE jobs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        kind TEXT NOT NULL,
+        args_json TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('running','done','failed','killed','timeout')),
+        started_at INTEGER NOT NULL,
+        finished_at INTEGER,
+        exit_code INTEGER,
+        log_path TEXT NOT NULL
+      )`,
+    );
+    old.close();
+
+    const db = openEingangDb(file);
+    const columns = (
+      db.prepare("PRAGMA table_info(jobs)").all() as { name: string }[]
+    ).map((c) => c.name);
+    expect(columns).toContain("pid");
+    db.close();
+    rmSync(dir, { recursive: true, force: true });
   });
 
   it("finishes a job, setting status, exit code and finished_at", () => {
