@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { createWriteStream, mkdirSync, type WriteStream } from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
+import { isOurProcess as isOurProcessDefault } from "./alive.js";
 import {
   finishJob,
   getJob,
@@ -19,16 +20,23 @@ type InternalJobFn = (
 export type RunnerInternals = Record<InternalName, InternalJobFn>;
 
 /**
- * `killed` - a SIGTERM was actually sent. `not_running` - the id is absent or already finished.
- * `internal` - the record has no child process this runner tracks, so it cannot be cancelled
- * through this call, only relabelled if it times out (see runInternal). True for vault-reindex and
- * projekte-scan, which run in-process with nothing to signal at all; plaud-fetch does spawn a
- * process (the Plaud MCP, over stdio), but that child belongs to plaud-mcp.ts's own session, not
- * to this runner, and a hung fetch is ended by that session's own 120-second timeout rather than
- * by anything here. The route layer maps `internal` to its own 409 rather than the runner deciding
- * what an unkillable job means for an HTTP caller.
+ * `killed` - a SIGTERM was actually sent, whether to a job this process started or to a
+ * restart-orphaned one it only found in the database (see `kill` below). `not_running` - the id is
+ * absent, already finished, or - for a row with no in-flight record - a pid `isOurProcess` cannot
+ * confirm as the job's own child right now. `internal` - the record has no child process this
+ * runner tracks, so it cannot be cancelled through this call, only relabelled if it times out (see
+ * runInternal). True for vault-reindex and projekte-scan, which run in-process with nothing to
+ * signal at all; plaud-fetch does spawn a process (the Plaud MCP, over stdio), but that child
+ * belongs to plaud-mcp.ts's own session, not to this runner, and a hung fetch is ended by that
+ * session's own 120-second timeout rather than by anything here. The route layer maps `internal`
+ * to its own 409 rather than the runner deciding what an unkillable job means for an HTTP caller.
  */
 type KillOutcome = "killed" | "not_running" | "internal";
+
+/** The pid-liveness check kill()'s orphan path needs - just (pid, startedAt) => boolean, the same
+    shape isOurProcess itself has once its own optional ps override is dropped, so a test can drive
+    every branch with a plain function and no real long-lived process. */
+type PidIsAlive = (pid: number, startedAt: number) => boolean;
 
 export interface Runner {
   start(
@@ -97,6 +105,35 @@ function escalateKill(
   record.timers.push(killTimer);
 }
 
+/** process.kill throws ESRCH when the pid is already gone - an expected race for a process this
+    runner does not own and cannot wait on (the verification just before this call, or the grace
+    period before the SIGKILL escalation, both give it a window to exit on its own), not a bug
+    worth crashing the runner over. Anything else is not expected and is left to throw. */
+function signalOrphan(pid: number, signal: NodeJS.Signals): void {
+  try {
+    process.kill(pid, signal);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ESRCH") throw err;
+  }
+}
+
+/** kill()'s fallback for a `running` row with no in-flight record: this runner holds no
+    ChildProcess for it, so there is no "close" event to settle the row from - the caller marks it
+    killed as soon as the signal is sent. The SIGKILL escalation re-verifies the pid at the moment
+    it is about to fire rather than trusting the check kill() made a whole killEscalationMs ago:
+    the pid can have exited and been handed to an unrelated process in between. */
+function escalateOrphanKill(
+  pid: number,
+  startedAt: number,
+  isOurProcess: PidIsAlive,
+  killEscalationMs: number,
+): void {
+  signalOrphan(pid, "SIGTERM");
+  setTimeout(() => {
+    if (isOurProcess(pid, startedAt)) signalOrphan(pid, "SIGKILL");
+  }, killEscalationMs);
+}
+
 type Settle = (
   status: Exclude<JobStatus, "running">,
   exitCode: number | null,
@@ -138,6 +175,7 @@ export function createRunner(
   jobsDir: string,
   internals: RunnerInternals,
   killEscalationMs = KILL_ESCALATION_MS,
+  isOurProcess: PidIsAlive = isOurProcessDefault,
 ): Runner {
   mkdirSync(jobsDir, { recursive: true });
 
@@ -296,10 +334,24 @@ export function createRunner(
 
   function kill(id: number): KillOutcome {
     const record = inFlight.get(id);
-    if (!record) return "not_running";
-    if (!record.child) return "internal";
-    markEndReason(record, "killRequested");
-    escalateKill(record.child, record, killEscalationMs);
+    if (record) {
+      if (!record.child) return "internal";
+      markEndReason(record, "killRequested");
+      escalateKill(record.child, record, killEscalationMs);
+      return "killed";
+    }
+
+    // The in-flight map is empty on every boot, so an id absent from it is either a job already
+    // finished or a restart-orphaned child still alive on the machine. Verification runs right
+    // here, at the moment of the click - the boot reconciliation's verdict is stale by now, and a
+    // false "alive" would let a stranger's process be signalled (SPEC decision 4/6).
+    const row = getJob(db, id);
+    if (!row) return "not_running";
+    if (row.status !== "running" || row.pid === null) return "not_running";
+    if (!isOurProcess(row.pid, row.startedAt)) return "not_running";
+
+    escalateOrphanKill(row.pid, row.startedAt, isOurProcess, killEscalationMs);
+    finishJob(db, id, "killed", null);
     return "killed";
   }
 
