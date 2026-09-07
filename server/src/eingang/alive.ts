@@ -11,7 +11,7 @@ export type PsRunner = (pid: number) => string;
 // does not depend on PATH resolution, and /bin/ps is where both macOS and Linux ship it.
 const PS_BIN = "/bin/ps";
 
-export const realPs: PsRunner = (pid) =>
+const realPs: PsRunner = (pid) =>
   execFileSync(PS_BIN, ["-o", "lstart=", "-p", String(pid)], {
     encoding: "utf8",
     env: { ...process.env, LC_ALL: "C" },
