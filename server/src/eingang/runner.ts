@@ -353,8 +353,18 @@ export function createRunner(
     // false "alive" would let a stranger's process be signalled (SPEC decision 4/6).
     const row = getJob(db, id);
     if (!row) return "not_running";
-    if (row.status !== "running" || row.pid === null) return "not_running";
-    if (!isOurProcess(row.pid, row.startedAt)) return "not_running";
+    if (row.status !== "running") return "not_running";
+
+    // A `running` row this process never started, whose pid cannot be confirmed as its own child,
+    // is exactly what reconcileRunning fails at the next boot - so reach that verdict here, at the
+    // click, rather than leaving the row `running`. reconcileRunning is called once, at boot, so
+    // nothing else would: the row would fence every future job of its kind through isRunning() for
+    // the life of the server, and this button - the only one on it - would keep answering 409
+    // without changing anything.
+    if (row.pid === null || !isOurProcess(row.pid, row.startedAt)) {
+      finishJob(db, id, "failed", null);
+      return "not_running";
+    }
 
     escalateOrphanKill(row.pid, row.startedAt, isOurProcess, killEscalationMs);
     finishJob(db, id, "killed", null);

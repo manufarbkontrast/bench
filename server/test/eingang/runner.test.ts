@@ -528,15 +528,39 @@ describe("createRunner - kill() on an orphan (no in-flight record)", () => {
     try {
       expect(runner.kill(id)).toBe("not_running");
       expect(killSpy).not.toHaveBeenCalled();
-      expect(getJob(db, id)!.status).toBe("running");
     } finally {
       killSpy.mockRestore();
     }
   });
 
-  it("returns not_running and sends no signal for a running row with a null pid", () => {
+  // reconcileRunning runs once, at boot. An orphan confirmed alive there and dead a minute later
+  // is reclassified by nothing, so without this the row stays "running" for the life of the
+  // server: isRunning(kind) keeps refusing every start of that kind, and the one button that
+  // could clear it answers 409 and changes nothing.
+  it("finishes a running row whose pid no longer verifies, so its kind is startable again", () => {
+    const { db, runner } = newRunner({}, undefined, () => false);
+    const id = insertRunningRow(db, 424_245);
+    const killSpy = spyOnProcessKill();
+
+    try {
+      expect(runner.isRunning("plaud-sync")).toBe(true);
+      expect(runner.kill(id)).toBe("not_running");
+      expect(killSpy).not.toHaveBeenCalled();
+
+      const row = getJob(db, id)!;
+      expect(row.status).toBe("failed");
+      expect(row.exitCode).toBeNull();
+      expect(row.finishedAt).not.toBeNull();
+      expect(runner.isRunning("plaud-sync")).toBe(false);
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+
+  it("returns not_running and finishes a running row with a null pid, sending no signal", () => {
     // isOurProcess answers true here on purpose: the null-pid check must short-circuit before it
-    // is ever consulted.
+    // is ever consulted. A null pid can never be verified, which is the same verdict
+    // reconcileRunning reaches for it at boot.
     const { db, runner } = newRunner({}, undefined, () => true);
     const id = insertRunningRow(db, null);
     const killSpy = spyOnProcessKill();
@@ -544,12 +568,13 @@ describe("createRunner - kill() on an orphan (no in-flight record)", () => {
     try {
       expect(runner.kill(id)).toBe("not_running");
       expect(killSpy).not.toHaveBeenCalled();
+      expect(getJob(db, id)!.status).toBe("failed");
     } finally {
       killSpy.mockRestore();
     }
   });
 
-  it("returns not_running and sends no signal for a row that already finished", () => {
+  it("returns not_running and leaves a row that already finished alone", () => {
     const { db, runner } = newRunner({}, undefined, () => true);
     const id = insertRunningRow(db, 424_244);
     finishJob(db, id, "done", 0);
@@ -558,6 +583,8 @@ describe("createRunner - kill() on an orphan (no in-flight record)", () => {
     try {
       expect(runner.kill(id)).toBe("not_running");
       expect(killSpy).not.toHaveBeenCalled();
+      // Only a "running" row is reclassified - a terminal status is never overwritten.
+      expect(getJob(db, id)!.status).toBe("done");
     } finally {
       killSpy.mockRestore();
     }

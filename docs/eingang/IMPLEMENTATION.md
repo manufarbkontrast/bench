@@ -486,12 +486,21 @@ label carries the chosen slug.
   same one every other row has. Clicking it reaches `kill()`'s fallback path: absent from the
   in-flight map, it re-reads the row, re-verifies the pid with the same `isOurProcess` check right
   at the moment of the click - the boot reconciliation's verdict is stale by then - and only then
-  sends SIGTERM, with the same `KILL_ESCALATION_MS` SIGKILL escalation the in-process path uses.
+  sends SIGTERM, escalating to SIGKILL after the same `KILL_ESCALATION_MS`. **That escalation is
+  not the in-process one, despite the shared constant.** The in-process path settles the row from
+  the child's own `close` event once the log has drained; this path holds no child object to wait
+  on, so it marks the row `killed` the moment the SIGTERM is sent, and its timer re-verifies the
+  pid before the SIGKILL rather than trusting a check a whole grace period old. **A click whose
+  verification fails settles the row too** - to `failed` with a null exit code, the same verdict
+  `reconcileRunning` reaches from the same evidence. That is the only way out of an orphan whose
+  process has since exited on its own: `reconcileRunning` runs at boot and nowhere else, so a row
+  confirmed alive there and dead a minute later would otherwise fence every start of its kind for
+  the life of the server, with the button that should clear it answering 409 and changing nothing.
   **A boot-time sweep that signals the orphan automatically was proposed and rejected** (Change:
   verwaiste Jobs, SPEC decision 1): Bench OS principle 6 is that a job acts on click and never on
-  its own schedule, and a restart is not a click. Do not add one back - an orphan that nobody kills
-  keeps running, unmonitored, until the next restart's reconciliation finds it dead or a person
-  clicks Abbrechen, and that is the intended behaviour, not a gap.
+  its own schedule, and a restart is not a click. Do not add one back - an orphan that nobody
+  touches keeps running, unmonitored, until a person clicks Abbrechen or the next restart's
+  reconciliation finds it dead, and that is the intended behaviour, not a gap.
 - **Nothing prunes `data/eingang-jobs/*.log` or the `jobs` table.** Every log file stays on disk
   and every row stays in the database forever; `GET /jobs` only ever _displays_ the last 50. An
   accepted limit on a personal machine, not a target for retention work until the folder's size
