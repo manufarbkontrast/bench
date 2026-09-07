@@ -262,6 +262,10 @@ button:disabled {
   margin-right: 8px;
 }
 
+.eingang-jobs-verwaist {
+  margin-right: 8px;
+}
+
 .eingang-kill-btn {
   padding: 3px 10px;
   border: 1px solid var(--accent);

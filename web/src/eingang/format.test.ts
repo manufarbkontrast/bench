@@ -74,6 +74,8 @@ function job(overrides: Partial<JobRow> = {}): JobRow {
     finishedAt: null,
     exitCode: null,
     logPath: "/jobs/1.log",
+    pid: null,
+    verwaist: false,
     ...overrides,
   };
 }

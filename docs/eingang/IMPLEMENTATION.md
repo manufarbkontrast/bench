@@ -469,12 +469,29 @@ label carries the chosen slug.
   a second watch folder, a file `plaud-sync` has not yet collected - fails `planPlaudProcess`'s
   existence check with 400, which is exactly what the disabled button with `"Erst einsammeln"` is
   warning about before the request is even sent.
-- **A server restart mid-job orphans the spawned process.** `failStaleRunning` flips the row to
-  `"failed"` at boot, but nothing sends the still-running child a signal - it keeps going,
-  unmonitored, while `isRunning`'s in-memory map comes back empty on every boot. The same kind,
-  even naming the same file, can then be started again beside the orphan. Possible later
-  hardening: record the child's pid on the job row so a boot-time sweep can send it a best-effort
-  SIGTERM before the new run starts.
+- **A server restart mid-job leaves the orphan running until someone clicks Abbrechen.** `jobs`
+  carries a nullable `pid` (`db.ts`), written once the child's `spawn()` returns; an internal job
+  has no child and stores `null`. At boot, `reconcileRunning` (`index.ts`, replacing the old
+  blanket `failStaleRunning`) classifies every `"running"` row rather than flipping all of them:
+  `alive.ts`'s `isOurProcess` reads the pid's start time through `ps -o lstart=` and answers true
+  only when it is alive **and** started inside a narrow window around the row's own `started_at` -
+  bounded below by the one second `ps`'s whole-second rounding can lose and above by a few seconds
+  of spawn latency, so a pid recycled to an unrelated process that merely started later is never
+  mistaken for the job's own child. A row that survives that check stays `"running"`, untouched;
+  everything else becomes `"failed"`, exactly as before. `isRunning(kind)` now also reads
+  `runningJobs(db)` rather than only the in-memory map, so a live orphan still fences a second run
+  of its kind after a restart. The jobs routes attach a `verwaist` boolean to every row
+  (`withVerwaist`, computed as `"running"` and absent from the runner's own in-flight map, so it
+  needs no column of its own) and the web Jobs panel marks it "Verwaist"; the kill button is the
+  same one every other row has. Clicking it reaches `kill()`'s fallback path: absent from the
+  in-flight map, it re-reads the row, re-verifies the pid with the same `isOurProcess` check right
+  at the moment of the click - the boot reconciliation's verdict is stale by then - and only then
+  sends SIGTERM, with the same `KILL_ESCALATION_MS` SIGKILL escalation the in-process path uses.
+  **A boot-time sweep that signals the orphan automatically was proposed and rejected** (Change:
+  verwaiste Jobs, SPEC decision 1): Bench OS principle 6 is that a job acts on click and never on
+  its own schedule, and a restart is not a click. Do not add one back - an orphan that nobody kills
+  keeps running, unmonitored, until the next restart's reconciliation finds it dead or a person
+  clicks Abbrechen, and that is the intended behaviour, not a gap.
 - **Nothing prunes `data/eingang-jobs/*.log` or the `jobs` table.** Every log file stays on disk
   and every row stays in the database forever; `GET /jobs` only ever _displays_ the last 50. An
   accepted limit on a personal machine, not a target for retention work until the folder's size

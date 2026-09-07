@@ -62,6 +62,14 @@ function JobRowView({
         <span className="eingang-jobs-status">
           {jobStatusLabel(job.status)}
         </span>
+        {job.verwaist && (
+          <span
+            className="eingang-chip eingang-jobs-verwaist"
+            title="Läuft weiter, aber nicht von diesem Server gestartet - vermutlich ein Neustart mitten im Lauf."
+          >
+            Verwaist
+          </span>
+        )}
         {showAbbrechen && (
           <button
             type="button"

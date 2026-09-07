@@ -1,8 +1,22 @@
 /** Eingang's Jobs panel over the fake runner: an internal job that settles to Fertig with a log
-    to open, a spawned one cancelled mid-run whose log stays open through the cancel, and the
-    double-start guard that refuses a second Einsammeln while one is already running. */
+    to open, a spawned one cancelled mid-run whose log stays open through the cancel, the
+    double-start guard that refuses a second Einsammeln while one is already running, and a
+    restart-orphaned row seeded straight into the database. */
 import type { Locator, Page } from "@playwright/test";
+import Database from "better-sqlite3";
+import { spawn } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { test, expect } from "../fixtures";
+
+// e2e/eingang/jobs.spec.ts -> repo root, the same two levels up ../fixtures.ts's own `root` uses
+// from e2e/fixtures.ts - kept local rather than exported from fixtures.ts, since only this one
+// orphan case needs to reach past the API and write the worker's database directly.
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+);
 
 /** The Jobs table's own row for a given "Protokoll: <label>" button, newest first (started_at
     desc, matching server/src/eingang/db.ts's listJobs) - `.first()` is the row a start just
@@ -122,4 +136,75 @@ test("cancelling Einsammeln while it runs reaches Abgebrochen with its log still
       { timeout: 10_000 },
     )
     .toContain("Fertig");
+});
+
+test("a restart-orphaned row renders as verwaist with its kill button", async ({
+  page,
+}, testInfo) => {
+  // Stands in for a real spawned child that survived a server restart - genuinely alive, so
+  // alive.ts's isOurProcess (read through ps) confirms it rather than a fabricated pid a real
+  // reconciliation would already have reconciled to "failed".
+  const child = spawn("sleep", ["60"], { stdio: "ignore" });
+  // pid is undefined only when the spawn itself failed synchronously - not a case a local
+  // `sleep` hits, and the INSERT below would throw on binding undefined rather than silently
+  // writing a bad pid, so this stays a plain assertion rather than a guard clause.
+  const pid = child.pid!;
+
+  try {
+    // This worker's own server never called runner.start() for this row, so it is absent from
+    // the in-flight map on the very first GET /jobs - exactly the restart-orphan shape decision 2
+    // defines, without an actual restart. started_at has to be Date.now() taken right after
+    // spawn(), same as the runner's own synchronous start-then-spawn: alive.ts's window is one
+    // second below and five above it.
+    const dbPath = path.join(
+      repoRoot,
+      "e2e",
+      ".tmp",
+      `w${testInfo.workerIndex}`,
+      "eingang.sqlite",
+    );
+    const db = new Database(dbPath);
+    try {
+      db.prepare(
+        `INSERT INTO jobs (kind, args_json, status, started_at, log_path, pid)
+         VALUES (?, ?, 'running', ?, ?, ?)`,
+      ).run(
+        "controlling",
+        JSON.stringify({ modus: "e2e-verwaist" }),
+        Date.now(),
+        path.join(
+          repoRoot,
+          "e2e",
+          ".tmp",
+          `w${testInfo.workerIndex}`,
+          "eingang-jobs",
+          "e2e-verwaist.log",
+        ),
+        pid,
+      );
+    } finally {
+      db.close();
+    }
+
+    await page.goto("/eingang/");
+    const row = jobRow(page, "Protokoll: Controlling (e2e-verwaist)");
+    await expect(row).toContainText("Verwaist");
+    const kill = row.getByRole("button", { name: "Abbrechen", exact: true });
+    await expect(kill).toBeVisible();
+
+    // The kill fallback for an orphan (runner.ts's kill()) verifies the pid and finishes the row
+    // synchronously in the same request, unlike the in-process path's async close event - so one
+    // click and the refetch App.tsx always runs after is enough, no poll needed.
+    await kill.click();
+    await expect(row).toContainText("Abgebrochen");
+  } finally {
+    // Whatever the assertions above did to the row, the real OS process still needs to go -
+    // SIGKILL rather than relying on the click above having reached it, since a failed assertion
+    // means that line may never have run.
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
+      // Already gone - the click above already reached it, or it exited on its own.
+    }
+  }
 });
