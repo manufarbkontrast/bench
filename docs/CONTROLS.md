@@ -245,11 +245,12 @@ differently from one run to the next.
 
 **Do not lower the bar to make a red run green.**
 
-**Thresholds stay on `statements` only.** That decision is a settled project-level control and
-this pass does not change it. Branches now read 86.2% on the server and 82.3% on web - both above
-80%, where the server used to sit at 72% and would have failed a shared branches gate. The revisit
-condition this paragraph named, raising the server's branch coverage first, has been met, so adding
-a branches threshold is now an available project-level call rather than a blocked one.
+**`branches` is a threshold too, at 80%, in both workspaces.** It used to be `statements` only,
+because the server sat at 72% branches and would have failed a shared gate. That is no longer
+true - the server reads 86.3% and web 82.3% - so the threshold was added to hold the ground
+rather than to demand new ground. **Web has the thinner margin of the two**: 2.3 points, against
+the server's 6.3. A change that adds an untested branch to web is the one that will trip this
+first, and the answer is a test for that branch, not a lower number.
 
 **Seed files are covered by asserting on the seeded database, not by exclusion.**
 `server/test/rolodex/seed.test.ts` runs `seedIfEmpty` and checks the shape of what comes out -
