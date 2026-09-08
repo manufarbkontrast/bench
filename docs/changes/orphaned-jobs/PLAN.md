@@ -152,11 +152,12 @@ The SPEC's six, verified as a whole at the end:
 2. In that state a second run of the kind is refused.
 3. The kill button terminates the real process and the row reaches `killed`.
 4. A job whose process died while the server was down reconciles to `failed`.
-5. A pid older than its job is never signalled.
-6. `npm run check` and `npm run e2e` green, with the `statements: 80` threshold held in both
-   workspaces. A `branches: 80` threshold was written into this criterion by mistake: it belongs
-   to the `aufraeumen` branch (PR #7), not to this one, so it cannot be signed off here. Once that
-   branch merges, this change's own branch coverage has to clear it too.
+5. A pid outside the window is never signalled, in both directions - a process older than the job,
+   and a pid recycled to one that started after it.
+6. `npm run check` and `npm run e2e` green, with both thresholds held in both workspaces. The
+   `branches: 80` half arrived from the `aufraeumen` branch (PR #7), which merged first; `main`
+   was then merged into this branch and the gate re-run against the combination, so the figure
+   this change is measured against is the one CI will use.
 
 Browser checks run with `BENCH_DOTENV=off DATA_DIR=<scratch>`, per PROCESS.md, except the
 measurement in criterion 1, which needs the real server and touches only Eingang's own job rows.
