@@ -54,9 +54,9 @@ current `JobRow`.
 **Files:** `server/src/eingang/alive.ts` (new), `server/test/eingang/alive.test.ts` (new)
 
 One exported function: given a pid and the job's `startedAt`, answer whether a live process with
-that pid started inside a narrow window around it. Read the start time with
-`ps -o lstart= -p <pid>`; a non-zero exit, empty output, an unparsable date, or a start outside the
-window all answer `false`.
+that pid started inside a narrow window around it. Read the elapsed running time with
+`ps -o etime= -p <pid>` and derive the start from it; a non-zero exit, empty output, an unparsable
+duration, or a start outside the window all answer `false`.
 
 **The window is bounded on both sides.** Below by one second, because `ps` reports whole seconds
 while `startedAt` is milliseconds, so a legitimate child truncates down into a second that reads
@@ -64,15 +64,20 @@ earlier than its own job. Above by a few seconds, because the runner records `st
 spawns in the same tick - and because a recycled pid names a process that started _later_ than the
 job, which a lower bound alone accepts. The upper bound is the one that carries SPEC decision 4.
 
-**Force the C locale.** `ps -o lstart=` renders weekday and month through `LC_TIME`, and on a
-machine set to `de_DE` it prints `Mo. 7 Sep. 22:15:08 2026`, which `Date.parse` rejects for most
-months. Set `LC_ALL=C` on the call.
+**A duration, not a timestamp.** This task first used `ps -o lstart=`, which forced the C locale to
+stop `Date.parse` choking on German month names - and still carried a worse trap underneath:
+`lstart` prints wall-clock time in ps's own zone while `Date.parse` reads it in Node's, so where
+those disagree the answer is silently off by the offset. They disagree on the machine that gates
+the merge, since `server/vitest.config.ts` pins `TZ=Europe/Berlin` and GitHub's runners are UTC.
+CI caught it after the change had passed locally and through two reviews. `etime` is a duration:
+no zone, no month name, and `LC_ALL=C` drops to cheap insurance.
 
-**Success:** true for the test process's own pid against a `startedAt` derived from its real start;
-false for a pid that cannot exist, for a live pid against a `startedAt` far in the past, for a pid
-recycled to a process that started after the job, and when the `ps` runner throws. The `ps` call is
-injected so every case is a unit test, with one test using the real `ps` against `process.pid` so
-the parsing is proven against real output rather than a fixture only.
+**Success:** true for a child the test spawns itself, with `startedAt` taken before the spawn;
+false for a pid that cannot exist, for a live pid whose elapsed time places it long before the job,
+for a pid recycled to a process that started after the job, and when the `ps` runner throws. All
+three `etime` shapes (`mm:ss`, `hh:mm:ss`, `dd-hh:mm:ss`) parse. The `ps` call is injected so every
+case is a unit test, with one test using the real `ps` so the parsing is proven against real output
+rather than a fixture only.
 
 ## Task 2 - reconcile instead of flip
 

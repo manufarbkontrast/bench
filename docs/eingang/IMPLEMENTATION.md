@@ -473,11 +473,15 @@ label carries the chosen slug.
   carries a nullable `pid` (`db.ts`), written once the child's `spawn()` returns; an internal job
   has no child and stores `null`. At boot, `reconcileRunning` (`index.ts`, replacing the old
   blanket `failStaleRunning`) classifies every `"running"` row rather than flipping all of them:
-  `alive.ts`'s `isOurProcess` reads the pid's start time through `ps -o lstart=` and answers true
-  only when it is alive **and** started inside a narrow window around the row's own `started_at` -
-  bounded below by the one second `ps`'s whole-second rounding can lose and above by a few seconds
-  of spawn latency, so a pid recycled to an unrelated process that merely started later is never
-  mistaken for the job's own child. A row that survives that check stays `"running"`, untouched;
+  `alive.ts`'s `isOurProcess` reads the pid's elapsed running time through `ps -o etime=`, derives
+  a start from it, and answers true only when it is alive **and** started inside a narrow window
+  around the row's own `started_at` - bounded below by the one second `ps`'s whole-second rounding
+  can lose and above by a few seconds of spawn latency, so a pid recycled to an unrelated process
+  that merely started later is never mistaken for the job's own child. **A duration, deliberately,
+  not `ps -o lstart=`.** That prints a wall-clock date in ps's own zone, `Date.parse` reads it in
+  Node's, and where those disagree the answer is silently off by the offset - which is the case on
+  the machine that gates the merge, since `server/vitest.config.ts` pins `TZ=Europe/Berlin` while
+  GitHub's runners are UTC. It passed locally and failed CI by two hours. A row that survives that check stays `"running"`, untouched;
   everything else becomes `"failed"`, exactly as before. `isRunning(kind)` now reads
   `runningJobs(db)` instead of the in-memory map, so a live orphan still fences a second run
   of its kind after a restart. The jobs routes attach a `verwaist` boolean to every row
