@@ -197,53 +197,48 @@ const app = createApp({
   kontext,
   zahlen,
 });
-serve(app, port, () => {
-  console.log(`Bench running at http://localhost:${port}`);
-  for (const line of describeSources(config)) console.log(`  ${line}`);
-  if (vault.missing)
-    console.log(
-      `  Vault: ${vault.missing} not found - using the bundled sample`,
-    );
-  if (projekteLocation.missing.length > 0)
-    console.log(
-      `  Projekte: ${projekteLocation.missing.length} configured root(s) not found`,
-    );
+await serve(app, port);
+console.log(`Bench running at http://localhost:${port}`);
+for (const line of describeSources(config)) console.log(`  ${line}`);
+if (vault.missing)
+  console.log(`  Vault: ${vault.missing} not found - using the bundled sample`);
+if (projekteLocation.missing.length > 0)
   console.log(
-    `  Vault index: ${indexed.notes} notes, ${indexed.links} links, ${indexed.tasks} tasks from ${vault.dir}`,
+    `  Projekte: ${projekteLocation.missing.length} configured root(s) not found`,
   );
-  const projekteRows = listProjects(projekteDb).length;
-  console.log(
-    `  Projekte: ${projekteLocation.roots.length} roots (${projekteLocation.source}), ${
-      projekteRows > 0
-        ? `${projekteRows} projects indexed`
-        : "index empty until first scan"
-    }`,
-  );
-  if (plaudLocation.missing)
-    console.log(
-      "  Plaud: configured path not found - using the bundled sample",
-    );
-  const importCount = (
-    aufgabenDb.prepare("SELECT COUNT(*) AS c FROM task_imports").get() as {
-      c: number;
-    }
-  ).c;
-  console.log(
-    `  Aufgaben: plaud ${plaudLocation.source}, ledger ${importCount} imports`,
-  );
-  const eingangJobCount = (
-    eingangDb.prepare("SELECT COUNT(*) AS c FROM jobs").get() as {
-      c: number;
-    }
-  ).c;
-  console.log(
-    `  Eingang: ${eingangLocation.watchDirs.length} watch dirs (${eingangLocation.source}), ${eingangJobCount} jobs recorded`,
-  );
-  console.log(`  Plaud MCP: ${plaudCommand === "off" ? "off" : "on"}`);
-  console.log(`  Kontext: ${listSkills(kontext.claudeDir).count} skills`);
-  console.log(
-    zahlen.dir === null
-      ? "  Zahlen: not configured"
-      : `  Zahlen: ${listRuns(zahlen.dir).length} runs`,
-  );
-});
+console.log(
+  `  Vault index: ${indexed.notes} notes, ${indexed.links} links, ${indexed.tasks} tasks from ${vault.dir}`,
+);
+const projekteRows = listProjects(projekteDb).length;
+console.log(
+  `  Projekte: ${projekteLocation.roots.length} roots (${projekteLocation.source}), ${
+    projekteRows > 0
+      ? `${projekteRows} projects indexed`
+      : "index empty until first scan"
+  }`,
+);
+if (plaudLocation.missing)
+  console.log("  Plaud: configured path not found - using the bundled sample");
+const importCount = (
+  aufgabenDb.prepare("SELECT COUNT(*) AS c FROM task_imports").get() as {
+    c: number;
+  }
+).c;
+console.log(
+  `  Aufgaben: plaud ${plaudLocation.source}, ledger ${importCount} imports`,
+);
+const eingangJobCount = (
+  eingangDb.prepare("SELECT COUNT(*) AS c FROM jobs").get() as {
+    c: number;
+  }
+).c;
+console.log(
+  `  Eingang: ${eingangLocation.watchDirs.length} watch dirs (${eingangLocation.source}), ${eingangJobCount} jobs recorded`,
+);
+console.log(`  Plaud MCP: ${plaudCommand === "off" ? "off" : "on"}`);
+console.log(`  Kontext: ${listSkills(kontext.claudeDir).count} skills`);
+console.log(
+  zahlen.dir === null
+    ? "  Zahlen: not configured"
+    : `  Zahlen: ${listRuns(zahlen.dir).length} runs`,
+);

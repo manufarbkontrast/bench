@@ -63,9 +63,38 @@ function aufgabenContext(dbs: Dbs): AufgabenContext {
   return { ...dbs.aufgaben, githubLabels: githubLabelsFrom(dbs.projekte.db) };
 }
 
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * Binding to loopback keeps other machines out; this keeps out web pages in the user's own browser,
+ * which reach loopback two ways. A DNS name rebound to 127.0.0.1 makes a page same-origin with
+ * Bench, free to read and write - it shows as a Host that is not localhost. A plain cross-site
+ * request needs no preflight when it has no body, so it can kill a job or start a Plaud or gh call
+ * blind - it shows in Sec-Fetch-Site. A link to a Bench page stays allowed, a frame does not.
+ */
+function localOnly(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+): void {
+  const crossSite = req.headers["sec-fetch-site"] === "cross-site";
+  const linkToAPage =
+    req.method === "GET" &&
+    req.headers["sec-fetch-dest"] === "document" &&
+    !req.path.startsWith("/api");
+  if (!LOCAL_HOSTS.has(req.hostname) || (crossSite && !linkToAPage)) {
+    res
+      .status(403)
+      .json({ error: "Bench only answers its own pages on localhost" });
+    return;
+  }
+  next();
+}
+
 /** Build the Express app around the open databases. */
 export function createApp(dbs: Dbs): express.Express {
   const app = express();
+  app.use(localOnly);
   // Rolodex accepts whole address books and photos in one request, which is why this is not 2mb.
   app.use(express.json({ limit: "25mb" }));
 
@@ -129,12 +158,14 @@ export function createApp(dbs: Dbs): express.Express {
  * `listen(port)` binds every interface, where any machine on the network can reach it. 127.0.0.1
  * rather than "localhost": macOS resolves that to ::1 first, and the browser, Node's fetch and
  * Vite's proxy all reach an IPv4-only loopback server through "localhost" anyway, falling back
- * from ::1.
+ * from ::1. Rejects on a failed listen - Express hands that error to the callback, and a callback
+ * that ignored it printed "Bench running" over a port another process held.
  */
-export function serve(
-  app: express.Express,
-  port: number,
-  onListening: () => void,
-): Server {
-  return app.listen(port, "127.0.0.1", onListening);
+export function serve(app: express.Express, port: number): Promise<Server> {
+  return new Promise((resolve, reject) => {
+    const server = app.listen(port, "127.0.0.1", (err?: Error) => {
+      if (err) reject(err);
+      else resolve(server);
+    });
+  });
 }

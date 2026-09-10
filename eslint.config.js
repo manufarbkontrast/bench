@@ -135,6 +135,24 @@ export default tseslint.config(
     rules: { "max-lines": "off", "max-lines-per-function": "off" },
   },
 
+  // Every server start goes through serve() in app.ts, which binds loopback only. A bare listen()
+  // binds every interface - that is how Bench was once reachable from the whole network - and no
+  // test can see it in index.ts, which nothing imports.
+  {
+    files: ["server/src/**/*.ts"],
+    ignores: ["server/src/app.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.property.name='listen']",
+          message:
+            "Start the server through serve() in server/src/app.ts - it binds loopback only.",
+        },
+      ],
+    },
+  },
+
   // Config files and plain scripts sit outside any tsconfig, so type-aware rules cannot run.
   {
     files: ["**/*.{js,mjs,cjs}"],
