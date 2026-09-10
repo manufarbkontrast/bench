@@ -30,6 +30,11 @@ not just a lost note. Both are closed by the one change. See
 with a 200 and an empty body, which the client then failed to parse. Found by the first route
 suite the CRM ever had; they answer 404 now.
 
+**A second arrived and left the same day, and it was the worse one**: the server listened on every
+network interface. Bench has no login, so with the macOS firewall off any machine on the same
+network could read the vault and start jobs. It answers on 127.0.0.1 only now - see
+[PROJECT.md](./PROJECT.md).
+
 **No defect is known to be open.** If something arrives here, it belongs above tier 2.
 
 ## Tier 2 - gated on something outside this repo
@@ -97,6 +102,16 @@ What remains:
   the server refused. Pre-existing - the 404 fix only turned the console message from "Unexpected
   end of JSON input" into `PATCH /api/crm/deals/<id>/stage failed: 404`. Six call sites
   (`DealForm`, `ContactForm`, `OrganizationForm`, `ActivityTimeline`, `Dashboard`, `Pipeline`).
+- **Requests from a website open in the same browser are not reviewed.** Binding to loopback
+  closes the network; it does not stop a page in the user's own browser from sending requests to
+  `localhost:8100` (CSRF), or a rebinding DNS name from reaching it. JSON-only bodies make most
+  writes a CORS-preflighted request, which the server never approves - but nothing here checks an
+  `Origin` or `Host` header, and bodiless POSTs (a projekte scan, a job kill) need no preflight.
+  Worth a review of its own before Bench runs all day alongside ordinary browsing.
+- **The first Projekte scan after a pause can take a minute and a half.** Measured 2026-09-10 on the
+  real machine: 95s, then 1.3s for the next one. Neither the walk (66ms) nor git (0.6s) nor the
+  `gh` counts (1.7s) explained it warm; `~/Documents`, one of the roots, is synced by iCloud, the
+  probable cause. Not proven.
 - **A lost `unlink` can leave a stale row in the vault index** under a burst of creates and deletes
   inside one `awaitWriteFinish` window. Pre-existing, found while verifying the watcher fix,
   cleared by the next `indexAll`; see [EXPLORATORY.md](../e2e/EXPLORATORY.md).
@@ -130,6 +145,11 @@ project-level decision, not a cleanup.
   no working folder of their own, only the shared Shoes_Please_Studio session directory. The
   `/handoff` skill says a project without a repository leaves the key off, so this is correct
   rather than missing.
+- **CRM and Rolodex keep their sample data, and re-seed whenever their main table is empty.**
+  Both are the original apps, not Bench OS ones, and the user does not use them - the user's call
+  on 2026-09-10. Anyone who starts to has to change that first: deleting the samples by hand only
+  brings them back at the next start, possibly mixed with real records. `isSeeded` in
+  `server/src/crm/seed.ts` and `seedIfEmpty` in `server/src/rolodex/seed.ts` are the two places.
 - **Small formatters are copied per app on purpose** - `dateText` lives in five apps, and each api
   client carries its own `get`. A document may not import from a sibling app, and these only
   render. `web/src/shared/controlling.ts` is the exception because it encodes the controlling
