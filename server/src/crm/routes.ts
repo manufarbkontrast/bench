@@ -1,8 +1,16 @@
 /** CRM API: organizations, contacts, deals and activities. Mounted at /api/crm. */
-import { Router } from "express";
+import { Router, type Response } from "express";
 import * as db from "./db.js";
 
 const num = (v: unknown) => (v === undefined ? undefined : Number(v));
+
+/** Every read and every change here returns undefined for an id that does not exist. Sent as is,
+    that is a 200 with an empty body, which the client then fails to parse as JSON - with a
+    message naming neither the request nor the status. */
+function sendFound(res: Response, row: unknown) {
+  if (row === undefined) return res.status(404).json({ error: "Not found" });
+  return res.json(row);
+}
 
 export function crmRouter(conn: db.DB): Router {
   const router = Router();
@@ -16,13 +24,12 @@ export function crmRouter(conn: db.DB): Router {
       .status(201)
       .json(db.createOrganization(conn, req.body as db.OrganizationInput)),
   );
-  router.get("/organizations/:id", (req, res) => {
-    const org = db.getOrganization(conn, Number(req.params.id));
-    if (!org) return res.status(404).json({ error: "Not found" });
-    res.json(org);
-  });
+  router.get("/organizations/:id", (req, res) =>
+    sendFound(res, db.getOrganization(conn, Number(req.params.id))),
+  );
   router.put("/organizations/:id", (req, res) =>
-    res.json(
+    sendFound(
+      res,
       db.updateOrganization(
         conn,
         Number(req.params.id),
@@ -48,13 +55,12 @@ export function crmRouter(conn: db.DB): Router {
   router.post("/contacts", (req, res) =>
     res.status(201).json(db.createContact(conn, req.body as db.ContactInput)),
   );
-  router.get("/contacts/:id", (req, res) => {
-    const contact = db.getContact(conn, Number(req.params.id));
-    if (!contact) return res.status(404).json({ error: "Not found" });
-    res.json(contact);
-  });
+  router.get("/contacts/:id", (req, res) =>
+    sendFound(res, db.getContact(conn, Number(req.params.id))),
+  );
   router.put("/contacts/:id", (req, res) =>
-    res.json(
+    sendFound(
+      res,
       db.updateContact(
         conn,
         Number(req.params.id),
@@ -81,13 +87,12 @@ export function crmRouter(conn: db.DB): Router {
   router.post("/deals", (req, res) =>
     res.status(201).json(db.createDeal(conn, req.body as db.DealInput)),
   );
-  router.get("/deals/:id", (req, res) => {
-    const deal = db.getDeal(conn, Number(req.params.id));
-    if (!deal) return res.status(404).json({ error: "Not found" });
-    res.json(deal);
-  });
+  router.get("/deals/:id", (req, res) =>
+    sendFound(res, db.getDeal(conn, Number(req.params.id))),
+  );
   router.put("/deals/:id", (req, res) =>
-    res.json(
+    sendFound(
+      res,
       db.updateDeal(conn, Number(req.params.id), req.body as db.DealInput),
     ),
   );
@@ -97,7 +102,7 @@ export function crmRouter(conn: db.DB): Router {
       stage: db.DealStage;
       index?: number;
     };
-    res.json(db.moveDeal(conn, Number(req.params.id), stage, index));
+    sendFound(res, db.moveDeal(conn, Number(req.params.id), stage, index));
   });
   router.delete("/deals/:id", (req, res) => {
     db.deleteDeal(conn, Number(req.params.id));
@@ -118,7 +123,8 @@ export function crmRouter(conn: db.DB): Router {
     res.status(201).json(db.createActivity(conn, req.body as db.ActivityInput)),
   );
   router.patch("/activities/:id", (req, res) =>
-    res.json(
+    sendFound(
+      res,
       db.updateActivity(
         conn,
         Number(req.params.id),

@@ -15,7 +15,7 @@ import { appWithCrm } from "./app.js";
 /**
  * The router is a thin layer over db.ts, whose functions have suites of their own, so this covers
  * only what happens here: status codes, list filters read off the query string, bodies handed
- * through.
+ * through - and what a change to a record that does not exist answers.
  */
 let db: DB;
 let app: express.Express;
@@ -208,4 +208,18 @@ describe("changing records", () => {
     const { done, type, description } = bodyOf(res);
     expect([done, type, description]).toEqual([1, "call", "Rückruf"]);
   });
+
+  it.each([
+    ["put", "/api/crm/organizations/999", { name: "x" }],
+    ["put", "/api/crm/contacts/999", { name: "x", status: "lead" }],
+    ["put", "/api/crm/deals/999", { name: "x", stage: "New", value: 1 }],
+    ["patch", "/api/crm/deals/999/stage", { stage: "Won" }],
+    ["patch", "/api/crm/activities/999", { done: true }],
+  ] as const)(
+    "answers 404 to a %s on %s, a record that does not exist",
+    async (method, url, body) => {
+      const res = await request(app)[method](url).send(body);
+      expect([res.status, bodyOf(res)]).toEqual([404, { error: "Not found" }]);
+    },
+  );
 });
