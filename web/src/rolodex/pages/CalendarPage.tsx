@@ -86,6 +86,9 @@ export default function CalendarPage() {
             next2Label={null}
             prevLabel={<ChevronLeft size={17} />}
             nextLabel={<ChevronRight size={17} />}
+            // The labels are bare icons, so without these the buttons have no accessible name.
+            prevAriaLabel="Previous month"
+            nextAriaLabel="Next month"
             formatMonthYear={(_locale, d) => format(d, "MMMM yyyy")}
             tileClassName={({ date }) => {
               const iso = format(date, "yyyy-MM-dd");

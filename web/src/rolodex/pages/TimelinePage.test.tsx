@@ -7,6 +7,7 @@ import CalendarPage from "./CalendarPage";
 import { api } from "../api";
 import { StoreContext, ToastContext } from "../store";
 import { person, timelineEntry, upcoming } from "../test/helpers";
+import { format } from "date-fns";
 
 vi.mock("../api");
 
@@ -89,6 +90,80 @@ describe("Calendar", () => {
     renderWithStore(<CalendarPage />);
     expect(
       await screen.findByText("Nothing in the next 30 days — a quiet month."),
+    ).toBeInTheDocument();
+  });
+
+  // The page opens on the real current month, so events dated in it land on a visible tile.
+  const inThisMonth = (day: number) =>
+    `${format(new Date(), "yyyy-MM")}-${String(day).padStart(2, "0")}`;
+
+  it("puts a day's first three events on its tile and counts the rest", async () => {
+    const onThe15th = (id: number, person_name: string) =>
+      upcoming({ id, person_name, date: inThisMonth(15), age_turning: null });
+    vi.mocked(api.calendar).mockResolvedValue({
+      year: 2026,
+      month: 9,
+      events: [
+        onThe15th(1, "Maya Chen"),
+        onThe15th(2, "Ben Ortiz"),
+        onThe15th(3, "Cara Diaz"),
+        onThe15th(4, "Dan Wu"),
+      ],
+      upcoming: [],
+    });
+    renderWithStore(<CalendarPage />);
+    for (const first of ["Maya", "Ben", "Cara"])
+      expect(
+        await screen.findByRole("link", { name: first }),
+      ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Dan" })).not.toBeInTheDocument();
+    expect(screen.getByText("+1 more")).toBeInTheDocument();
+  });
+
+  it("titles a milestone birthday with the age it brings", async () => {
+    vi.mocked(api.calendar).mockResolvedValue({
+      year: 2026,
+      month: 9,
+      events: [
+        upcoming({ date: inThisMonth(15), milestone: true, age_turning: 40 }),
+        upcoming({ id: 2, date: inThisMonth(20), person_name: "Ben Ortiz" }),
+      ],
+      upcoming: [],
+    });
+    renderWithStore(<CalendarPage />);
+    expect(
+      await screen.findByTitle("Birthday — Maya Chen turns 40!"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ben · 35" })).toHaveAttribute(
+      "title",
+      "Birthday",
+    );
+  });
+
+  it("asks for the next month when the page turns", async () => {
+    vi.mocked(api.calendar).mockResolvedValue({
+      year: 2026,
+      month: 9,
+      events: [],
+      upcoming: [],
+    });
+    renderWithStore(<CalendarPage />);
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Next month" }),
+    );
+    const now = new Date();
+    const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    expect(api.calendar).toHaveBeenLastCalledWith(
+      next.getFullYear(),
+      next.getMonth() + 1,
+    );
+  });
+
+  it("says so when the calendar cannot be loaded", async () => {
+    vi.mocked(api.calendar).mockRejectedValue(new Error("Server unreachable"));
+    renderWithStore(<CalendarPage />);
+    expect(
+      await screen.findByText("Couldn’t load the calendar: Server unreachable"),
     ).toBeInTheDocument();
   });
 });
