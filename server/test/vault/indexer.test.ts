@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
 import { openDb, type LinkRow, type TaskRow } from "../../src/vault/db.js";
@@ -9,8 +9,17 @@ import {
   removeNote,
   resolveLinks,
 } from "../../src/vault/index/indexer.js";
+import * as scan from "../../src/vault/index/scan.js";
 import { isNotePath, listNotes } from "../../src/vault/index/scan.js";
 import { copyFixture } from "./fixture.js";
+
+// indexAll reads the listing and then the files; only a stubbed listing can name a path whose
+// file is already gone by the time the loop reaches it, which is the race itself.
+vi.mock("../../src/vault/index/scan.js", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../../src/vault/index/scan.js")>();
+  return { ...actual, listNotes: vi.fn(actual.listNotes) };
+});
 
 let dir: string;
 let db: Database.Database;
@@ -219,5 +228,40 @@ describe("indexNote and removeNote", () => {
     ).toEqual({ to_path: null });
     // 13 plus the two 50_Workflow/Handoffs fixtures (Handoff_leuchtturm.md, Handoff_hafen.md).
     expect(count("notes_fts")).toBe(15);
+  });
+});
+
+describe("a note that goes away between the listing and the read", () => {
+  it("reports the miss rather than throwing, and adds nothing", () => {
+    indexAll(db, dir);
+    expect(indexNote(db, dir, "Nie dagewesen.md")).toBe(false);
+    expect(count("notes")).toBe(15);
+  });
+
+  it("leaves what it already knew about the note in place", () => {
+    indexAll(db, dir);
+    unlinkSync(path.join(dir, "00_Index/Cockpit.md"));
+    expect(indexNote(db, dir, "00_Index/Cockpit.md")).toBe(false);
+    // Deleting is the unlink handler's job, not a failed read's - the row stays until it runs.
+    expect(count("notes")).toBe(15);
+  });
+
+  it("indexAll indexes the rest of the vault instead of aborting", () => {
+    const present = listNotes(dir);
+    vi.mocked(scan.listNotes).mockReturnValueOnce([
+      ...present,
+      "Verschwunden.md",
+    ]);
+    expect(indexAll(db, dir).notes).toBe(15);
+    expect(
+      db
+        .prepare("SELECT path FROM notes WHERE path = ?")
+        .get("Verschwunden.md"),
+    ).toBeUndefined();
+  });
+
+  it("still throws for a read that failed for any other reason", () => {
+    mkdirSync(path.join(dir, "Ordner.md"));
+    expect(() => indexNote(db, dir, "Ordner.md")).toThrow();
   });
 });

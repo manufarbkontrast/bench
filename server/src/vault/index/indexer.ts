@@ -1,4 +1,4 @@
-import { readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync, type Stats } from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
 import { projektOf, splitNote, tagsOf, titleOf } from "./frontmatter.js";
@@ -13,18 +13,42 @@ export interface IndexSummary {
 }
 
 /**
+ * The four codes that mean the filesystem moved under us rather than that we asked for the wrong
+ * thing: the note was deleted, a folder on the way became a file, or it stopped being readable.
+ * Anything else - EISDIR above all - is a bug that should surface as one.
+ */
+const NOTE_UNREADABLE = new Set(["ENOENT", "ENOTDIR", "EACCES", "EPERM"]);
+
+function readNote(file: string): { text: string; stat: Stats } | null {
+  try {
+    return { text: readFileSync(file, "utf8"), stat: statSync(file) };
+  } catch (e) {
+    const { code } = e as NodeJS.ErrnoException;
+    if (code !== undefined && NOTE_UNREADABLE.has(code)) return null;
+    throw e;
+  }
+}
+
+/**
  * Parse one file and replace everything the index holds about it. Links go in unresolved;
  * resolveLinks fills to_path once every note is known, because a link can point at a note
  * that is indexed later - or not at all.
+ *
+ * Both callers that index a single note race the filesystem: the watcher reads after chokidar's
+ * event, indexAll reads after its own listing, and either file can be gone by then. Returns
+ * whether the note was read, so a vanished one is skipped rather than taking the process - or,
+ * inside indexAll's transaction, the whole initial index - down with it. Removing the row is the
+ * unlink handler's job, not a failed read's.
  */
 export function indexNote(
   db: Database.Database,
   vaultDir: string,
   relPath: string,
-): void {
+): boolean {
   const file = path.join(vaultDir, relPath);
-  const text = readFileSync(file, "utf8");
-  const stat = statSync(file);
+  const read = readNote(file);
+  if (read === null) return false;
+  const { text, stat } = read;
   const { frontmatter, body } = splitNote(text);
   const dirname = path.posix.dirname(relPath);
   const folder = dirname === "." ? "" : dirname;
@@ -51,6 +75,7 @@ export function indexNote(
     writeTasks(db, relPath, body);
   });
   write();
+  return true;
 }
 
 function writeLinks(

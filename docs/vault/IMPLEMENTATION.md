@@ -44,6 +44,16 @@ old rows, then insert the new ones for `notes`, `notes_fts`, `links`, `tags`, `t
   watcher, became an uncaught exception on the `add`/`change` event. `splitNote` now catches the
   parse and treats the whole file as body, frontmatter `{}`, so the note still indexes and appears
   in search - with no tags and no frontmatter fields until the YAML is fixed.
+- **A note that cannot be read is skipped rather than fatal** - the read half of the same failure
+  class. `indexNote` reads the file after something else decided it exists: the watcher after
+  chokidar's event, `indexAll` after its own listing. In between, the note can be deleted, or a
+  folder on the way replaced, or its permissions changed - so `readNote` treats `ENOENT`,
+  `ENOTDIR`, `EACCES` and `EPERM` as "gone" and returns `null`, and `indexNote` returns `false`
+  instead of throwing. Uncaught, that read took the process down from the watcher and aborted the
+  entire `indexAll` transaction on startup. Anything else, `EISDIR` above all, still throws: those
+  mean the caller asked for the wrong thing, not that the vault moved. **The row is not deleted on
+  a failed read** - the watcher's `unlink` event owns that, and `indexAll` sees the note in its
+  next `gone` set.
 - **`projekt` is a derived column, the one place the slug rule lives.** `projektOf`
   (`index/frontmatter.ts`) trims and lowercases a string `projekt:` and keeps it only when it
   matches `^[a-z0-9]+(-[a-z0-9]+)*$`; everything else is `NULL`. Projekte's readers select
