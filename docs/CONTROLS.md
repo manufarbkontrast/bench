@@ -227,6 +227,7 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 | `web/src/eingang/components`        | 100%       |
 | `web/src/home`                      | 94.63%     |
 | `web/src/kontext`                   | 100%       |
+| `web/src/kontext/components`        | 100%       |
 | `web/src/projekte`                  | 82.35%     |
 | `web/src/projekte/components`       | 100%       |
 | `web/src/rolodex`                   | 81.35%     |
@@ -244,8 +245,8 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 The last two decimals of `server/src` vary run to run - a few timeout-dependent tests settle
 differently from one run to the next.
 
-**`server/src` is one row, and it hides the lowest file in the repository**:
-`server/src/crm/routes.ts`, at 39.7% statements and 0% branches. The CRM's unit tests call `db.ts`
+**`server/src` is one row, and it hides the server's lowest file**: `server/src/crm/routes.ts`,
+at 39.7% statements and 0% branches. The CRM's unit tests call `db.ts`
 directly and never go through its router; the routes are exercised end to end by `e2e/crm/`, which
 the coverage figure cannot see. The per-file view is `npm run coverage -w server`.
 
@@ -255,8 +256,9 @@ the coverage figure cannot see. The per-file view is `npm run coverage -w server
 because the server sat at 72% branches and would have failed a shared gate. That is no longer
 true - the server reads 87.1% and web 85.7% (2026-09-10) - so the threshold was added to hold the
 ground rather than to demand new ground. **Web has the thinner margin of the two**: 5.7 points,
-against the server's 7.1, and `web/src/rolodex/pages` is the directory furthest under it at 74.8%
-branches. A change that adds an untested branch to web is the one that will trip this
+against the server's 7.1. Two web directories sit under it on their own - `web/src/vault/components`
+at 71.9% and `web/src/rolodex/pages` at 74.8% - which the threshold allows because it is measured
+per workspace. A change that adds an untested branch to web is the one that will trip this
 first, and the answer is a test for that branch, not a lower number.
 
 **Seed files are covered by asserting on the seeded database, not by exclusion.**

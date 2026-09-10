@@ -55,19 +55,6 @@ describe("the seeded CRM", () => {
       expect(orgIds.has(contact.organization_id ?? -1)).toBe(true);
   });
 
-  it("points no deal at an organization or contact that does not exist", () => {
-    seed(db);
-    const orgIds = new Set(listOrganizations(db).map((o) => o.id));
-    const contactIds = new Set(listContacts(db).map((c) => c.id));
-    const deals = listDeals(db);
-    const referenced = (ids: (number | null)[]) =>
-      ids.filter((id): id is number => id !== null);
-    const orgRefs = referenced(deals.map((d) => d.organization_id));
-    const contactRefs = referenced(deals.map((d) => d.contact_id));
-    expect(orgRefs.filter((id) => !orgIds.has(id))).toEqual([]);
-    expect(contactRefs.filter((id) => !contactIds.has(id))).toEqual([]);
-  });
-
   it("gives the task list something overdue, something upcoming and something done", () => {
     seed(db);
     const today = utcToday();

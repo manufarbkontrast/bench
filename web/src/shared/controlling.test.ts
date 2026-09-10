@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { breakEvenText, runLineText } from "./controlling";
 
 /** Matches the local ICU build's own rendering rather than a hardcoded string - see
@@ -23,10 +23,19 @@ describe("runLineText", () => {
   });
 
   it("reads the stichtag at local midnight, not as UTC", () => {
-    // `new Date("2026-08-01")` is UTC midnight, which is still 31 July anywhere west of Greenwich.
-    expect(
-      runLineText({ stichtag: "2026-08-01", modus: "zwischenstand" }),
-    ).toBe(`Zwischenstand vom ${mediumDate("2026-08-01")}`);
+    // `new Date("2026-08-01")` is UTC midnight, which is still 31 July west of Greenwich - so the
+    // test has to run there: this machine's Berlin and CI's UTC would both pass the UTC parse.
+    vi.stubEnv("TZ", "America/New_York");
+    try {
+      const august1 = new Intl.DateTimeFormat("de-DE", {
+        dateStyle: "medium",
+      }).format(new Date(2026, 7, 1));
+      expect(
+        runLineText({ stichtag: "2026-08-01", modus: "zwischenstand" }),
+      ).toBe(`Zwischenstand vom ${august1}`);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 

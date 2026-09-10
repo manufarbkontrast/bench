@@ -9,7 +9,8 @@ into.
 - Backend: `server/src/zahlen/` - `runs.ts` (listing run folders, resolving "the last run"),
   `summary.ts` (the `zusammenfassung.md` parser), `routes.ts` (the five endpoints)
 - Frontend: `web/src/zahlen/` - `App.tsx`, `components/` (`KpiTable`, `RunsList`), `api.ts`,
-  `format.ts`, `types.ts`, `styles.css`
+  `types.ts`, `styles.css`; the run line and break-even count come from
+  `web/src/shared/controlling.ts`
 - Tests: `server/test/zahlen/`, `web/src/zahlen/**/*.test.{ts,tsx}`, `e2e/zahlen/`
 
 ## No locate module of its own

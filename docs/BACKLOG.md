@@ -67,11 +67,13 @@ asserted on like the rolodex seed; and `breakEvenText`/`runLineText` moved into
 
 What remains:
 
-- **`server/src/crm/routes.ts` is the lowest file in the repository**, at 39.7% statements and 0%
-  branches - hidden until now because CONTROLS.md reports `server/src` as a single row. The CRM's
-  unit tests call `db.ts` directly and never go through the router; `e2e/crm/` covers it end to
-  end, which the figure cannot see. A supertest suite in the shape of
-  `server/test/projekte/routes.test.ts` would close it.
+- **The lowest files sit inside directories that pass.** On the web, `projekte/api.ts`,
+  `vault/api.ts` and `rolodex/App.tsx` are at 0% and `rolodex/api.ts` at 39.5% - the first two the
+  same mocked-away api client as the five just covered, their directories carried over 80% by
+  other files. On the server, `crm/routes.ts` is at 39.7% statements and 0% branches, hidden
+  because CONTROLS.md reports `server/src` as one row: the CRM's unit tests call `db.ts` directly
+  and never go through the router, and `e2e/crm/` covers it end to end where the figure cannot see.
+  A supertest suite in the shape of `server/test/projekte/routes.test.ts` would close that one.
 - **Where a regression lands first now:** `web/src/rolodex/components/today` at exactly 80%
   statements, then `rolodex` 81.4%, `rolodex/components` 81.6%, `vault/components` 81.9%,
   `projekte` 82.4%. On branches, `vault/components` (71.9%) and `rolodex/pages` (74.8%) sit under 80
@@ -80,6 +82,15 @@ What remains:
   duplicate is gone. Five of the clones are new and deliberate: each of the five new `api.test.ts`
   files carries its own `mockFetch`, as crm's and rolodex's already did; consolidating them would
   be one test helper for seven files.
+- **Testing Library's `findBy*` gives up after 1000ms of wall-clock time**, which a starved worker
+  can exceed. Proven 2026-09-10: a `check` run that competed with a second vitest process failed
+  `crm/pages/Deals.test.tsx`'s "edits the row's own deal" - 37ms alone, 3.7s there - and two
+  coverage runs started together failed a different test the same way, `vault/App.test.tsx`'s
+  quick-find, at 1037ms. It is the mechanism `web/vite.config.ts` already answers for the test
+  timeout (15s, with the same reasoning); the `findBy*` equivalent would be
+  `configure({ asyncUtilTimeout })` in `web/src/test/setup.ts`. Not made: it also makes every
+  genuinely failing `findBy*` wait longer. Until then, see PROCESS.md - nothing else runs vitest
+  while the gate does.
 - **A lost `unlink` can leave a stale row in the vault index** under a burst of creates and deletes
   inside one `awaitWriteFinish` window. Pre-existing, found while verifying the watcher fix,
   cleared by the next `indexAll`; see [EXPLORATORY.md](../e2e/EXPLORATORY.md).
