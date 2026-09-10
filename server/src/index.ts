@@ -35,7 +35,7 @@ import { locateVault } from "./vault/locate.js";
 import { watchVault } from "./vault/watch.js";
 import { listRuns } from "./zahlen/runs.js";
 import type { ZahlenContext } from "./zahlen/routes.js";
-import { createApp } from "./app.js";
+import { createApp, serve } from "./app.js";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -187,7 +187,7 @@ const zahlen: ZahlenContext = {
   mycraftonUrl: config.mycraftonUrl ?? null,
 };
 
-createApp({
+const app = createApp({
   crm,
   rolodex,
   vault: { db: vaultDb, dir: vault.dir, name: path.basename(vault.dir) },
@@ -196,7 +196,8 @@ createApp({
   eingang,
   kontext,
   zahlen,
-}).listen(port, () => {
+});
+serve(app, port, () => {
   console.log(`Bench running at http://localhost:${port}`);
   for (const line of describeSources(config)) console.log(`  ${line}`);
   if (vault.missing)

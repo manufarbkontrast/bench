@@ -144,6 +144,12 @@ These are settled. Changing one is a project-level decision, not an implementati
   count stays six with eight apps: Kontext and Zahlen have no database of their own, only the
   injected `vault.sqlite` handle and Eingang's own `controllingDir` respectively.
 - **Ports:** 8100 API, 8101 Vite, 8150+ e2e (one per Playwright worker).
+- **The server answers on 127.0.0.1 only**, through `serve` in `server/src/app.ts`. Bench has no
+  login and can write to the vault and start jobs; a bare `listen(port)` bound every interface,
+  and with the macOS firewall off any machine on the same network could reach it - found on the
+  real machine on 2026-09-10. `127.0.0.1` rather than `localhost`, which macOS resolves to `::1`
+  first: the browser, Node's `fetch` and Vite's proxy all still reach it through `localhost`.
+  `server/test/serve.test.ts` fails if the socket binds anything wider.
 - **Deep-link fallback lives in two places.** `server/src/app.ts` handles production; the
   `appFallback` plugin in `web/vite.config.ts` does the same for the dev server. Without it a
   refresh on `/crm/contacts` serves the Cockpit. Both carry the same `APPS` list, and they have

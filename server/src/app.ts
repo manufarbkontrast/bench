@@ -1,4 +1,5 @@
 import express from "express";
+import type { Server } from "node:http";
 import type Database from "better-sqlite3";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -121,4 +122,19 @@ export function createApp(dbs: Dbs): express.Express {
   );
 
   return app;
+}
+
+/**
+ * Loopback only. Bench has no login and can write to the vault and start jobs, and a bare
+ * `listen(port)` binds every interface, where any machine on the network can reach it. 127.0.0.1
+ * rather than "localhost": macOS resolves that to ::1 first, and the browser, Node's fetch and
+ * Vite's proxy all reach an IPv4-only loopback server through "localhost" anyway, falling back
+ * from ::1.
+ */
+export function serve(
+  app: express.Express,
+  port: number,
+  onListening: () => void,
+): Server {
+  return app.listen(port, "127.0.0.1", onListening);
 }
