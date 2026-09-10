@@ -38,7 +38,7 @@ Unit tests run **with coverage** inside `check`, so the 80% threshold is a gate 
 report.
 
 `jscpd` stays outside it: duplication findings are advisory rather than pass/fail, so they should
-not gate a green run. It reports 4.38% across the tree.
+not gate a green run. It reports 4.52% across the tree, 170 clones (2026-09-10).
 
 `knip` needs `knip.json` to be told the multi-page entry points, or it reports every web source file
 as unused.
@@ -217,39 +217,46 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 
 | Scope                               | Statements |
 | ----------------------------------- | ---------- |
-| `server/src`                        | 93.48%     |
-| `web/src/aufgaben`                  | 79.43%     |
+| `server/src`                        | 94.78%     |
+| `web/src/aufgaben`                  | 95.74%     |
 | `web/src/aufgaben/components`       | 96.15%     |
 | `web/src/crm`                       | 100%       |
 | `web/src/crm/components`            | 94.76%     |
 | `web/src/crm/pages`                 | 95.77%     |
-| `web/src/eingang`                   | 76.33%     |
+| `web/src/eingang`                   | 93.89%     |
 | `web/src/eingang/components`        | 100%       |
-| `web/src/home`                      | 78.28%     |
-| `web/src/kontext`                   | 77.41%     |
+| `web/src/home`                      | 94.63%     |
+| `web/src/kontext`                   | 100%       |
 | `web/src/projekte`                  | 82.35%     |
 | `web/src/projekte/components`       | 100%       |
 | `web/src/rolodex`                   | 81.35%     |
 | `web/src/rolodex/components`        | 81.56%     |
-| `web/src/rolodex/components/person` | 86.18%     |
+| `web/src/rolodex/components/person` | 88.95%     |
 | `web/src/rolodex/components/today`  | 80%        |
-| `web/src/rolodex/pages`             | 77.65%     |
-| `web/src/shared`                    | 97.72%     |
+| `web/src/rolodex/pages`             | 84.46%     |
+| `web/src/shared`                    | 97.91%     |
 | `web/src/vault`                     | 85.49%     |
 | `web/src/vault/components`          | 81.88%     |
-| `web/src/zahlen`                    | 62.5%      |
-| **web overall**                     | **85.94%** |
+| `web/src/zahlen`                    | 100%       |
+| `web/src/zahlen/components`         | 100%       |
+| **web overall**                     | **90.55%** |
 
 The last two decimals of `server/src` vary run to run - a few timeout-dependent tests settle
 differently from one run to the next.
+
+**`server/src` is one row, and it hides the lowest file in the repository**:
+`server/src/crm/routes.ts`, at 39.7% statements and 0% branches. The CRM's unit tests call `db.ts`
+directly and never go through its router; the routes are exercised end to end by `e2e/crm/`, which
+the coverage figure cannot see. The per-file view is `npm run coverage -w server`.
 
 **Do not lower the bar to make a red run green.**
 
 **`branches` is a threshold too, at 80%, in both workspaces.** It used to be `statements` only,
 because the server sat at 72% branches and would have failed a shared gate. That is no longer
-true - the server reads 86.3% and web 82.3% - so the threshold was added to hold the ground
-rather than to demand new ground. **Web has the thinner margin of the two**: 2.3 points, against
-the server's 6.3. A change that adds an untested branch to web is the one that will trip this
+true - the server reads 87.1% and web 85.7% (2026-09-10) - so the threshold was added to hold the
+ground rather than to demand new ground. **Web has the thinner margin of the two**: 5.7 points,
+against the server's 7.1, and `web/src/rolodex/pages` is the directory furthest under it at 74.8%
+branches. A change that adds an untested branch to web is the one that will trip this
 first, and the answer is a test for that branch, not a lower number.
 
 **Seed files are covered by asserting on the seeded database, not by exclusion.**
@@ -257,7 +264,8 @@ first, and the answer is a test for that branch, not a lower number.
 every circle populated, an overdue person and an in-touch one, dates inside the next month, no
 interaction in the future. It is 1,000 lines of literal data, so the alternative was excluding it
 from the measure; the test is worth more, because the seed is the first thing anyone sees.
-`server/src/crm/seed.ts` has no such test and is the largest uncovered file left.
+`server/test/crm/seed.test.ts` does the same for the CRM - a deal in every pipeline column,
+all three contact statuses, tasks both overdue and upcoming, no activity dated in the future.
 
 ### What is not covered, and why
 

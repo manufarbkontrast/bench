@@ -11,6 +11,10 @@ work and which is a decision already taken, so the next session does not re-deri
 **Read the tiers as advice, not as a queue.** Tier 1 held the only defect and is now empty. Tier 4
 exists so nobody "fixes" it.
 
+**Tiers 2 to 5 were worked through on 2026-09-10.** No trigger had fired, tier 3's coverage, seed
+and duplicate items are closed, and the user's calls on the hygiene items moved them into tier 4.
+What each tier still holds is below.
+
 ## Tier 1 - closed, nothing here
 
 **`indexNote`'s unwrapped read is fixed.** `readNote` treats the four errno codes that mean the
@@ -26,36 +30,59 @@ not just a lost note. Both are closed by the one change. See
 
 ## Tier 2 - gated on something outside this repo
 
-Do nothing until the condition fires. Both are recorded with their reasoning in
+Do nothing until the condition fires. The two pins are recorded with their reasoning in
 [PROJECT.md](./PROJECT.md) and [CONTROLS.md](./CONTROLS.md); this is only the trigger.
 
 | What                               | Trigger                                                                                                                                                                | Cost of waiting                                        |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | TypeScript pinned to exactly 6.0.3 | typescript-eslint supports the native Go compiler, expected in TS 7.1 ([typescript-eslint#12518](https://github.com/typescript-eslint/typescript-eslint/issues/12518)) | ~3 seconds per typecheck, roughly 7x slower than 7.0.2 |
-| better-sqlite3 held at 12          | npm carries `gypfile` through the lockfile, or upstream stops shipping `binding.gyp` in the tarball                                                                    | one deprecation warning on `npm ci`                    |
+| better-sqlite3 held at 12          | `npm ci` stops running `node-gyp rebuild` for v13, or upstream stops shipping `binding.gyp` in the tarball                                                             | one deprecation warning on `npm ci`                    |
+| launchd's array form               | a real plist in `~/Library/LaunchAgents` uses the array form of `StartCalendarInterval`, which Eingang shows only the first entry of                                   | none while no plist uses it                            |
 
-Checking either takes a minute. Acting on either is a coordinated change - read the reasoning
-first, because both pins look arbitrary and are not.
+Checking any of them takes a minute. Acting on either pin is a coordinated change - read the
+reasoning first, because both look arbitrary and are not.
+
+**Checked 2026-09-10, none fired:**
+
+- **TypeScript:** `latest` is 7.0.2 and 7.1 exists only as a nightly on the `next` tag;
+  typescript-eslint 8.70.0 still declares `typescript >=4.8.4 <6.1.0`.
+- **better-sqlite3:** 13.0.3's full manifest now carries `gypfile: false` and no install script,
+  and the registry's abbreviated metadata carries no `hasInstallScript` - which reads like the
+  trigger. It is not: in a scratch folder, `npm install` left node-gyp alone, but `npm ci` from the
+  lockfile it had just written ran it, with `npm warn install-scripts better-sqlite3@13.0.3
+(install: node-gyp rebuild)`. **Check this trigger with a scratch `npm ci`, never with
+  `npm install`**, or the answer comes out wrong. On a machine with a toolchain that rebuild
+  passes unnoticed; on a stock Windows machine node-gyp cannot even configure.
+- **launchd:** 24 plists, 10 of them with a `StartCalendarInterval`, all ten the dict form.
 
 ## Tier 3 - quality, no deadline
 
 Pick from this only when there is a reason to, not to tidy.
 
-- **`web/src/zahlen` sits at 62.5% statements**, the one real outlier; `web/src/eingang` 76.3%,
-  `web/src/kontext` 77.4%, `web/src/rolodex/pages` 77.7%, `web/src/home` 78.3%,
-  `web/src/aufgaben` 79.4%. All above the 80% _workspace_ threshold in aggregate, so none of this
-  is failing - it is where a regression would land first. Run `npm run coverage` for current
-  figures rather than trusting these.
-- **`server/src/crm/seed.ts` is the largest uncovered file left.** The precedent is
-  `server/test/rolodex/seed.test.ts`, which asserts on the seeded database rather than excluding
-  the file - see CONTROLS.md for why that was worth more than an exclusion.
-- **Duplication is 4.46%, 165 clones.** Advisory, deliberately outside `npm run check`. One is a
-  real, named duplicate rather than test noise: `web/src/zahlen/format.ts`'s `breakEvenText` has a
-  copy that the file's own comment points at.
-- **launchd's array form of `StartCalendarInterval` shows only its first entry**
-  ([eingang/IMPLEMENTATION.md](./eingang/IMPLEMENTATION.md)). Correct for the common
-  one-schedule-per-job plist. Fix it when a real plist in `~/Library/LaunchAgents` uses the array
-  form, not before.
+**Closed 2026-09-10:** every web directory is at 80% statements or above - five of the six were
+the same gap, `api.ts` at 0% because each App test mocks it away, and the sixth was
+`rolodex/pages`, whose calendar tests never reached a day tile; `server/src/crm/seed.ts` is
+asserted on like the rolodex seed; and `breakEvenText`/`runLineText` moved into
+`web/src/shared/controlling.ts`. Current figures are in [CONTROLS.md](./CONTROLS.md).
+
+What remains:
+
+- **`server/src/crm/routes.ts` is the lowest file in the repository**, at 39.7% statements and 0%
+  branches - hidden until now because CONTROLS.md reports `server/src` as a single row. The CRM's
+  unit tests call `db.ts` directly and never go through the router; `e2e/crm/` covers it end to
+  end, which the figure cannot see. A supertest suite in the shape of
+  `server/test/projekte/routes.test.ts` would close it.
+- **Where a regression lands first now:** `web/src/rolodex/components/today` at exactly 80%
+  statements, then `rolodex` 81.4%, `rolodex/components` 81.6%, `vault/components` 81.9%,
+  `projekte` 82.4%. On branches, `vault/components` (71.9%) and `rolodex/pages` (74.8%) sit under 80
+  as directories; the threshold is per workspace, so neither fails.
+- **Duplication is 4.52%, 170 clones.** Advisory, outside `npm run check`. The one named production
+  duplicate is gone. Five of the clones are new and deliberate: each of the five new `api.test.ts`
+  files carries its own `mockFetch`, as crm's and rolodex's already did; consolidating them would
+  be one test helper for seven files.
+- **A lost `unlink` can leave a stale row in the vault index** under a burst of creates and deletes
+  inside one `awaitWriteFinish` window. Pre-existing, found while verifying the watcher fix,
+  cleared by the next `indexAll`; see [EXPLORATORY.md](../e2e/EXPLORATORY.md).
 
 ## Tier 4 - decided, not pending
 
@@ -76,21 +103,23 @@ project-level decision, not a cleanup.
 - **`docs/changes/internationalization/SPEC.md` is inherited upstream course material**, marked
   out of date at the top rather than deleted, because `README.md` section 3.2 points at it as the
   worked example for planning a change.
-
-## Tier 5 - hygiene, whenever
-
-- **Nine local branches** (`bench-os-phase-0` through `-6`, `plaud-mcp`, `projektstand`) are all
-  merged into `main` and purely local. `git branch -d` refuses anything unmerged, so deleting them
-  is safe. Left standing on purpose so far.
+- **Merged branches stay** - ten local, 22 on GitHub. The user's call on 2026-09-10; `git branch -d`
+  would refuse any unmerged one if that changes.
+- **The three `repos:` entries naming folders without git stay uncoupled** (`pos-tag-backfill`,
+  `machupicyou-sicherung`, `AI Machupicyou`). They surface as `missingRepos`, the same state
+  `aend`'s four worktrees have always had. The user's call on 2026-09-10; a note with `path:`
+  frontmatter (`couple.ts`) would bring them into Projekte.
 - **Two handoffs carry no `repos:`** - `shoesplease-owala` and `shoesplease-adventskalender` name
   no working folder of their own, only the shared Shoes_Please_Studio session directory. The
   `/handoff` skill says a project without a repository leaves the key off, so this is correct
   rather than missing.
-- **Three `repos:` entries name folders Projekte cannot scan** (`pos-tag-backfill`,
-  `machupicyou-sicherung`, `AI Machupicyou`). They are not git checkouts, so they surface as
-  `missingRepos` - the same state `aend`'s four worktrees have always had. A plain folder reaches
-  Projekte through a note with `path:` frontmatter (`couple.ts`), a different mechanism; use that
-  if they should appear.
+- **Small formatters are copied per app on purpose** - `dateText` lives in five apps, and each api
+  client carries its own `get`. A document may not import from a sibling app, and these only
+  render. `web/src/shared/controlling.ts` is the exception because it encodes the controlling
+  skill's rules rather than formatting; see [PROJECT.md](./PROJECT.md).
+
+## Tier 5 - hygiene, whenever
+
 - **`server/test/vault/watch.test.ts` can still be starved by CPU load from outside its own run.**
   Its own project is sequenced and carries a single scoped `retry: 1` for exactly this. A second
   consecutive failure is a real signal, not another retry - see [PROCESS.md](./PROCESS.md), which
