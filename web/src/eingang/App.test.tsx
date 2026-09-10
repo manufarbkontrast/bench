@@ -27,6 +27,8 @@ function job(overrides: Partial<JobRow> = {}): JobRow {
     finishedAt: Date.UTC(2026, 7, 30, 8, 1, 0),
     exitCode: 0,
     logPath: "/jobs/1.log",
+    pid: null,
+    verwaist: false,
     ...overrides,
   };
 }

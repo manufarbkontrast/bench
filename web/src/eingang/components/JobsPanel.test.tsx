@@ -16,6 +16,8 @@ function job(overrides: Partial<JobRow> = {}): JobRow {
     finishedAt: null,
     exitCode: null,
     logPath: "/jobs/1.log",
+    pid: null,
+    verwaist: false,
     ...overrides,
   };
 }
@@ -185,6 +187,32 @@ describe("JobsPanel", () => {
     expect(
       screen.queryByRole("button", { name: "Abbrechen" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("marks a verwaist row", () => {
+    render(
+      <JobsPanel
+        jobs={[job({ verwaist: true })]}
+        now={NOW}
+        onStart={vi.fn()}
+        onKill={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Verwaist")).toBeInTheDocument();
+  });
+
+  it("does not mark a normal running row as verwaist", () => {
+    render(
+      <JobsPanel
+        jobs={[job({ verwaist: false })]}
+        now={NOW}
+        onStart={vi.fn()}
+        onKill={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Verwaist")).not.toBeInTheDocument();
   });
 
   it("shows no Abbrechen for a running internal job", () => {

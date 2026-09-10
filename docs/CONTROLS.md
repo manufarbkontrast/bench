@@ -217,7 +217,7 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 
 | Scope                               | Statements |
 | ----------------------------------- | ---------- |
-| `server/src`                        | 93.4%      |
+| `server/src`                        | 93.48%     |
 | `web/src/aufgaben`                  | 79.43%     |
 | `web/src/aufgaben/components`       | 96.15%     |
 | `web/src/crm`                       | 100%       |
@@ -247,9 +247,9 @@ differently from one run to the next.
 
 **`branches` is a threshold too, at 80%, in both workspaces.** It used to be `statements` only,
 because the server sat at 72% branches and would have failed a shared gate. That is no longer
-true - the server reads 85.9% and web 82.2% - so the threshold was added to hold the ground
-rather than to demand new ground. **Web has the thinner margin of the two**: 2.2 points, against
-the server's 5.9. A change that adds an untested branch to web is the one that will trip this
+true - the server reads 86.3% and web 82.3% - so the threshold was added to hold the ground
+rather than to demand new ground. **Web has the thinner margin of the two**: 2.3 points, against
+the server's 6.3. A change that adds an untested branch to web is the one that will trip this
 first, and the answer is a test for that branch, not a lower number.
 
 **Seed files are covered by asserting on the seeded database, not by exclusion.**

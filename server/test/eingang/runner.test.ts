@@ -4,7 +4,13 @@ import path from "node:path";
 import { PassThrough } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { getJob, openEingangDb, type JobRow } from "../../src/eingang/db.js";
+import {
+  finishJob,
+  getJob,
+  insertJob,
+  openEingangDb,
+  type JobRow,
+} from "../../src/eingang/db.js";
 import {
   JOB_TIMEOUTS_MS,
   type JobKind,
@@ -40,10 +46,13 @@ const neverCalled: RunnerInternals["vault-reindex"] = () =>
   Promise.reject(new Error("this internal job was not meant to run"));
 
 let n = 0;
-/** A fresh jobs dir and an in-memory db per test, so job ids never collide across tests. */
+/** A fresh jobs dir and an in-memory db per test, so job ids never collide across tests.
+    `isOurProcess` stands in for the real pid check - the orphan kill tests below drive every
+    branch of kill() with a plain function, no real long-lived process required. */
 function newRunner(
   overrides: Partial<RunnerInternals> = {},
   killEscalationMs?: number,
+  isOurProcess?: (pid: number, startedAt: number) => boolean,
 ) {
   n += 1;
   const jobsDir = path.join(scratch.dir, `jobs-${n}`);
@@ -57,8 +66,30 @@ function newRunner(
       "plaud-fetch": overrides["plaud-fetch"] ?? neverCalled,
     },
     killEscalationMs,
+    isOurProcess,
   );
   return { db, jobsDir, runner };
+}
+
+let orphanLogN = 0;
+
+/** Inserts a `running` row directly, bypassing start() - the shape a restart-orphaned job's row
+    has: nothing in the runner's own in-flight map, only what the database itself says. */
+function insertRunningRow(
+  db: Parameters<typeof getJob>[0],
+  pid: number | null,
+  startedAt = Date.now(),
+): number {
+  orphanLogN += 1;
+  const id = insertJob(db, {
+    kind: "plaud-sync",
+    argsJson: "{}",
+    startedAt,
+    logPath: path.join(scratch.dir, `orphan-${orphanLogN}.log`),
+  });
+  if (pid !== null)
+    db.prepare("UPDATE jobs SET pid = ? WHERE id = ?").run(pid, id);
+  return id;
 }
 
 function fakePlan(
@@ -235,6 +266,46 @@ describe("createRunner - spawned jobs", () => {
     await waitForTerminal(db, started.id);
     expect(runner.isRunning("plaud-sync")).toBe(false);
   }, 10_000);
+
+  it("a spawned job's row carries the child's real pid once it starts", async () => {
+    const { db, runner } = newRunner();
+    const { plan, env } = fakePlan("plaud-sync");
+
+    const started = runner.start(
+      "plaud-sync",
+      "{}",
+      plan,
+      env,
+      JOB_TIMEOUTS_MS["plaud-sync"],
+    );
+
+    expect(started.pid).toEqual(expect.any(Number));
+    expect(started.pid).toBeGreaterThan(0);
+
+    await waitForTerminal(db, started.id);
+  }, 10_000);
+
+  it("a spawn failure (missing binary) writes no pid and still reaches failed", async () => {
+    const { db, runner } = newRunner();
+    const plan: JobPlan = {
+      kind: "spawn",
+      argv: ["/no/such/bench-eingang-runner-test-binary", "plaud-sync"],
+      cwd: scratch.dir,
+    };
+
+    const started = runner.start(
+      "plaud-sync",
+      "{}",
+      plan,
+      { ...process.env },
+      JOB_TIMEOUTS_MS["plaud-sync"],
+    );
+    expect(started.pid).toBeNull();
+
+    const finished = await waitForTerminal(db, started.id);
+    expect(finished.status).toBe("failed");
+    expect(finished.pid).toBeNull();
+  }, 10_000);
 });
 
 describe("createRunner - internal jobs", () => {
@@ -305,6 +376,24 @@ describe("createRunner - internal jobs", () => {
     resolveJob?.();
     const finished = await waitForTerminal(db, started.id);
     expect(finished.status).toBe("done");
+  });
+
+  it("an internal job's row carries pid: null, since it has no child", async () => {
+    const { db, runner } = newRunner({
+      "vault-reindex": () => Promise.resolve(),
+    });
+
+    const started = runner.start(
+      "vault-reindex",
+      "{}",
+      { kind: "internal", name: "vault-reindex", args: {} },
+      {},
+      JOB_TIMEOUTS_MS["vault-reindex"],
+    );
+    expect(started.pid).toBeNull();
+
+    const finished = await waitForTerminal(db, started.id);
+    expect(finished.pid).toBeNull();
   });
 
   it("hands an internal job its plan args", async () => {
@@ -404,4 +493,220 @@ describe("createRunner - a broken log stream", () => {
     const finished = await waitForTerminal(db, started.id);
     expect(finished.status).toBe("failed");
   });
+});
+
+describe("createRunner - kill() on an orphan (no in-flight record)", () => {
+  // process.kill is a different function from ChildProcess.kill: the in-flight kill tests above
+  // signal through a real child's own .kill(), never through the global process.kill, so spying
+  // on it here cannot affect them.
+  function spyOnProcessKill() {
+    return vi.spyOn(process, "kill").mockImplementation(() => true);
+  }
+
+  // escalateOrphanKill's timer belongs to no in-flight record, so nothing cancels it, and unref
+  // does not stop it firing inside a worker whose event loop other tests keep alive. It therefore
+  // outlives the test that armed it, with that test's process.kill spy already restored - and it
+  // really did call the REAL process.kill(424242, "SIGKILL") five seconds after two tests here had
+  // ended, invisible only because macOS caps PID_MAX at 99999 while Linux CI's pid_max is
+  // 4194304. So every test below that sends a SIGTERM uses a short grace period, and all but one
+  // pair it with a verifier that confirms the pid once - for kill()'s own check - and refuses from
+  // then on, so the escalation branch never reaches a pid this suite invented. The exception is
+  // the test that exists to prove the escalation does fire: it verifies true throughout and is
+  // safe instead by awaiting the grace period with its spy still installed, so the SIGKILL lands
+  // on the spy rather than on the machine. Its own comment says so at the call site.
+  const ORPHAN_ESCALATION_MS = 50;
+
+  function verifiesOnce() {
+    let calls = 0;
+    return vi.fn(() => {
+      calls += 1;
+      return calls === 1;
+    });
+  }
+
+  it("signals a verified orphan pid, marks the row killed, and returns killed", () => {
+    const { db, runner } = newRunner({}, ORPHAN_ESCALATION_MS, verifiesOnce());
+    const id = insertRunningRow(db, 424_242);
+    const killSpy = spyOnProcessKill();
+
+    try {
+      expect(runner.kill(id)).toBe("killed");
+      expect(killSpy).toHaveBeenCalledExactlyOnceWith(424_242, "SIGTERM");
+
+      const row = getJob(db, id)!;
+      expect(row.status).toBe("killed");
+      expect(row.exitCode).toBeNull();
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+
+  it("returns not_running and sends no signal when verification fails - the pid protects a stranger's process", () => {
+    const { db, runner } = newRunner({}, undefined, () => false);
+    const id = insertRunningRow(db, 424_243);
+    const killSpy = spyOnProcessKill();
+
+    try {
+      expect(runner.kill(id)).toBe("not_running");
+      expect(killSpy).not.toHaveBeenCalled();
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+
+  // reconcileRunning runs once, at boot. An orphan confirmed alive there and dead a minute later
+  // is reclassified by nothing, so without this the row stays "running" for the life of the
+  // server: isRunning(kind) keeps refusing every start of that kind, and the one button that
+  // could clear it answers 409 and changes nothing.
+  it("finishes a running row whose pid no longer verifies, so its kind is startable again", () => {
+    const { db, runner } = newRunner({}, undefined, () => false);
+    const id = insertRunningRow(db, 424_245);
+    const killSpy = spyOnProcessKill();
+
+    try {
+      expect(runner.isRunning("plaud-sync")).toBe(true);
+      expect(runner.kill(id)).toBe("not_running");
+      expect(killSpy).not.toHaveBeenCalled();
+
+      const row = getJob(db, id)!;
+      expect(row.status).toBe("failed");
+      expect(row.exitCode).toBeNull();
+      expect(row.finishedAt).not.toBeNull();
+      expect(runner.isRunning("plaud-sync")).toBe(false);
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+
+  it("returns not_running and finishes a running row with a null pid, sending no signal", () => {
+    // isOurProcess answers true here on purpose: the null-pid check must short-circuit before it
+    // is ever consulted. A null pid can never be verified, which is the same verdict
+    // reconcileRunning reaches for it at boot.
+    const { db, runner } = newRunner({}, undefined, () => true);
+    const id = insertRunningRow(db, null);
+    const killSpy = spyOnProcessKill();
+
+    try {
+      expect(runner.kill(id)).toBe("not_running");
+      expect(killSpy).not.toHaveBeenCalled();
+      expect(getJob(db, id)!.status).toBe("failed");
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+
+  it("returns not_running and leaves a row that already finished alone", () => {
+    const { db, runner } = newRunner({}, undefined, () => true);
+    const id = insertRunningRow(db, 424_244);
+    finishJob(db, id, "done", 0);
+    const killSpy = spyOnProcessKill();
+
+    try {
+      expect(runner.kill(id)).toBe("not_running");
+      expect(killSpy).not.toHaveBeenCalled();
+      // Only a "running" row is reclassified - a terminal status is never overwritten.
+      expect(getJob(db, id)!.status).toBe("done");
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+
+  it("returns not_running and sends no signal for a missing id", () => {
+    const { runner } = newRunner({}, undefined, () => true);
+    const killSpy = spyOnProcessKill();
+
+    try {
+      expect(runner.kill(999_999)).toBe("not_running");
+      expect(killSpy).not.toHaveBeenCalled();
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+
+  it("does not escalate to SIGKILL once re-verification now answers false", async () => {
+    // true for the immediate check kill() makes, false for the one the escalation timer repeats.
+    const isOurProcess = verifiesOnce();
+    const { db, runner } = newRunner({}, ORPHAN_ESCALATION_MS, isOurProcess);
+    const id = insertRunningRow(db, 555_555);
+    const killSpy = spyOnProcessKill();
+
+    try {
+      expect(runner.kill(id)).toBe("killed");
+      expect(killSpy).toHaveBeenCalledExactlyOnceWith(555_555, "SIGTERM");
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      expect(isOurProcess).toHaveBeenCalledTimes(2);
+      expect(killSpy).toHaveBeenCalledOnce(); // still only the SIGTERM - no SIGKILL followed
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+
+  // The one test that does take the SIGKILL branch, and it waits the grace period out with the
+  // spy still installed - so the signal is observed here rather than escaping into a later test.
+  it("escalates to SIGKILL after the grace period when re-verification is still true", async () => {
+    const { db, runner } = newRunner({}, ORPHAN_ESCALATION_MS, () => true);
+    const id = insertRunningRow(db, 555_556);
+    const killSpy = spyOnProcessKill();
+
+    try {
+      expect(runner.kill(id)).toBe("killed");
+      expect(killSpy).toHaveBeenCalledExactlyOnceWith(555_556, "SIGTERM");
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      expect(killSpy).toHaveBeenCalledTimes(2);
+      expect(killSpy).toHaveBeenNthCalledWith(2, 555_556, "SIGKILL");
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+
+  it("does not throw when process.kill reports the pid already gone (ESRCH)", () => {
+    const { db, runner } = newRunner({}, ORPHAN_ESCALATION_MS, verifiesOnce());
+    const id = insertRunningRow(db, 555_557);
+    const esrch = Object.assign(new Error("kill ESRCH"), { code: "ESRCH" });
+    const killSpy = vi.spyOn(process, "kill").mockImplementation(() => {
+      throw esrch;
+    });
+
+    try {
+      expect(() => runner.kill(id)).not.toThrow();
+      expect(getJob(db, id)!.status).toBe("killed");
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+});
+
+describe("createRunner - isRunning and isInFlight consult the database", () => {
+  it("isRunning is true for a kind whose row is running in the database alone (an empty in-flight map), and false again once that row is no longer running", () => {
+    const { db, runner } = newRunner();
+    const id = insertRunningRow(db, null);
+
+    expect(runner.isRunning("plaud-sync")).toBe(true);
+
+    finishJob(db, id, "failed", null);
+    expect(runner.isRunning("plaud-sync")).toBe(false);
+  });
+
+  it("isInFlight is false for a database-only running row and true for a job this runner actually started", async () => {
+    const { db, runner } = newRunner();
+    const orphanId = insertRunningRow(db, null);
+    expect(runner.isInFlight(orphanId)).toBe(false);
+
+    const { plan, env } = fakePlan("plaud-sync");
+    const started = runner.start(
+      "plaud-sync",
+      "{}",
+      plan,
+      env,
+      JOB_TIMEOUTS_MS["plaud-sync"],
+    );
+    expect(runner.isInFlight(started.id)).toBe(true);
+
+    await waitForTerminal(db, started.id);
+    expect(runner.isInFlight(started.id)).toBe(false);
+  }, 10_000);
 });

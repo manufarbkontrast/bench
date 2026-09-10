@@ -49,8 +49,11 @@ export function isEingangJobKind(kind: string): kind is EingangJobKind {
   return (EINGANG_JOB_KINDS as readonly string[]).includes(kind);
 }
 
-/** Matches server/src/eingang/db.ts's JobRow exactly - kind stays a bare string there since the
-    row can outlive a JobKind union the server might narrow later. */
+/** Matches server/src/eingang/db.ts's JobRow, plus the `verwaist` flag every jobs route adds on
+    top (server/src/eingang/routes.ts's withVerwaist) - kind stays a bare string there since the
+    row can outlive a JobKind union the server might narrow later. `verwaist` is not a database
+    column: it is computed per request from whether the runner's own in-flight map still holds the
+    row's id, so do not go looking for it in db.ts's schema. */
 export interface JobRow {
   id: number;
   kind: string;
@@ -60,6 +63,8 @@ export interface JobRow {
   finishedAt: number | null;
   exitCode: number | null;
   logPath: string;
+  pid: number | null;
+  verwaist: boolean;
 }
 
 export interface ScheduledRun {

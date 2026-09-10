@@ -51,8 +51,11 @@ interface StartJobReply {
   job: { id: number; status: string };
 }
 
-interface JobReply {
-  job: JobRow;
+// Narrowed for the same reason StartJobReply is: POST /jobs/:id/kill answers the server's own
+// db.ts JobRow raw, which carries no `verwaist`, so typing it as web's JobRow - where the flag is
+// required - would be a lie. Neither caller reads the body; App.tsx refetches the list instead.
+interface KillJobReply {
+  job: { id: number; status: string };
 }
 
 interface JobsReply {
@@ -75,7 +78,7 @@ export const api = {
   jobs: () => get<JobsReply>("/api/eingang/jobs"),
   job: (id: number) => get<JobLogReply>(`/api/eingang/jobs/${String(id)}`),
   killJob: (id: number) =>
-    post<JobReply>(`/api/eingang/jobs/${String(id)}/kill`, {}),
+    post<KillJobReply>(`/api/eingang/jobs/${String(id)}/kill`, {}),
   schedule: () => get<ScheduleReply>("/api/eingang/schedule"),
   plaud: (page: number) =>
     get<PlaudReply>(`/api/eingang/plaud?page=${String(page)}`),

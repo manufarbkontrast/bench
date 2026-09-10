@@ -192,6 +192,20 @@ function findJob(db: Database.Database, rawId: string): JobRow | null {
   return Number.isInteger(id) ? getJob(db, id) : null;
 }
 
+/** Verwaist (SPEC decision 2): a `running` row whose id never went through this process's own
+    start(), so this server is not the one running it - either a restart orphan still alive on the
+    machine, or one already dead and waiting for the next boot's reconciliation. A row in any
+    other status is never verwaist, regardless of the map. */
+function withVerwaist(
+  runner: Runner,
+  job: JobRow,
+): JobRow & { verwaist: boolean } {
+  return {
+    ...job,
+    verwaist: job.status === "running" && !runner.isInFlight(job.id),
+  };
+}
+
 export function eingangRouter(ctx: EingangContext): Router {
   const { db, located, plaud, mcp, runner, paths } = ctx;
   const router = Router();
@@ -265,7 +279,11 @@ export function eingangRouter(ctx: EingangContext): Router {
   });
 
   router.get("/jobs", (_req, res) => {
-    res.json({ jobs: listJobs(db, JOB_LIST_LIMIT) });
+    res.json({
+      jobs: listJobs(db, JOB_LIST_LIMIT).map((job) =>
+        withVerwaist(runner, job),
+      ),
+    });
   });
 
   router.get("/jobs/:id", (req, res) => {
@@ -274,7 +292,7 @@ export function eingangRouter(ctx: EingangContext): Router {
       res.status(404).json({ error: "Not found" });
       return;
     }
-    res.json({ job, log: tailLog(job.logPath) });
+    res.json({ job: withVerwaist(runner, job), log: tailLog(job.logPath) });
   });
 
   router.post("/jobs", (req, res) => {
