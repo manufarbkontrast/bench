@@ -105,6 +105,6 @@ test("the calendar shows a month of dates and walks to the next one", async ({
   await expect(page.getByText("Coming up — next 30 days")).toBeVisible();
   const month = page.locator(".react-calendar__navigation__label");
   const first = await month.innerText();
-  await page.locator(".react-calendar__navigation__next-button").click();
+  await page.getByRole("button", { name: "Next month" }).click();
   await expect(month).not.toHaveText(first);
 });

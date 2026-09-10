@@ -1,4 +1,4 @@
-import { runLineText } from "../format";
+import { runLineText } from "../../shared/controlling";
 import type { RunFolder } from "../types";
 
 /** The archive: one aria-pressed button per run, newest first as the server already sorted it -

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
-import { runLineText } from "./format";
+import { runLineText } from "../shared/controlling";
 import type { RunFolder, RunReply } from "./types";
 
 const AUGUST = runLineText({ stichtag: "2026-08-15", modus: "zwischenstand" });

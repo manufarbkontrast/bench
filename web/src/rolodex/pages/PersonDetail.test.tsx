@@ -183,6 +183,28 @@ describe("a person's page", () => {
     expect(patch.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
+  it.each([
+    "Log interaction",
+    "Edit",
+    "Add fact",
+    "Add news",
+    "Add date",
+    "Add reminder",
+    "Add gift",
+    "Add connection",
+  ])("opens %s in a dialog that closes again without saving", async (label) => {
+    renderPerson();
+    await screen.findByRole("heading", { name: "Maya Chen" });
+    const loads = vi.mocked(api.getPerson).mock.calls.length;
+    await userEvent.click(screen.getByRole("button", { name: label }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    // Escape rather than the header's Close button: the person form also has a circle named Close.
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // Closing is not saving: a saved modal reloads the person, a dismissed one must not.
+    expect(vi.mocked(api.getPerson).mock.calls).toHaveLength(loads);
+  });
+
   it("says so when the person cannot be loaded", async () => {
     vi.mocked(api.getPerson).mockRejectedValue(new Error("not found"));
     render(

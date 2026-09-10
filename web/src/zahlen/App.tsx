@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import BenchNav from "../shared/BenchNav";
+import { breakEvenText, runLineText } from "../shared/controlling";
 import { api, fileUrl } from "./api";
 import KpiTable from "./components/KpiTable";
 import RunsList from "./components/RunsList";
-import { breakEvenText, runLineText } from "./format";
 import type { LinksReply, RunFolder, RunReply } from "./types";
 
 /** The four myCrafton deep links routes.ts always answers, labelled - a closed catalog

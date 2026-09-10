@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { breakEvenText, dateText, runLineText } from "./format";
+import { describe, expect, it, vi } from "vitest";
+import { breakEvenText, runLineText } from "./controlling";
 
 /** Matches the local ICU build's own rendering rather than a hardcoded string - see
     web/src/eingang/format.test.ts's dateText test for the same reasoning. */
@@ -8,12 +8,6 @@ function mediumDate(stichtag: string): string {
     new Date(`${stichtag}T00:00:00`),
   );
 }
-
-describe("dateText", () => {
-  it("formats a stichtag as a de-DE medium date", () => {
-    expect(dateText("2026-08-15")).toBe(mediumDate("2026-08-15"));
-  });
-});
 
 describe("runLineText", () => {
   it("labels a zwischenstand run", () => {
@@ -26,6 +20,22 @@ describe("runLineText", () => {
     expect(runLineText({ stichtag: "2026-08-15", modus: "abschluss" })).toBe(
       `Abschluss vom ${mediumDate("2026-08-15")}`,
     );
+  });
+
+  it("reads the stichtag at local midnight, not as UTC", () => {
+    // `new Date("2026-08-01")` is UTC midnight, which is still 31 July west of Greenwich - so the
+    // test has to run there: this machine's Berlin and CI's UTC would both pass the UTC parse.
+    vi.stubEnv("TZ", "America/New_York");
+    try {
+      const august1 = new Intl.DateTimeFormat("de-DE", {
+        dateStyle: "medium",
+      }).format(new Date(2026, 7, 1));
+      expect(
+        runLineText({ stichtag: "2026-08-01", modus: "zwischenstand" }),
+      ).toBe(`Zwischenstand vom ${august1}`);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 
