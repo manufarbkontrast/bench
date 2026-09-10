@@ -277,5 +277,6 @@ modern. See [STANDARDS.md](./STANDARDS.md) for the rules, including what to avoi
 - [PROCESS.md](./PROCESS.md) - how to implement a change and how to keep the test suite honest
 - [STANDARDS.md](./STANDARDS.md) - coding standards
 - [CONTROLS.md](./CONTROLS.md) - lint, static analysis, coverage and how each is enforced
+- [BACKLOG.md](./BACKLOG.md) - what is left, and what is settled rather than pending
 - [e2e/EXPLORATORY.md](../e2e/EXPLORATORY.md) - what the automated suite deliberately does not cover
 - [README.md](../README.md) - the short public-facing readme
