@@ -118,7 +118,9 @@ Bericht (only once a run is selected), Zusammenfassung (likewise), and myCrafton
 - **`KpiTable`** always renders a table, even with zero rows - the run's own empty state
   (`Noch kein Lauf.`) is handled by the caller before `KpiTable` is reached at all.
 - **`breakEvenText`** reads a single `keine`-prefixed bullet as the word `keine` rather than the
-  number `1`, mirroring `parseSummary`'s own choice to leave that judgement to the UI.
+  number `1`, mirroring `parseSummary`'s own choice to leave that judgement to the UI. It and
+  `runLineText` live in `web/src/shared/controlling.ts`, not in this app, because the Cockpit shows
+  the same two lines - see [cockpit/IMPLEMENTATION.md](../cockpit/IMPLEMENTATION.md).
 - **`fileUrl`** builds the `/api/zahlen/file` URL used directly as the Bericht iframe's `src` and
   as both download links' `href` - the file's content is never fetched by this app's own code,
   only linked to.

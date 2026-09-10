@@ -13,8 +13,9 @@ import {
   IconVault,
   IconZahlen,
 } from "../shared/AppIcons";
+import { breakEvenText, runLineText } from "../shared/controlling";
 import { api } from "./api";
-import { breakEvenText, dateText, deltaText, runLineText } from "./format";
+import { dateText, deltaText } from "./format";
 import { firstSection, type Section } from "./session";
 import {
   HANDOFF_ROWS,

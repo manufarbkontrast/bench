@@ -29,10 +29,14 @@ every other pair of apps already follows, so these few fields are duplicated her
 
 **`web/src/home` deliberately duplicates the small formatters too**, rather than importing them.
 `format.ts`'s `dateText` and `deltaText` are near-identical to `web/src/aufgaben/format.ts`'s
-`dateText` and `web/src/projekte/format.ts`'s `deltaText`, and `runLineText`/`breakEvenText` mirror
-`web/src/zahlen/format.ts`'s functions of the same name (built on this document's own `dateText`
-rather than that app's) - a handful of lines each, and a shared helper module would be a fourth or
-fifth cross-app dependency for lines that already have a home in the apps that own the data.
+`dateText` and `web/src/projekte/format.ts`'s `deltaText` - a handful of lines each, which only
+render a date or a count and have a home in the apps that own the data.
+
+**The controlling run's two headlines are the exception**: `runLineText` and `breakEvenText` come
+from `web/src/shared/controlling.ts`, which Zahlen reads too. They used to be a copy here as well,
+and were moved because they are not formatting but the controlling skill's own rules - above all
+that a single `- keine ...` bullet means zero campaigns, not one. A copy of that would drift
+silently the first time the skill's wording changed and only one side learnt it.
 
 ## The seven panels, in fixed order
 

@@ -63,8 +63,8 @@ web/                ONE Vite project, multi-page (MPA)
   eingang/index.html  -> src/eingang/main.tsx
   kontext/index.html  -> src/kontext/main.tsx
   zahlen/index.html   -> src/zahlen/main.tsx
-  src/shared/         the navigation strip, the theme and the error boundary - the only code all
-                      nine documents share
+  src/shared/         the navigation strip, the theme and the error boundary, which all nine
+                      documents share, plus the controlling run's headline texts (two)
 server/             ONE Express app
   src/index.ts        opens the six DBs, listens on :8100
   src/app.ts          mounts routers, serves web/dist with per-prefix SPA fallback
@@ -149,9 +149,13 @@ These are settled. Changing one is a project-level decision, not an implementati
   refresh on `/crm/contacts` serves the Cockpit. Both carry the same `APPS` list, and they have
   disagreed before - check both when you touch routing.
 - **Two shared modules, one per workspace: `web/src/shared/` and `server/src/shared/`.** On the
-  web, the navigation strip, the theme and the error boundary are the only code the nine
-  documents have in common, and the `no-restricted-imports` rule allows the folder because that
-  rule is a denylist of the sibling apps, not an allowlist. **Its CSS has to be self-contained.**
+  web, the navigation strip, the theme and the error boundary are the code all nine documents
+  have in common, and the `no-restricted-imports` rule allows the folder because that rule is a
+  denylist of the sibling apps, not an allowlist. **One module there is shared by two documents
+  only**: `controlling.ts`, the run line and the break-even count that Zahlen and the Cockpit both
+  show. Small formatters are otherwise copied per app on purpose (`dateText` lives in five); that
+  one moved because it encodes the controlling skill's rules rather than formatting, so a copy
+  would drift the first time the skill's wording changed. **Its CSS has to be self-contained.**
   It loads into nine stylesheets that collide on `.brand` and `:root`, each app redefines its own
   palette under `[data-theme]` - so every class in `nav.css` is `bench-nav`-prefixed and every
   value is a literal, never a variable. The strip looks the same over all of them, which is the
