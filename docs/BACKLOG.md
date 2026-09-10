@@ -65,6 +65,11 @@ the same gap, `api.ts` at 0% because each App test mocks it away, and the sixth 
 asserted on like the rolodex seed; and `breakEvenText`/`runLineText` moved into
 `web/src/shared/controlling.ts`. Current figures are in [CONTROLS.md](./CONTROLS.md).
 
+**Also closed 2026-09-10:** `findBy*` and `waitFor` now wait up to 5s (`web/src/test/setup.ts`)
+instead of Testing Library's 1000ms, after a worker starved by a second vitest process failed a
+`check` at the old default - a 37ms test that took 3.7s there. `web/src/test/setup.test.ts` fails
+if the setting goes.
+
 What remains:
 
 - **The lowest files sit inside directories that pass.** On the web, `projekte/api.ts`,
@@ -82,15 +87,6 @@ What remains:
   duplicate is gone. Five of the clones are new and deliberate: each of the five new `api.test.ts`
   files carries its own `mockFetch`, as crm's and rolodex's already did; consolidating them would
   be one test helper for seven files.
-- **Testing Library's `findBy*` gives up after 1000ms of wall-clock time**, which a starved worker
-  can exceed. Proven 2026-09-10: a `check` run that competed with a second vitest process failed
-  `crm/pages/Deals.test.tsx`'s "edits the row's own deal" - 37ms alone, 3.7s there - and two
-  coverage runs started together failed a different test the same way, `vault/App.test.tsx`'s
-  quick-find, at 1037ms. It is the mechanism `web/vite.config.ts` already answers for the test
-  timeout (15s, with the same reasoning); the `findBy*` equivalent would be
-  `configure({ asyncUtilTimeout })` in `web/src/test/setup.ts`. Not made: it also makes every
-  genuinely failing `findBy*` wait longer. Until then, see PROCESS.md - nothing else runs vitest
-  while the gate does.
 - **A lost `unlink` can leave a stale row in the vault index** under a burst of creates and deletes
   inside one `awaitWriteFinish` window. Pre-existing, found while verifying the watcher fix,
   cleared by the next `indexAll`; see [EXPLORATORY.md](../e2e/EXPLORATORY.md).
