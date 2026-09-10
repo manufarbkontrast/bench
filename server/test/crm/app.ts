@@ -1,0 +1,72 @@
+/** The whole Express app around one CRM database; the other apps get throwaway in-memory ones. */
+import type express from "express";
+import { createApp } from "../../src/app.js";
+import type { DB } from "../../src/crm/db.js";
+import { openEingangDb } from "../../src/eingang/db.js";
+import type { EingangContext } from "../../src/eingang/routes.js";
+import type { KontextContext } from "../../src/kontext/routes.js";
+import { openDb as openRolodexDb } from "../../src/rolodex/db/index.js";
+import { openDb as openVaultDb } from "../../src/vault/db.js";
+import type { ZahlenContext } from "../../src/zahlen/routes.js";
+import { emptyAufgaben } from "../aufgaben/app.js";
+import { emptyProjekte } from "../projekte/app.js";
+import { emptyVault } from "../vault/app.js";
+
+// The same three private duplicates every other harness carries: test/eingang/app.js keeps its
+// emptyEingang to itself, since exporting it would cycle through emptyVault, emptyProjekte and
+// emptyAufgaben, and kontext's and zahlen's harnesses export no empty context at all.
+function emptyEingang(): EingangContext {
+  return {
+    db: openEingangDb(":memory:"),
+    located: {
+      watchDirs: [],
+      controllingDir: null,
+      launchAgentsDir: "/nonexistent",
+      source: "sample",
+      missing: [],
+    },
+    plaud: { dir: "/nonexistent", source: "sample" },
+    mcp: "off",
+    runner: {
+      start: () => {
+        throw new Error("emptyEingang's runner is never meant to start a job");
+      },
+      kill: () => "not_running",
+      isRunning: () => false,
+      isInFlight: () => false,
+    },
+    paths: {
+      plaudHome: "/nonexistent",
+      vaultDir: "/nonexistent",
+      controllingDir: null,
+      skillsDir: "/nonexistent",
+      sample: true,
+      projektSlugs: () => [],
+    },
+  };
+}
+
+function emptyZahlen(): ZahlenContext {
+  return { dir: null, mycraftonUrl: null };
+}
+
+function emptyKontext(): KontextContext {
+  return {
+    claudeDir: "/nonexistent",
+    vaultDb: openVaultDb(":memory:"),
+    projectPaths: () => [],
+  };
+}
+
+export function appWithCrm(crm: DB): express.Express {
+  return createApp({
+    crm,
+    rolodex: openRolodexDb(":memory:"),
+    vault: emptyVault(),
+    projekte: emptyProjekte(),
+    aufgaben: emptyAufgaben(),
+    eingang: emptyEingang(),
+    kontext: emptyKontext(),
+    zahlen: emptyZahlen(),
+  });
+}
