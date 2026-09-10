@@ -37,6 +37,24 @@ describe("a request from another site in the same browser", () => {
     expect(res.status).toBe(403);
   });
 
+  it("is refused from another port on this machine too, which the browser calls same-site", async () => {
+    // Bench never calls across ports - the dev proxy is same-origin - so a page on another local
+    // port asking is another tool's page, or one showing untrusted HTML.
+    const res = await request(app)
+      .post("/api/projekte/scan")
+      .set("Sec-Fetch-Site", "same-site");
+    expect(res.status).toBe(403);
+  });
+
+  it("is refused on the API in any case, since routing ignores it", async () => {
+    const res = await request(app)
+      .get("/API/vault/info")
+      .set("Sec-Fetch-Site", "cross-site")
+      .set("Sec-Fetch-Mode", "navigate")
+      .set("Sec-Fetch-Dest", "document");
+    expect(res.status).toBe(403);
+  });
+
   it("still lets a plain link open a Bench page", async () => {
     const res = await request(app)
       .get("/vault/")
@@ -46,7 +64,7 @@ describe("a request from another site in the same browser", () => {
     expect(res.status).not.toBe(403);
   });
 
-  it.each(["same-origin", "same-site", "none"])(
+  it.each(["same-origin", "none"])(
     "is let through when the browser calls it %s",
     async (site) => {
       const res = await request(app)

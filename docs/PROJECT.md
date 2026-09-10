@@ -157,11 +157,15 @@ These are settled. Changing one is a project-level decision, not an implementati
   `createApp`. Loopback keeps other machines out, not web pages in the user's own browser: a DNS
   name rebound to 127.0.0.1 would make a page same-origin with Bench, free to read the vault and
   start jobs, so any `Host` that is not `localhost`, `127.0.0.1` or `[::1]` gets a 403; and a
-  cross-site request needs no preflight when it has no body, so `Sec-Fetch-Site: cross-site` gets a
-  403 too, except a plain link to a page - a frame is refused with the rest. A browser too old to
-  send `Sec-Fetch-Site` keeps only the preflight that a JSON body forces, so the bodiless job kill
-  and scan stay open to it; the `Host` check holds in every browser.
-  `server/test/local-only.test.ts` covers both.
+  request from another site needs no preflight when it has no body, so `Sec-Fetch-Site` `cross-site`
+  gets a 403 too - and `same-site`, which is what another port on this machine counts as, since
+  Bench never calls across ports. The one exception is a plain link to a page; a frame is refused
+  with the rest, and the check on `/api` ignores case because Express's routing does. **What a link
+  still does**: it opens the page, and the page fetches what it always fetches on mount - the Plaud
+  list, `gh` issues, a scan if Projekte is empty - which is no more than opening Bench yourself, but
+  it is not nothing. A browser too old to send `Sec-Fetch-Site` keeps only the preflight that a JSON
+  body forces, so the bodiless job kill and scan stay open to it; the `Host` check holds in every
+  browser. `server/test/local-only.test.ts` covers all of it.
 - **Deep-link fallback lives in two places.** `server/src/app.ts` handles production; the
   `appFallback` plugin in `web/vite.config.ts` does the same for the dev server. Without it a
   refresh on `/crm/contacts` serves the Cockpit. Both carry the same `APPS` list, and they have

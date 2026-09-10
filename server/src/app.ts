@@ -68,21 +68,24 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 /**
  * Binding to loopback keeps other machines out; this keeps out web pages in the user's own browser,
  * which reach loopback two ways. A DNS name rebound to 127.0.0.1 makes a page same-origin with
- * Bench, free to read and write - it shows as a Host that is not localhost. A plain cross-site
- * request needs no preflight when it has no body, so it can kill a job or start a Plaud or gh call
- * blind - it shows in Sec-Fetch-Site. A link to a Bench page stays allowed, a frame does not.
+ * Bench, free to read and write - it shows as a Host that is not localhost. A plain request from
+ * another site needs no preflight when it has no body, so it can kill a job or start a Plaud or gh
+ * call blind - it shows in Sec-Fetch-Site, where another port on this machine counts as same-site
+ * and is refused with the rest: Bench never calls across ports. A link to a Bench page stays
+ * allowed, a frame does not. The path check is case-blind because Express's routing is.
  */
 function localOnly(
   req: express.Request,
   res: express.Response,
   next: express.NextFunction,
 ): void {
-  const crossSite = req.headers["sec-fetch-site"] === "cross-site";
+  const site = req.headers["sec-fetch-site"];
+  const fromElsewhere = site === "cross-site" || site === "same-site";
   const linkToAPage =
     req.method === "GET" &&
     req.headers["sec-fetch-dest"] === "document" &&
-    !req.path.startsWith("/api");
-  if (!LOCAL_HOSTS.has(req.hostname) || (crossSite && !linkToAPage)) {
+    !req.path.toLowerCase().startsWith("/api");
+  if (!LOCAL_HOSTS.has(req.hostname) || (fromElsewhere && !linkToAPage)) {
     res
       .status(403)
       .json({ error: "Bench only answers its own pages on localhost" });
