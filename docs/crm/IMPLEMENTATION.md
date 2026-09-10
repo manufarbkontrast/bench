@@ -5,7 +5,8 @@ activities with follow-ups, and a dashboard. Backed by `data/crm.sqlite`.
 
 - Frontend: `web/src/crm/` - `pages/`, `components/`, `types.ts`, `api.ts`, `styles.css`
 - Backend: `server/src/crm/` - `db.ts`, `routes.ts`, `seed.ts`
-- Tests: `server/test/crm/`, `web/src/crm/types.test.ts` (the derived values), `e2e/crm/`
+- Tests: `server/test/crm/` (`routes.test.ts` through the whole app via `app.ts`, the rest against
+  `db.ts`), `web/src/crm/types.test.ts` (the derived values), `e2e/crm/`
 
 ## Data model
 
@@ -134,6 +135,10 @@ rendering `0` while the footer total was correct. Build an enriched row type ins
   shared by the timeline and the dashboard feed.
 - Sidebar: brand, then nav, sharing one icon column - check alignment against the brand when
   touching it. Getting home is the Bench nav's job, above the app.
+- **A read or a change by id answers 404 for a record that does not exist** - through `sendFound`
+  in `routes.ts`, which every GET, PUT and PATCH by id goes through. `db.ts` returns `undefined` for
+  a missing id; handed straight to `res.json`, that was a 200 with an empty body, which the client
+  then failed to parse without naming the request. Deletes stay 204 either way.
 
 ## Related
 

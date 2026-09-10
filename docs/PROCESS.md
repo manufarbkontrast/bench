@@ -213,11 +213,11 @@ run to finish" stalls the work - it happened three times in one phase. Poll the 
 it exits, or re-run the gate piecewise in the foreground, each step with its own exit code.
 
 **Nothing else runs vitest while the gate does** - a review subagent included, even one only told
-it may run a test file. Testing Library's `findBy*` gives up after 1000ms of wall-clock time, and a
-second vitest process starves the gate's workers past it: a 37ms test took 3.7s and failed a
-`check` that way, and two coverage runs started together reproduced it on a different test. A red
-`check` whose failing test passes alone is this until proven otherwise - rerun it on a quiet
-machine before debugging the test. [BACKLOG.md](./BACKLOG.md) tier 3 holds the fix that was not made.
+it may run a test file. A second vitest process starves the gate's workers: a 37ms test took 3.7s
+and failed a `check` that way, back when `findBy*` gave up after Testing Library's 1000ms. It now
+waits 5s (`web/src/test/setup.ts`), which absorbs that, but 5s is still wall-clock, and the gate is
+the one run whose result has to be trusted. A red `check` whose failing test passes alone is
+starvation until proven otherwise - rerun it on a quiet machine before debugging the test.
 
 **Proving retry-safety of an e2e spec needs `--workers=1 --repeat-each=2`.** Plain
 `--repeat-each=2` can spread the repeats across workers with separate databases, passing while the

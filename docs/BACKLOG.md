@@ -26,6 +26,10 @@ not just a lost note. Both are closed by the one change. See
 [vault/IMPLEMENTATION.md](./vault/IMPLEMENTATION.md)'s indexer section for the contract and
 [EXPLORATORY.md](../e2e/EXPLORATORY.md) for what the tests do and do not force.
 
+**One arrived and left on 2026-09-10**: the CRM's five PUT and PATCH routes answered a missing id
+with a 200 and an empty body, which the client then failed to parse. Found by the first route
+suite the CRM ever had; they answer 404 now.
+
 **No defect is known to be open.** If something arrives here, it belongs above tier 2.
 
 ## Tier 2 - gated on something outside this repo
@@ -65,32 +69,34 @@ the same gap, `api.ts` at 0% because each App test mocks it away, and the sixth 
 asserted on like the rolodex seed; and `breakEvenText`/`runLineText` moved into
 `web/src/shared/controlling.ts`. Current figures are in [CONTROLS.md](./CONTROLS.md).
 
+**Also closed 2026-09-10:** `findBy*` and `waitFor` now wait up to 5s (`web/src/test/setup.ts`)
+instead of Testing Library's 1000ms, after a worker starved by a second vitest process failed a
+`check` at the old default - a 37ms test that took 3.7s there. `web/src/test/setup.test.ts` fails
+if the setting goes. And the lowest files the previous round found are covered:
+`server/src/crm/routes.ts` 39.7% -> 100% through a route suite, `web/src/projekte/api.ts` and
+`web/src/vault/api.ts` 0% -> 100%.
+
 What remains:
 
-- **The lowest files sit inside directories that pass.** On the web, `projekte/api.ts`,
-  `vault/api.ts` and `rolodex/App.tsx` are at 0% and `rolodex/api.ts` at 39.5% - the first two the
-  same mocked-away api client as the five just covered, their directories carried over 80% by
-  other files. On the server, `crm/routes.ts` is at 39.7% statements and 0% branches, hidden
-  because CONTROLS.md reports `server/src` as one row: the CRM's unit tests call `db.ts` directly
-  and never go through the router, and `e2e/crm/` covers it end to end where the figure cannot see.
-  A supertest suite in the shape of `server/test/projekte/routes.test.ts` would close that one.
+- **The lowest files left sit inside directories that pass.** `web/src/rolodex/App.tsx` is at 0% on
+  purpose: it is the route table and the sidebar, a unit test would have to mock every page's api
+  for four statements, and e2e walks those routes already. `web/src/rolodex/api.ts` is at 39.5%
+  despite having a suite - most of its endpoints are untested - and
+  `web/src/vault/components/TreeFolder.tsx` at 53.3%. On the server nothing is under 77.8%.
 - **Where a regression lands first now:** `web/src/rolodex/components/today` at exactly 80%
-  statements, then `rolodex` 81.4%, `rolodex/components` 81.6%, `vault/components` 81.9%,
-  `projekte` 82.4%. On branches, `vault/components` (71.9%) and `rolodex/pages` (74.8%) sit under 80
+  statements, then `rolodex` 81.4%, `rolodex/components` 81.6%, `vault/components` 81.9%. On branches, `vault/components` (71.9%) and `rolodex/pages` (74.8%) sit under 80
   as directories; the threshold is per workspace, so neither fails.
-- **Duplication is 4.52%, 170 clones.** Advisory, outside `npm run check`. The one named production
-  duplicate is gone. Five of the clones are new and deliberate: each of the five new `api.test.ts`
-  files carries its own `mockFetch`, as crm's and rolodex's already did; consolidating them would
-  be one test helper for seven files.
-- **Testing Library's `findBy*` gives up after 1000ms of wall-clock time**, which a starved worker
-  can exceed. Proven 2026-09-10: a `check` run that competed with a second vitest process failed
-  `crm/pages/Deals.test.tsx`'s "edits the row's own deal" - 37ms alone, 3.7s there - and two
-  coverage runs started together failed a different test the same way, `vault/App.test.tsx`'s
-  quick-find, at 1037ms. It is the mechanism `web/vite.config.ts` already answers for the test
-  timeout (15s, with the same reasoning); the `findBy*` equivalent would be
-  `configure({ asyncUtilTimeout })` in `web/src/test/setup.ts`. Not made: it also makes every
-  genuinely failing `findBy*` wait longer. Until then, see PROCESS.md - nothing else runs vitest
-  while the gate does.
+- **Duplication is 4.66%, 173 clones.** Advisory, outside `npm run check`. The one named production
+  duplicate is gone. Most of what this day added is deliberate test scaffolding: nine `api.test.ts`
+  files each carry their own `mockFetch`, and `server/test/crm/app.ts` carries the same private
+  empty contexts every other harness does. Consolidating the `mockFetch` copies would be one test
+  helper for nine files.
+- **The CRM shows nothing when a save fails.** Its forms call `api.put`/`api.post` inside a
+  `void submit(e)` with no catch, so a rejected save leaves the modal open without a word; the
+  pipeline sends its stage `PATCH` fire-and-forget and keeps the card where it was dropped even if
+  the server refused. Pre-existing - the 404 fix only turned the console message from "Unexpected
+  end of JSON input" into `PATCH /api/crm/deals/<id>/stage failed: 404`. Six call sites
+  (`DealForm`, `ContactForm`, `OrganizationForm`, `ActivityTimeline`, `Dashboard`, `Pipeline`).
 - **A lost `unlink` can leave a stale row in the vault index** under a burst of creates and deletes
   inside one `awaitWriteFinish` window. Pre-existing, found while verifying the watcher fix,
   cleared by the next `indexAll`; see [EXPLORATORY.md](../e2e/EXPLORATORY.md).

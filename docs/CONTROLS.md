@@ -38,7 +38,7 @@ Unit tests run **with coverage** inside `check`, so the 80% threshold is a gate 
 report.
 
 `jscpd` stays outside it: duplication findings are advisory rather than pass/fail, so they should
-not gate a green run. It reports 4.52% across the tree, 170 clones (2026-09-10).
+not gate a green run. It reports 4.66% across the tree, 173 clones (2026-09-10).
 
 `knip` needs `knip.json` to be told the multi-page entry points, or it reports every web source file
 as unused.
@@ -217,7 +217,7 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 
 | Scope                               | Statements |
 | ----------------------------------- | ---------- |
-| `server/src`                        | 94.78%     |
+| `server/src`                        | 96.25%     |
 | `web/src/aufgaben`                  | 95.74%     |
 | `web/src/aufgaben/components`       | 96.15%     |
 | `web/src/crm`                       | 100%       |
@@ -228,7 +228,7 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 | `web/src/home`                      | 94.63%     |
 | `web/src/kontext`                   | 100%       |
 | `web/src/kontext/components`        | 100%       |
-| `web/src/projekte`                  | 82.35%     |
+| `web/src/projekte`                  | 100%       |
 | `web/src/projekte/components`       | 100%       |
 | `web/src/rolodex`                   | 81.35%     |
 | `web/src/rolodex/components`        | 81.56%     |
@@ -236,27 +236,28 @@ Where it stands, from `npm run coverage` - one row per directory the tool's own 
 | `web/src/rolodex/components/today`  | 80%        |
 | `web/src/rolodex/pages`             | 84.46%     |
 | `web/src/shared`                    | 97.91%     |
-| `web/src/vault`                     | 85.49%     |
+| `web/src/vault`                     | 95.41%     |
 | `web/src/vault/components`          | 81.88%     |
 | `web/src/zahlen`                    | 100%       |
 | `web/src/zahlen/components`         | 100%       |
-| **web overall**                     | **90.55%** |
+| **web overall**                     | **91.75%** |
 
 The last two decimals of `server/src` vary run to run - a few timeout-dependent tests settle
 differently from one run to the next.
 
-**`server/src` is one row, and it hides the server's lowest file**: `server/src/crm/routes.ts`,
-at 39.7% statements and 0% branches. The CRM's unit tests call `db.ts`
-directly and never go through its router; the routes are exercised end to end by `e2e/crm/`, which
-the coverage figure cannot see. The per-file view is `npm run coverage -w server`.
+**`server/src` is one row, and it can hide a low file.** It hid `server/src/crm/routes.ts` at
+39.7% statements and 0% branches - the CRM's unit tests called `db.ts` directly and never went
+through its router - until `server/test/crm/routes.test.ts` brought it to 100% on 2026-09-10 and
+found a defect on the way. The lowest server files now are `app.ts` and `rolodex/db/index.ts`, at
+77.8%. The per-file view is `npm run coverage -w server`.
 
 **Do not lower the bar to make a red run green.**
 
 **`branches` is a threshold too, at 80%, in both workspaces.** It used to be `statements` only,
 because the server sat at 72% branches and would have failed a shared gate. That is no longer
-true - the server reads 87.1% and web 85.7% (2026-09-10) - so the threshold was added to hold the
-ground rather than to demand new ground. **Web has the thinner margin of the two**: 5.7 points,
-against the server's 7.1. Two web directories sit under it on their own - `web/src/vault/components`
+true - the server reads 88.1% and web 86.4% (2026-09-10) - so the threshold was added to hold the
+ground rather than to demand new ground. **Web has the thinner margin of the two**: 6.4 points,
+against the server's 8.1. Two web directories sit under it on their own - `web/src/vault/components`
 at 71.9% and `web/src/rolodex/pages` at 74.8% - which the threshold allows because it is measured
 per workspace. A change that adds an untested branch to web is the one that will trip this
 first, and the answer is a test for that branch, not a lower number.
