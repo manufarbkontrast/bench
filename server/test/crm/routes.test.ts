@@ -85,11 +85,15 @@ describe("creating, reading and deleting", () => {
       const res = await request(app).delete(`/api/crm/${kind}/${String(id)}`);
       expect([kind, res.status]).toEqual([kind, 204]);
     }
-    const left = await request(app).get("/api/crm/activities");
-    expect(left.body).toEqual([]);
-    expect((await request(app).get(`/api/crm/deals/${ids.deals}`)).status).toBe(
-      404,
+    const gone = await Promise.all(
+      (["organizations", "contacts", "deals"] as const).map(
+        async (kind) =>
+          (await request(app).get(`/api/crm/${kind}/${ids[kind]}`)).status,
+      ),
     );
+    expect(gone).toEqual([404, 404, 404]);
+    // Activities have no GET by id; the list is how the app reads them.
+    expect((await request(app).get("/api/crm/activities")).body).toEqual([]);
   });
 });
 

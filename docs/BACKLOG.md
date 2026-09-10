@@ -86,10 +86,17 @@ What remains:
 - **Where a regression lands first now:** `web/src/rolodex/components/today` at exactly 80%
   statements, then `rolodex` 81.4%, `rolodex/components` 81.6%, `vault/components` 81.9%. On branches, `vault/components` (71.9%) and `rolodex/pages` (74.8%) sit under 80
   as directories; the threshold is per workspace, so neither fails.
-- **Duplication is 4.52%, 170 clones.** Advisory, outside `npm run check`. The one named production
-  duplicate is gone. Five of the clones are new and deliberate: each of the five new `api.test.ts`
-  files carries its own `mockFetch`, as crm's and rolodex's already did; consolidating them would
-  be one test helper for seven files.
+- **Duplication is 4.66%, 173 clones.** Advisory, outside `npm run check`. The one named production
+  duplicate is gone. Most of what this day added is deliberate test scaffolding: nine `api.test.ts`
+  files each carry their own `mockFetch`, and `server/test/crm/app.ts` carries the same private
+  empty contexts every other harness does. Consolidating the `mockFetch` copies would be one test
+  helper for nine files.
+- **The CRM shows nothing when a save fails.** Its forms call `api.put`/`api.post` inside a
+  `void submit(e)` with no catch, so a rejected save leaves the modal open without a word; the
+  pipeline sends its stage `PATCH` fire-and-forget and keeps the card where it was dropped even if
+  the server refused. Pre-existing - the 404 fix only turned the console message from "Unexpected
+  end of JSON input" into `PATCH /api/crm/deals/<id>/stage failed: 404`. Six call sites
+  (`DealForm`, `ContactForm`, `OrganizationForm`, `ActivityTimeline`, `Dashboard`, `Pipeline`).
 - **A lost `unlink` can leave a stale row in the vault index** under a burst of creates and deletes
   inside one `awaitWriteFinish` window. Pre-existing, found while verifying the watcher fix,
   cleared by the next `indexAll`; see [EXPLORATORY.md](../e2e/EXPLORATORY.md).

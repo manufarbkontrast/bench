@@ -12,9 +12,8 @@ import { emptyAufgaben } from "../aufgaben/app.js";
 import { emptyProjekte } from "../projekte/app.js";
 import { emptyVault } from "../vault/app.js";
 
-// The same three private duplicates every other harness carries: test/eingang/app.js keeps its
-// emptyEingang to itself, since exporting it would cycle through emptyVault, emptyProjekte and
-// emptyAufgaben, and kontext's and zahlen's harnesses export no empty context at all.
+// No harness exports an empty Eingang, Zahlen or Kontext context, so each one carries its own;
+// these three are the rolodex harness's.
 function emptyEingang(): EingangContext {
   return {
     db: openEingangDb(":memory:"),

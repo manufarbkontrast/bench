@@ -38,7 +38,7 @@ Unit tests run **with coverage** inside `check`, so the 80% threshold is a gate 
 report.
 
 `jscpd` stays outside it: duplication findings are advisory rather than pass/fail, so they should
-not gate a green run. It reports 4.52% across the tree, 170 clones (2026-09-10).
+not gate a green run. It reports 4.66% across the tree, 173 clones (2026-09-10).
 
 `knip` needs `knip.json` to be told the multi-page entry points, or it reports every web source file
 as unused.
