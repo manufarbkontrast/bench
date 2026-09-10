@@ -1,4 +1,5 @@
 import express from "express";
+import type { Server } from "node:http";
 import type Database from "better-sqlite3";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -62,9 +63,41 @@ function aufgabenContext(dbs: Dbs): AufgabenContext {
   return { ...dbs.aufgaben, githubLabels: githubLabelsFrom(dbs.projekte.db) };
 }
 
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * Binding to loopback keeps other machines out; this keeps out web pages in the user's own browser,
+ * which reach loopback two ways. A DNS name rebound to 127.0.0.1 makes a page same-origin with
+ * Bench, free to read and write - it shows as a Host that is not localhost. A plain request from
+ * another site needs no preflight when it has no body, so it can kill a job or start a Plaud or gh
+ * call blind - it shows in Sec-Fetch-Site, where another port on this machine counts as same-site
+ * and is refused with the rest: Bench never calls across ports. A link to a Bench page stays
+ * allowed, a frame does not. The path check is case-blind because Express's routing is.
+ */
+function localOnly(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+): void {
+  const site = req.headers["sec-fetch-site"];
+  const fromElsewhere = site === "cross-site" || site === "same-site";
+  const linkToAPage =
+    req.method === "GET" &&
+    req.headers["sec-fetch-dest"] === "document" &&
+    !req.path.toLowerCase().startsWith("/api");
+  if (!LOCAL_HOSTS.has(req.hostname) || (fromElsewhere && !linkToAPage)) {
+    res
+      .status(403)
+      .json({ error: "Bench only answers its own pages on localhost" });
+    return;
+  }
+  next();
+}
+
 /** Build the Express app around the open databases. */
 export function createApp(dbs: Dbs): express.Express {
   const app = express();
+  app.use(localOnly);
   // Rolodex accepts whole address books and photos in one request, which is why this is not 2mb.
   app.use(express.json({ limit: "25mb" }));
 
@@ -121,4 +154,21 @@ export function createApp(dbs: Dbs): express.Express {
   );
 
   return app;
+}
+
+/**
+ * Loopback only. Bench has no login and can write to the vault and start jobs, and a bare
+ * `listen(port)` binds every interface, where any machine on the network can reach it. 127.0.0.1
+ * rather than "localhost": macOS resolves that to ::1 first, and the browser, Node's fetch and
+ * Vite's proxy all reach an IPv4-only loopback server through "localhost" anyway, falling back
+ * from ::1. Rejects on a failed listen - Express hands that error to the callback, and a callback
+ * that ignored it printed "Bench running" over a port another process held.
+ */
+export function serve(app: express.Express, port: number): Promise<Server> {
+  return new Promise((resolve, reject) => {
+    const server = app.listen(port, "127.0.0.1", (err?: Error) => {
+      if (err) reject(err);
+      else resolve(server);
+    });
+  });
 }
