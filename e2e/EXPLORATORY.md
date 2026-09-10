@@ -86,13 +86,29 @@ confirmed-but-unasserted:
   not found, and every vault-backed route falls back to the bundled sample fixture rather than an
   empty state, with no route answering 500. Not covered by a spec - `e2e/fixtures.ts` always points
   every worker at a real per-worker `VAULT_DIR`, so a missing-vault boot is never exercised.
-- **A known, unfixed residual: `watch.ts`'s `add`/`change` handler still lets an uncaught throw
-  reach chokidar.** Phase 6 Task 3 closed the _parse_ half of this failure class - `splitNote` now
-  catches malformed frontmatter - but `indexNote`'s own `readFileSync` in the watcher's handler is
-  not wrapped, so a note deleted or made unreadable between the chokidar event and the read still
-  takes the process down. Narrow in practice - `awaitWriteFinish` and the dot-file rule already
-  cover the common editor temp-file case - but it is the one corner of the class this phase did not
-  close, deliberately left for its own reviewed fix rather than folded in here.
+- **A note that vanishes mid-index is covered at the unit level only.** `indexNote` returning
+  `false` instead of throwing is proven in `server/test/vault/indexer.test.ts` for all three shapes:
+  a path that never existed, a note deleted after it was indexed, and a path `indexAll`'s listing
+  named whose file is gone by the time the loop reaches it - that last one with a stubbed
+  `listNotes`, since the race cannot be timed from outside. **What no test forces is the race
+  itself**, through a real chokidar event: `awaitWriteFinish` cancels a pending `add` for a file
+  deleted inside its window, so the emission cannot be provoked on demand, and `watch.test.ts` is
+  already the suite that CONTROLS.md documents as scheduling-sensitive. The watcher's own early
+  return on a skipped note is therefore covered only by the happy path around it. **The unreadable
+  case is untested by choice**, not oversight: forcing it needs `chmod 000`, which a root CI user
+  ignores and Windows largely no-ops, and it shares one code path with the deleted case.
+- **A lost `unlink` can leave a row behind, and no test or fix covers it.** Observed while verifying
+  the read fix against a running server: 40 notes written and deleted 200ms later, three times
+  over, left 16 rows whose files were gone. Two different chokidar behaviours are in play under a
+  burst like that, and only the first is the one that was fixed - an `add` delivered _after_ the
+  deletion now fails its read and is skipped, while an `add` delivered _before_ it indexes the note
+  and the `unlink` that should follow never arrives. The second is pre-existing and cannot come from
+  the read fix, which only ever declines to insert and never deletes; a row can only exist there if
+  the read succeeded, which is the unchanged path. Not chased further because it needs a vault
+  churning 40 files inside one `awaitWriteFinish` window, which no editor does, and the next
+  `indexAll` clears it. **The counterpart to know about**: `/api/vault/search` answers at most 20
+  rows (`routes/search.ts`), so it is the wrong instrument for counting what the index holds - the
+  tree is. That cost this verification one wrong reading before the numbers made sense.
 
 ## Projekte
 

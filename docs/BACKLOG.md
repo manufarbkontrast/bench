@@ -8,22 +8,21 @@ Everything below was already recorded somewhere - in an app doc, in [CONTROLS.md
 in [e2e/EXPLORATORY.md](../e2e/EXPLORATORY.md). This file is the one place that says which of it is
 work and which is a decision already taken, so the next session does not re-derive that.
 
-**Read the tiers as advice, not as a queue.** Only tier 1 is a defect. Tier 4 exists so nobody
-"fixes" it.
+**Read the tiers as advice, not as a queue.** Tier 1 held the only defect and is now empty. Tier 4
+exists so nobody "fixes" it.
 
-## Tier 1 - the one real defect
+## Tier 1 - closed, nothing here
 
-**`indexNote`'s `readFileSync` in the vault watcher is unwrapped.** A note deleted or made
-unreadable between chokidar's event and the read takes the whole process down. Phase 6 Task 3
-closed the _parse_ half of this class - `splitNote` catches malformed frontmatter - and left this
-half explicitly for its own reviewed fix rather than folding it in
-([EXPLORATORY.md](../e2e/EXPLORATORY.md), Vault section).
+**`indexNote`'s unwrapped read is fixed.** `readNote` treats the four errno codes that mean the
+filesystem moved under us as "gone" and `indexNote` returns `false`, so the watcher skips the note
+and `indexAll` keeps going; `EISDIR` and everything else still throws. Fixing it turned up a second
+mouth of the same hole the entry did not name: `indexAll` reads every path its own listing gave it,
+inside one transaction, so a note deleted mid-scan aborted the entire initial index - a boot crash,
+not just a lost note. Both are closed by the one change. See
+[vault/IMPLEMENTATION.md](./vault/IMPLEMENTATION.md)'s indexer section for the contract and
+[EXPLORATORY.md](../e2e/EXPLORATORY.md) for what the tests do and do not force.
 
-Narrow in practice: `awaitWriteFinish` and the dot-file rule already cover the common editor
-temp-file case. But it is a crash, and it is the only one left.
-
-Small enough to skip SPEC/PLAN: a branch, the wrap, a test that deletes a note between the event
-and the read, the gate. Worth doing.
+**No defect is known to be open.** If something arrives here, it belongs above tier 2.
 
 ## Tier 2 - gated on something outside this repo
 

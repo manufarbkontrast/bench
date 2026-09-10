@@ -27,7 +27,9 @@ export function watchVault(
   const changed = (file: string) => {
     const relPath = rel(file);
     if (!isNotePath(relPath)) return;
-    indexNote(db, vaultDir, relPath);
+    // A note already gone again by the time we read it is not a change worth announcing; the
+    // unlink event that follows it does the rest.
+    if (!indexNote(db, vaultDir, relPath)) return;
     resolveLinks(db);
     onChange();
   };
