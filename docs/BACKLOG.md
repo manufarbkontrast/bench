@@ -32,7 +32,9 @@ suite the CRM ever had; they answer 404 now.
 
 **A second arrived and left the same day, and it was the worse one**: the server listened on every
 network interface. Bench has no login, so with the macOS firewall off any machine on the same
-network could read the vault and start jobs. It answers on 127.0.0.1 only now - see
+network could read the vault and start jobs. It answers on 127.0.0.1 only now, and a security
+review of that fix found the browser-side half: a web page could still reach it through a DNS
+name rebound to 127.0.0.1, or blind with a bodiless cross-site request. Both get a 403 now - see
 [PROJECT.md](./PROJECT.md).
 
 **No defect is known to be open.** If something arrives here, it belongs above tier 2.
@@ -102,12 +104,6 @@ What remains:
   the server refused. Pre-existing - the 404 fix only turned the console message from "Unexpected
   end of JSON input" into `PATCH /api/crm/deals/<id>/stage failed: 404`. Six call sites
   (`DealForm`, `ContactForm`, `OrganizationForm`, `ActivityTimeline`, `Dashboard`, `Pipeline`).
-- **Requests from a website open in the same browser are not reviewed.** Binding to loopback
-  closes the network; it does not stop a page in the user's own browser from sending requests to
-  `localhost:8100` (CSRF), or a rebinding DNS name from reaching it. JSON-only bodies make most
-  writes a CORS-preflighted request, which the server never approves - but nothing here checks an
-  `Origin` or `Host` header, and bodiless POSTs (a projekte scan, a job kill) need no preflight.
-  Worth a review of its own before Bench runs all day alongside ordinary browsing.
 - **The first Projekte scan after a pause can take a minute and a half.** Measured 2026-09-10 on the
   real machine: 95s, then 1.3s for the next one. Neither the walk (66ms) nor git (0.6s) nor the
   `gh` counts (1.7s) explained it warm; `~/Documents`, one of the roots, is synced by iCloud, the

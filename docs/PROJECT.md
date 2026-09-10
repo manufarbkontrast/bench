@@ -149,7 +149,19 @@ These are settled. Changing one is a project-level decision, not an implementati
   and with the macOS firewall off any machine on the same network could reach it - found on the
   real machine on 2026-09-10. `127.0.0.1` rather than `localhost`, which macOS resolves to `::1`
   first: the browser, Node's `fetch` and Vite's proxy all still reach it through `localhost`.
-  `server/test/serve.test.ts` fails if the socket binds anything wider.
+  `server/test/serve.test.ts` fails if the socket binds anything wider, and a lint rule stops any
+  other file calling `listen()` - `index.ts` itself included, which no test can see. `serve`
+  also rejects on a failed listen, so a taken port stops the start instead of printing "Bench
+  running" over another process.
+- **And it answers only its own pages on localhost** - `localOnly`, the first middleware in
+  `createApp`. Loopback keeps other machines out, not web pages in the user's own browser: a DNS
+  name rebound to 127.0.0.1 would make a page same-origin with Bench, free to read the vault and
+  start jobs, so any `Host` that is not `localhost`, `127.0.0.1` or `[::1]` gets a 403; and a
+  cross-site request needs no preflight when it has no body, so `Sec-Fetch-Site: cross-site` gets a
+  403 too, except a plain link to a page - a frame is refused with the rest. A browser too old to
+  send `Sec-Fetch-Site` keeps only the preflight that a JSON body forces, so the bodiless job kill
+  and scan stay open to it; the `Host` check holds in every browser.
+  `server/test/local-only.test.ts` covers both.
 - **Deep-link fallback lives in two places.** `server/src/app.ts` handles production; the
   `appFallback` plugin in `web/vite.config.ts` does the same for the dev server. Without it a
   refresh on `/crm/contacts` serves the Cockpit. Both carry the same `APPS` list, and they have

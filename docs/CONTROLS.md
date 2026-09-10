@@ -62,7 +62,7 @@ per workspace: type-aware linting reaches both tsconfigs through typescript-esli
 | `eslint-plugin-playwright`    | No conditional expects, no `waitForTimeout`                                              |
 | `eslint-config-prettier`      | Last in the config, switching off the rules that would fight Prettier                    |
 
-Two things need no package, only configuration:
+Three things need no package, only configuration:
 
 - The built-in size rules, which enforce "short functions, short modules": `max-lines` 500,
   `max-lines-per-function` 200, `complexity` 15, `max-depth` 4, `max-params` 5. Seed
@@ -80,6 +80,10 @@ Two things need no package, only configuration:
   by design. Note what it does **not** cover: the collision
   [PROJECT.md](./PROJECT.md) warns about is the global stylesheets, and a lint rule cannot see
   CSS. Separate HTML entry points are what keeps those apart. This rule guards the module graph only.
+- **`no-restricted-syntax`**, stopping any file in `server/src/` but `app.ts` from calling
+  `listen()`. Every start has to go through `serve()`, which binds loopback only; a bare `listen()`
+  binds every interface, and did once. The rule exists because the one call that matters sits in
+  `index.ts`, which no test imports - a unit test of `serve()` cannot see it bypassed.
 
 ### Rules deliberately off
 
